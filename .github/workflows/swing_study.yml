@@ -1,0 +1,60 @@
+name: Run swing study
+
+on:
+  workflow_dispatch:
+    inputs:
+      hypothesis_id:
+        description: "Pre-registration id, e.g. H-0001"
+        required: true
+        default: "H-0001"
+      statement:
+        description: "Hypothesis statement"
+        required: true
+        default: "추세추종 기준 전략이 비용 차감 후 KRW-BTC 1시간봉 보유 대비 우위"
+      market:
+        required: true
+        default: "KRW-BTC"
+      start:
+        required: true
+        default: "2021-01-01"
+      end:
+        required: true
+        default: "2026-09-01"
+      registered_by:
+        required: true
+        default: "동동"
+      fold_train_days:
+        required: true
+        default: "30"
+      fold_test_days:
+        required: true
+        default: "14"
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      - name: Run study
+        run: |
+          python3 scripts/run_swing_study.py \
+            --hypothesis-id "${{ inputs.hypothesis_id }}" \
+            --statement "${{ inputs.statement }}" \
+            --market "${{ inputs.market }}" \
+            --start "${{ inputs.start }}" \
+            --end "${{ inputs.end }}" \
+            --registered-by "${{ inputs.registered_by }}" \
+            --fold-train-days "${{ inputs.fold_train_days }}" \
+            --fold-test-days "${{ inputs.fold_test_days }}" \
+            --out "reports/${{ inputs.hypothesis_id }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swing-study-${{ inputs.hypothesis_id }}
+          path: |
+            reports/${{ inputs.hypothesis_id }}.json
+            research/preregistration.jsonl
+          if-no-files-found: warn
