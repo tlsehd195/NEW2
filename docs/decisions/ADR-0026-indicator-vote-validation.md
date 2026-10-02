@@ -1,11 +1,43 @@
 # ADR-0026: 지표 투표 후보 사전등록과 실데이터 검증
 
-**Status:** Proposed
+**Status:** Proposed (시장·구간 선택 대기)
 **Date:** 2026-10-02
-**Deciders:** account owner, Claude Code session
+**Deciders:** account owner (동동, "둘 다"로 사전등록·검증 승인), Claude Code session
 
 ## Context
 
+ADR-0023/0025의 지표 투표 후보 4개(가격 전용/부가데이터 x 보정 지평 5·10일)를 CLAUDE.md의
+검증 순서(사전등록 → locked window → 워크포워드 → PBO/DSR → TEST 1회)로 검증한다.
+이 샌드박스는 Binance 아카이브에 접근할 수 없어서 검증은 GitHub Actions의
+`signal_validation.yml`로만 돌린다.
+
+## 사실 확인 (2026-10-02, `data_coverage.yml` 실행, 등록·락 없음)
+
+BTCUSDT 일봉, 요청 2019-09-08~2022-08-17:
+
+| 데이터 | 범위 | 빈 구간 |
+|---|---|---|
+| 캔들 | 2020-01-01 ~ 2022-08-16 (959개) | 없음 |
+| 펀딩 | 2020-01-01 ~ 2022-08-16 (2877회) | 없음 |
+| 미결제약정(OI) | 2020-09-01 ~ 2022-08-16 (715일) | 없음 |
+
+OI 로더의 컬럼 가정(`create_time`, `sum_open_interest`)은 실제 파일로 맞았다.
+2019-09~12의 캔들·펀딩·OI 누락은 아카이브에 파일이 없어서이고, 채우지 않았다.
+
+## 선택지
+
+- **BTCUSDT 일봉 2020-12-31~2022-08-17**: 이미 락된 구간(2022-08-17~2023-04-06,
+  2024-06-18~) 때문에 쓸 수 있는 구간이 이것뿐이다. 워밍업 346봉을 빼면 워크포워드 폴드가
+  14개로, 승격 기준 16개에 못 미친다. 최선의 결과가 INCONCLUSIVE다.
+- **SOLUSDT 일봉 2021-09-15~2025-01-28**: 락이 없는 구간이고 약 30개 폴드. 승격 기준을
+  판정할 수 있다. TEST(마지막 20%, 약 2024년 5월~2025년 1월)가 영구 락된다.
+
 ## Decision
 
+(선택 후 기록)
+
 ## Consequences
+
+- 어느 쪽이든 후보 4개 모두 한 가설 id로 사전등록하고, 시도 수는 DSR 보정에 들어간다.
+- 결과는 `validation-status-guard`의 라벨(BACKTEST/INCONCLUSIVE 등)과 데이터 출처
+  (`binance_vision_archive`)를 붙여 `PROJECT_STATUS.md`에 기록한다.

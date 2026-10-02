@@ -5,7 +5,7 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-02 (NEW-에서 ML 모델·드리프트 감시 이식 ADR-0022, 지표 투표 앙상블 후보 ADR-0023)**
+**마지막 갱신: 2026-10-02 (지표 투표 v2 후보 추가, ADR-0025/0026; 검증은 시장 선택 대기)**
 
 ## 2026-10-02: NEW-에서 ML 모델·드리프트 감시 이식 (ADR-0022) — 코드만, 검증 전
 
@@ -25,6 +25,18 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
   한 커밋짜리 새 main으로 올렸다(그 이전 커밋 이력은 GitHub에 없다). ADR 번호는 `adr_number.py`가 원격 main이
   없을 때 실패해 0022를 손으로 골랐고, 원격 main이 생긴 뒤 `check`로 충돌 없음을 확인했다.
 - 다음 후보: MLStrategy 사전등록, 페이퍼 러너에 드리프트 연결, 페이퍼 예측 기록을 라이브와 같은 형식으로 저널링.
+
+## 2026-10-02: 지표 투표 v2(변동성 게이트·펀딩·OI) 후보 추가, 검증 대기 (ADR-0025, ADR-0026)
+
+동동님이 "둘 다" 승인: (1) 변동성 게이트와 펀딩비·OI 지표를 붙이고, (2) 사전등록해 실데이터로 검증한다.
+(1)은 코드까지 끝났고 (2)는 시장·구간 선택을 기다린다. **아직 가설 id 없음, TEST 미사용, 검증 전.**
+
+- 코드: 변동성 게이트(진입만 차단), 펀딩 쏠림·OI 확인 투표, `BinanceVisionOpenInterestHistory`,
+  후보 4개 레지스트리 등록, `scripts/check_data_coverage.py` + `data_coverage.yml`(사전점검).
+- 실데이터 확인(Actions, BACKTEST 아님): BTCUSDT 일봉·펀딩 2020-01부터, OI 2020-09부터 빈 날 없음.
+  OI 로더의 컬럼 가정이 실제 아카이브와 맞았다.
+- 막힌 점: BTCUSDT는 락된 구간 때문에 쓸 수 있는 범위가 2020-12-31~2022-08-17뿐이라 폴드 14개
+  (승격 기준 16개 미달). SOLUSDT 2021-09-15~2025-01-28은 폴드 약 30개. 선택은 동동님 답 대기.
 
 ## 2026-10-02: 지표 투표 앙상블 후보 (ADR-0005 부록) — 코드만 추가, 미등록·미검증
 
@@ -232,6 +244,8 @@ RiskEngine → 이벤트 백테스트 → 검증(무결성·워크포워드·PBO
 | 0022 | ML models, leak-free dataset, MLStrategy and drift monitor adopted from NEW- |
 | 0023 | Indicator-vote ensemble candidate |
 | 0024 | Import dev tooling skills and llmwiki MCP from NEW- |
+| 0025 | 지표 투표: 변동성 게이트와 펀딩비·미결제약정 지표 |
+| 0026 | 지표 투표 후보 사전등록과 실데이터 검증 |
 
 ## 지금 무엇을 하고 있었나
 
