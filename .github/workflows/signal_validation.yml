@@ -36,6 +36,15 @@ on:
         required: false
         default: "false"
 
+      max_per_window:
+        description: "Registration budget per 30 days (default 3). Above 3 only with a human decision recorded in budget_adr"
+        required: false
+        default: "3"
+      budget_adr:
+        description: "ADR id recording the human-approved budget raise (required when max_per_window > 3)"
+        required: false
+        default: ""
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -60,6 +69,8 @@ jobs:
           RATIONALE: ${{ inputs.rationale }}
           REGISTERED_BY: ${{ inputs.registered_by }}
           REPLICATION: ${{ inputs.replication }}
+          MAX_PER_WINDOW: ${{ inputs.max_per_window }}
+          BUDGET_ADR: ${{ inputs.budget_adr }}
         run: |
           # shellcheck disable=SC2086
           REPLICATION_FLAG=""
@@ -67,7 +78,8 @@ jobs:
           python3 scripts/run_validation.py --hypothesis-id "$HID" --family "$FAMILY" \
             --strategies $STRATEGIES --symbol "$SYMBOL" --timeframe "$TIMEFRAME" \
             --start "$START" --end "$END" --statement "$STATEMENT" --rationale "$RATIONALE" \
-            --registered-by "$REGISTERED_BY" ${REPLICATION_FLAG} --out reports/validation.json > /dev/null
+            --registered-by "$REGISTERED_BY" ${REPLICATION_FLAG} \
+            --max-per-window "$MAX_PER_WINDOW" ${BUDGET_ADR:+--budget-adr "$BUDGET_ADR"} --out reports/validation.json > /dev/null
       - name: Print report
         if: always()
         run: cat reports/validation.json || echo "no report written"

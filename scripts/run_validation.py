@@ -29,7 +29,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from cointrader.data.models import Timeframe  # noqa: E402
-from cointrader.research.hypotheses import register_checked  # noqa: E402
+from cointrader.research.hypotheses import Budget, register_checked  # noqa: E402
 from cointrader.research.lifecycle import CandidateLedger  # noqa: E402
 from cointrader.research.market_data import load_candles, load_funding, load_futures_terms, load_open_interest  # noqa: E402
 from cointrader.risk.engine import RiskEngine  # noqa: E402
@@ -67,12 +67,17 @@ def main() -> int:
     ap.add_argument("--rationale", required=True)
     ap.add_argument("--registered-by", required=True)
     ap.add_argument("--replication", action="store_true", help="human-declared replication of an identical set")
+    ap.add_argument("--max-per-window", type=int, default=Budget.max_per_window,
+                    help="human-approved registration budget per 30 days; raising it above the default needs --budget-adr")
+    ap.add_argument("--budget-adr", help="ADR that records the human decision to raise the budget (e.g. ADR-0027)")
     ap.add_argument("--log", type=Path, default=REPO / "research" / "preregistration.jsonl")
     ap.add_argument("--locked-path", type=Path, default=REPO / "configs" / "locked_windows.json")
     ap.add_argument("--ledger", type=Path, default=REPO / "research" / "candidate_status.jsonl")
     ap.add_argument("--out", type=Path)
     args = ap.parse_args()
 
+    if args.max_per_window > Budget.max_per_window and not (args.budget_adr or "").startswith("ADR-"):
+        ap.error("--max-per-window above the default needs --budget-adr naming the ADR that records the human approval")
     policy = POLICIES[args.family]
     registry = StrategyRegistry.load()
     ids = args.strategies or sorted(s.strategy_id for s in registry.by_family(args.family)
@@ -86,7 +91,8 @@ def main() -> int:
         success_criteria=dict(policy.success_criteria), registered_by=args.registered_by, registered_at=now,
     )
     log = PreregistrationLog(args.log)
-    register_checked(log, args.log, hypothesis, locked, rationale=args.rationale, replication=args.replication)
+    register_checked(log, args.log, hypothesis, locked, rationale=args.rationale, replication=args.replication,
+                     budget=Budget(max_per_window=args.max_per_window))
 
     tf = Timeframe(args.timeframe)
     # Warm-up history before the registered range (indicator input only; never scored, lock-checked).
