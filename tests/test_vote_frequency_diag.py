@@ -44,3 +44,25 @@ def test_engine_view_reports_counts_per_fold_and_no_returns():
     assert out["folds"] == len(windows) > 0
     assert all({"engine_signals", "trades", "rejected_entries"} <= set(f) for f in out["per_fold"])
     assert "return" not in str(out.keys()).lower()
+
+
+def test_daytrade_kind_is_wired_to_the_15m_strategy_and_policy():
+    cls, tf, horizons = diag.KINDS["daytrade"]
+    s = cls()
+    assert (tf, horizons, s.family, s.timeframe) == ("15m", (16, 48), "daytrade", "15m")
+    assert diag.KINDS["swing"][1:] == ("1d", (5, 10))  # the original diagnostic is unchanged
+    from cointrader.validation.policies import POLICIES
+    assert "daytrade" in POLICIES
+
+
+def test_diagnose_runs_on_the_daytrade_strategy_with_its_own_vol_windows():
+    from datetime import timedelta
+    from cointrader.data.models import Timeframe
+    from cointrader.strategies.daytrade import DayTradeVote
+    strat = DayTradeVote(horizon=16, fit_lookback=200, vol_short=8, vol_long=48)  # small windows keep the test fast
+    candles = make_candles(strat.warmup + 60, timeframe=Timeframe.MINUTE_15, seed=5, market="BTCUSDT")
+    out = diag.diagnose(candles, strat, strat.warmup)
+    n = len(candles) - strat.warmup
+    assert out["bars_evaluated"] + sum(v for k, v in out["reason_counts"].items()
+                                       if k.startswith(("no_verdict", "atr_or_vol"))) == n
+    assert out["strategy_id"].startswith("daytrade_indicator_vote")

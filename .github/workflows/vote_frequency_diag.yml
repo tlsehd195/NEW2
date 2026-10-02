@@ -7,6 +7,10 @@ on:
     paths: [".github/workflows/vote_frequency_diag.yml"]
   workflow_dispatch:
     inputs:
+      kind:
+        description: "swing (1d) or daytrade (15m)"
+        required: false
+        default: "swing"
       symbol:
         required: true
         default: "SOLUSDT"
@@ -31,10 +35,11 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - name: Diagnose
         env:
+          KIND: ${{ inputs.kind || 'swing' }}
           SYMBOL: ${{ inputs.symbol }}
           START: ${{ inputs.start }}
           END: ${{ inputs.end }}
-        run: python3 scripts/diagnose_vote_frequency.py --symbol "$SYMBOL" --start "$START" --end "$END" --out reports/vote_frequency.json > /dev/null
+        run: python3 scripts/diagnose_vote_frequency.py --kind "$KIND" --symbol "$SYMBOL" --start "$START" --end "$END" --out reports/vote_frequency.json > /dev/null
       - name: Print report
         if: always()
         run: cat reports/vote_frequency.json || echo "no report written"
