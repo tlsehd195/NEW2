@@ -92,7 +92,7 @@ def main() -> int:
     )
     log = PreregistrationLog(args.log)
     register_checked(log, args.log, hypothesis, locked, rationale=args.rationale, replication=args.replication,
-                     budget=Budget(max_per_window=args.max_per_window))
+                     budget=Budget(max_per_window=args.max_per_window, max_all_kinds=args.max_per_window))
 
     tf = Timeframe(args.timeframe)
     # Warm-up history before the registered range (indicator input only; never scored, lock-checked).

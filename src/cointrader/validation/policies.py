@@ -43,4 +43,8 @@ class ValidationPolicy:
 SWING_POLICY = ValidationPolicy("swing", fold_train=timedelta(days=60), fold_test=timedelta(days=30))
 SCALP_POLICY = ValidationPolicy("scalp", fold_train=timedelta(days=3), fold_test=timedelta(days=4))
 
-POLICIES = {"swing": SWING_POLICY, "scalp": SCALP_POLICY}
+# Intraday (15m) day trading: 14 d train / 7 d test folds, so 16 folds need ~126 d of decision range
+# (ADR-0030/0031).
+DAYTRADE_POLICY = ValidationPolicy("daytrade", fold_train=timedelta(days=14), fold_test=timedelta(days=7))
+
+POLICIES = {"swing": SWING_POLICY, "scalp": SCALP_POLICY, "daytrade": DAYTRADE_POLICY}

@@ -205,7 +205,21 @@ def test_locked_observed_candidates_rationale_and_budget():
     prior = [row(hyp(f"H-{i}", [f"swing_{i}"], at=NOW - timedelta(days=i))) for i in range(3)]
     with pytest.raises(HypothesisRefused, match="budget"):
         check_new_hypothesis(hyp("H-9", ["swing_new"]), prior, [], rationale=RATIONALE, budget=Budget(3))
-    check_new_hypothesis(hyp("H-9", ["scalp_new"]), prior, [], rationale=RATIONALE, budget=Budget(3))
+    # per-kind buckets stay independent when the combined cap is not the binding one
+    check_new_hypothesis(hyp("H-9", ["scalp_new"]), prior, [], rationale=RATIONALE,
+                         budget=Budget(3, max_all_kinds=99))
+
+
+def test_combined_cap_blocks_a_new_kind_while_other_kinds_fill_the_window():
+    prior = [row(hyp(f"H-{i}", [f"swing_{i}"], at=NOW - timedelta(days=i))) for i in range(3)]
+    with pytest.raises(HypothesisRefused, match="combined registration cap"):
+        check_new_hypothesis(hyp("H-9", ["daytrade_new"]), prior, [], rationale=RATIONALE)
+    # the 30-day window frees it: 31 days later every swing row has expired
+    later = hyp("H-9", ["daytrade_new"], at=NOW + timedelta(days=31))
+    check_new_hypothesis(later, prior, [], rationale=RATIONALE)
+    # an explicit ADR-backed raise lifts both limits together (run_validation passes both)
+    check_new_hypothesis(hyp("H-9", ["daytrade_new"]), prior, [], rationale=RATIONALE,
+                         budget=Budget(4, max_all_kinds=4))
 
 
 def test_register_checked_writes_log_and_rationale(tmp_path):
@@ -222,3 +236,12 @@ def test_register_checked_writes_log_and_rationale(tmp_path):
 def test_criteria_from_hypothesis():
     c = criteria_from(hyp("H-1", ["swing_q"]), POLICY)
     assert (c.max_pbo, c.min_deflated_sharpe, c.min_folds) == (0.2, 0.95, 16)
+
+
+def test_daytrade_kind_has_its_own_policy_and_is_a_known_family():
+    from cointrader.strategies.registry import FAMILIES
+    from cointrader.validation.policies import POLICIES
+    assert "daytrade" in FAMILIES
+    p = POLICIES["daytrade"]
+    assert (p.family, p.fold_train, p.fold_test) == ("daytrade", timedelta(days=14), timedelta(days=7))
+    assert (p.num_groups, p.min_folds) == (8, 16)  # same promotion rigor as the other kinds
