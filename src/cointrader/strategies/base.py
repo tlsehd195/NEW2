@@ -83,7 +83,7 @@ def flat(reason: str, *, regime: str = Regime.UNDEFINED.value, features: Optiona
 
 class SignalStrategy(Protocol):
     strategy_id: str  # unique, stable: name + version + parameters
-    family: str  # "swing" | "scalp"
+    family: str  # "swing" | "scalp" | "daytrade"
     version: str
     timeframe: str  # Timeframe value it is designed for
 

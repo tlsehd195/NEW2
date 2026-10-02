@@ -45,7 +45,7 @@ FACTORIES = {
     "IndicatorVote": IndicatorVote,
 }
 
-FAMILIES = ("swing", "scalp")
+FAMILIES = ("swing", "scalp", "daytrade")
 
 
 class UnregisteredStrategy(LookupError):

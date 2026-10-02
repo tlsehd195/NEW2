@@ -16,7 +16,8 @@ A new hypothesis is refused when:
   market (re-testing a known answer);
 - it has no written rationale saying what is new;
 - the rolling registration budget is spent (default: 3 hypotheses per
-  30 days per family), so the loop cannot brute-force its way to a pass.
+  30 days per family, and 3 per 30 days over all families combined, ADR-0031), so the loop cannot
+  brute-force its way to a pass.
 """
 
 from __future__ import annotations
@@ -43,6 +44,8 @@ class HypothesisRefused(ValueError):
 class Budget:
     max_per_window: int = 3
     window: timedelta = timedelta(days=30)
+    # Cap over every kind combined (ADR-0031): a new kind's own per-kind bucket cannot add trial capacity.
+    max_all_kinds: int = 3
 
 
 def _family(candidates: Sequence[str]) -> str:
@@ -83,6 +86,11 @@ def check_new_hypothesis(
               and datetime.fromisoformat(r["registered_at"]) >= hypothesis.registered_at - budget.window]
     if len(recent) >= budget.max_per_window:
         problems.append(f"registration budget spent: {len(recent)} {fam} hypotheses within {budget.window}")
+    recent_all = [r for r in log_rows
+                  if datetime.fromisoformat(r["registered_at"]) >= hypothesis.registered_at - budget.window]
+    if len(recent_all) >= budget.max_all_kinds:
+        problems.append(f"combined registration cap spent: {len(recent_all)} hypotheses of all kinds within "
+                        f"{budget.window} (max {budget.max_all_kinds})")
     if problems:
         raise HypothesisRefused("; ".join(problems))
 
