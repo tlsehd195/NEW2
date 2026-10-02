@@ -37,6 +37,9 @@ and 3 of the ADR-0030 plan.
 ## Not done
 
 - No hypothesis registered, no budget used. Earliest default registration is still 2026-10-29 02:32:24 UTC.
-- Speed: the vote refits calibrators every bar, about 100x slower on 15m than on 1d. A real run needs the
-  incremental/cached calibrator (next PR) and a timing smoke test on Actions.
+- Speed (measured, correcting ADR-0030's "about 100x slower, needs an incremental calibrator"): a timing run
+  on generated candles (timing only, not a result) took ~9 ms per decision bar and 6.6 s for one fold
+  (1,200 warm-up bars + 672 scored bars). A 16-fold study of four candidates is therefore on the order
+  of 10 minutes plus integrity checks and the TEST, which fits one Actions job. The speed PR is dropped
+  unless a real-data timing run on Actions says otherwise.
 - Coverage preflight and signal-count diagnostic on unlocked 15m ranges (no returns) come after the speed work.
