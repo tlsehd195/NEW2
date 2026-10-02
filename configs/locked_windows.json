@@ -1085,5 +1085,18 @@
       "grid_neutral_range_filter_v1"
     ],
     "note": "H-0021 grid BNBUSDT 15m; TEST used once by run_grid_validation.py at 2026-09-29T04:34:15.812183+00:00"
+  },
+  {
+    "name": "TEST-22",
+    "market": "SOLUSDT",
+    "start": "2024-06-21T00:00:00+00:00",
+    "end": "2025-01-29T00:00:00+00:00",
+    "observed_by": [
+      "swing_indicator_vote_h5_c0.6_v2",
+      "swing_indicator_vote_h10_c0.6_v2",
+      "swing_indicator_vote_side_h5_c0.6_v2",
+      "swing_indicator_vote_side_h10_c0.6_v2"
+    ],
+    "note": "H-0022 swing SOLUSDT 1d; TEST used once by run_validation.py at 2026-10-02T15:31:12.125090+00:00"
   }
 ]
