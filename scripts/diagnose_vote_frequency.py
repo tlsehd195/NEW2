@@ -56,7 +56,7 @@ def diagnose(candles: list, strat: IndicatorVote, first_index: int) -> dict:
                 reasons.get("no_verdict(warmup_or_indicator_or_side_data_missing)", 0) + 1
             continue
         atr = ind.atr(list(view[-(strat.atr_period * 4 + 1):]), strat.atr_period)
-        ratio = volatility_ratio(view)
+        ratio = volatility_ratio(view, short=strat.vol_short, long=strat.vol_long)
         if atr is None or atr <= 0 or ratio is None:
             reasons["atr_or_vol_unavailable"] = reasons.get("atr_or_vol_unavailable", 0) + 1
             continue

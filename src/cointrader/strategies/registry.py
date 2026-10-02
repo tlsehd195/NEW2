@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from cointrader.strategies.daytrade import DayTradeVote
 from cointrader.strategies.indicator_vote import IndicatorVote
 from cointrader.strategies.scalp import MicrostructureMomentum, RangeBreakoutVolume, ShortTermMeanReversion, VwapReversion
 from cointrader.strategies.swing import (
@@ -43,6 +44,7 @@ FACTORIES = {
     "ShortTermMeanReversion": ShortTermMeanReversion,
     "MicrostructureMomentum": MicrostructureMomentum,
     "IndicatorVote": IndicatorVote,
+    "DayTradeVote": DayTradeVote,
 }
 
 FAMILIES = ("swing", "scalp", "daytrade")

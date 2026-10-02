@@ -49,6 +49,14 @@ class IndicatorVote:
     timeframe: str = "1d"
     family: str = "swing"
     version: str = "2"
+    # Timeframe knobs; the defaults are the daily (swing) behaviour. The 15m day-trade variant sets them (ADR-0032).
+    score_scale: float = 1.0  # multiplies the return-sized score saturation constants
+    vol_short: int = 10  # bars of the short realized-vol window
+    vol_long: int = 60
+    bars_per_day: int = 1  # aligns daily open-interest points with the price window
+    max_hold_bars: Optional[int] = None  # engine closes a position held this many bars (None = no time stop)
+    max_entries_per_day: Optional[int] = None  # engine cap per UTC day (None = none)
+    quality_window_bars: Optional[int] = None  # engine data-quality look-back (None = warm-up bars)
     # Injected after construction; never part of id/equality/repr.
     side: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
     _cache: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
@@ -60,11 +68,17 @@ class IndicatorVote:
             raise ValueError("fit_lookback must be >= 10 * horizon")
         if not 0 < self.vol_gate_lo < 1 < self.vol_gate_hi:
             raise ValueError("need 0 < vol_gate_lo < 1 < vol_gate_hi")
+        if not self.score_scale > 0 or not 2 <= self.vol_short < self.vol_long or self.bars_per_day < 1:
+            raise ValueError("need score_scale > 0, 2 <= vol_short < vol_long, bars_per_day >= 1")
+        for name in ("max_hold_bars", "max_entries_per_day", "quality_window_bars"):
+            v = getattr(self, name)
+            if v is not None and v < 1:
+                raise ValueError(f"{name} must be >= 1 when set")
 
     @property
     def strategy_id(self) -> str:
         side = "_side" if self.use_side_data else ""
-        return f"swing_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}_v{self.version}"
+        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}_v{self.version}"
 
     @property
     def warmup(self) -> int:
@@ -72,10 +86,18 @@ class IndicatorVote:
 
     @property
     def parameters(self) -> dict:
-        return {"horizon": self.horizon, "fit_lookback": self.fit_lookback, "enter_confidence": self.enter_confidence,
-                "exit_confidence": self.exit_confidence, "min_agree": self.min_agree, "stop_atr": self.stop_atr,
-                "atr_period": self.atr_period, "allow_short": self.allow_short, "use_side_data": self.use_side_data,
-                "vol_gate_hi": self.vol_gate_hi, "vol_gate_lo": self.vol_gate_lo}
+        params = {"horizon": self.horizon, "fit_lookback": self.fit_lookback, "enter_confidence": self.enter_confidence,
+                  "exit_confidence": self.exit_confidence, "min_agree": self.min_agree, "stop_atr": self.stop_atr,
+                  "atr_period": self.atr_period, "allow_short": self.allow_short, "use_side_data": self.use_side_data,
+                  "vol_gate_hi": self.vol_gate_hi, "vol_gate_lo": self.vol_gate_lo}
+        # Listed only when set, so the swing candidates' recorded parameters stay exactly as registered.
+        extra = {"score_scale": self.score_scale, "vol_short": self.vol_short, "vol_long": self.vol_long,
+                 "bars_per_day": self.bars_per_day, "max_hold_bars": self.max_hold_bars,
+                 "max_entries_per_day": self.max_entries_per_day, "quality_window_bars": self.quality_window_bars}
+        defaults = {"score_scale": 1.0, "vol_short": 10, "vol_long": 60, "bars_per_day": 1, "max_hold_bars": None,
+                    "max_entries_per_day": None, "quality_window_bars": None}
+        params.update({k: v for k, v in extra.items() if v != defaults[k]})
+        return params
 
     def attach_side_data(self, *, funding: Sequence, open_interest: Sequence) -> "IndicatorVote":
         """A copy holding the (time-sorted) funding and open-interest records.
@@ -85,12 +107,16 @@ class IndicatorVote:
 
     # ------------------------------------------------------------ scores
     def _scores_at(self, prefix: Sequence[Candle]) -> Optional[dict]:
-        sc = raw_scores(prefix, DEFAULT_PANEL)
+        sc = raw_scores(prefix, DEFAULT_PANEL, scale=self.score_scale)
         if sc is None or not self.use_side_data:
             return sc
         now = prefix[-1].close_time
         fund = funding_crowding_score(known_funding(self.side.get("funding", ()), now))
-        oi = oi_confirmation_score(known_open_interest(self.side.get("oi", ()), now), [c.close for c in prefix[-30:]])
+        n = len(prefix)
+        # One close per day-step, newest last, so the price move spans the same days as the daily OI points
+        # (bars_per_day=1 is exactly the previous `prefix[-30:]`).
+        closes = [prefix[n - 1 - k * self.bars_per_day].close for k in range(29, -1, -1) if n - 1 - k * self.bars_per_day >= 0]
+        oi = oi_confirmation_score(known_open_interest(self.side.get("oi", ()), now), closes)
         if fund is None or oi is None:
             return None  # fail-closed: a side vote is missing, so no panel at this bar
         return {**sc, "funding_crowding": fund, "oi_confirm": oi}
@@ -140,7 +166,7 @@ class IndicatorVote:
         if v is None:
             return flat("warmup_or_indicator_unavailable")
         atr = ind.atr(list(history[-(self.atr_period * 4 + 1):]), self.atr_period)
-        ratio = volatility_ratio(history)
+        ratio = volatility_ratio(history, short=self.vol_short, long=self.vol_long)
         # The risk engine refuses entries in an UNDEFINED regime; the regime is context only, it is not a vote.
         regime = classify_regime(history[len(history) - _REGIME.warmup:], _REGIME).regime.value
         feats = {"p_long": v.p_long, "agree_long": v.agree_long, "agree_short": v.agree_short, "vol_ratio": ratio,
