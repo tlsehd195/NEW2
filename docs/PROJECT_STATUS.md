@@ -230,6 +230,8 @@ RiskEngine → 이벤트 백테스트 → 검증(무결성·워크포워드·PBO
 | 0018 | Volatility-managed cross-sectional momentum (H-0018) |
 | 0021 | Grid trading (frequant-style) as a validated candidate |
 | 0022 | ML models, leak-free dataset, MLStrategy and drift monitor adopted from NEW- |
+| 0023 | Indicator-vote ensemble candidate |
+| 0024 | Import dev tooling skills and llmwiki MCP from NEW- |
 
 ## 지금 무엇을 하고 있었나
 
