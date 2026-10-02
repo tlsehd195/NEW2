@@ -45,6 +45,11 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 - 알려진 한계: 기본 패널 6개 중 추세·모멘텀 계열 4개는 상관이 높다(합성 데이터 평균 |상관| 0.70).
   ADR 번호 발급 스크립트는 원격 main이 비어 있어 실행 못 해서 ADR-0005에 부록으로 붙였다.
 
+## 2026-10-02: NEW- 개발 도구 이식 (ADR-0024)
+
+NEW-에서 범용 스킬 15개, llmwiki MCP 번들, 빈 `skill-observations/`와 `.wiki/` 구조를 가져왔다.
+archify, 주식 전용 워크플로, claude-mem 계열 설치 스크립트는 제외. 전략/검증 상태는 변화 없음.
+
 ## 2026-09-29: H-0021 그리드 매매 (프리퀀트식, ADR-0021) — 실패, TEST-21 락
 
 frequant.kr이 파는 그리드 매매를 같은 절차로 검증했다. BNBUSDT 선물 15분봉, 2023-04-22~2026-01-01,
@@ -225,6 +230,8 @@ RiskEngine → 이벤트 백테스트 → 검증(무결성·워크포워드·PBO
 | 0018 | Volatility-managed cross-sectional momentum (H-0018) |
 | 0021 | Grid trading (frequant-style) as a validated candidate |
 | 0022 | ML models, leak-free dataset, MLStrategy and drift monitor adopted from NEW- |
+| 0023 | Indicator-vote ensemble candidate |
+| 0024 | Import dev tooling skills and llmwiki MCP from NEW- |
 
 ## 지금 무엇을 하고 있었나
 
