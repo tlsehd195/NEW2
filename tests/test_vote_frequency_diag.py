@@ -24,3 +24,23 @@ def test_diagnose_counts_every_evaluated_bar_once():
         == out["bars_evaluated"]
     assert out["threshold_grid_signal_counts_only"]["enter0.55_agree0.5"]["entry_bars"] \
         >= out["threshold_grid_signal_counts_only"]["enter0.65_agree0.7"]["entry_bars"]
+
+
+def test_engine_view_reports_counts_per_fold_and_no_returns():
+    from datetime import timedelta
+    from cointrader.backtest.event_engine import FuturesTerms
+    from cointrader.data.models import Timeframe
+    from cointrader.risk.engine import RiskEngine
+    from cointrader.settings import load_markets, load_risk
+    from cointrader.validation.walk_forward import generate_walk_forward_windows
+
+    candles = make_candles(420, timeframe=Timeframe.DAY_1, seed=4, market="SOLUSDT")
+    strat = IndicatorVote()
+    start = candles[strat.warmup].open_time
+    windows = generate_walk_forward_windows(start, candles[-1].open_time, train=timedelta(days=20),
+                                            test=timedelta(days=10), step=timedelta(days=10))
+    filters, _, _ = load_markets()
+    out = diag.engine_view(candles, strat, windows, RiskEngine(load_risk(), filters), FuturesTerms(assume_no_funding=True))
+    assert out["folds"] == len(windows) > 0
+    assert all({"engine_signals", "trades", "rejected_entries"} <= set(f) for f in out["per_fold"])
+    assert "return" not in str(out.keys()).lower()

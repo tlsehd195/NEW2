@@ -107,6 +107,29 @@ def diagnose(candles: list, strat: IndicatorVote, first_index: int) -> dict:
     }
 
 
+def engine_view(candles: list, strat: IndicatorVote, windows: list, risk, futures) -> dict:
+    """What the event engine actually did per walk-forward fold: counts and position size only -- returns and
+    PnL are deliberately not read out."""
+    from cointrader.backtest.event_engine import run_event_backtest  # noqa: E402
+    tf_delta = candles[1].open_time - candles[0].open_time
+    folds, rejected = [], {}
+    for w in windows:
+        warm_from = min(w.train_start, w.test_start - (strat.warmup + 1) * tf_delta)
+        seg = [c for c in candles if warm_from <= c.open_time < w.test_end]
+        r = run_event_backtest(seg, strat, risk, futures=futures, score_from=w.test_start)
+        for k, n in r.rejected_entries.items():
+            rejected[k] = rejected.get(k, 0) + n
+        notional = [t.quantity * t.entry_fill / t.equity_at_entry for t in r.trades if t.equity_at_entry]
+        folds.append({"test_start": w.test_start.date().isoformat(), "engine_signals": r.signals,
+                      "trades": len(r.trades), "rejected_entries": dict(r.rejected_entries),
+                      "entry_notional_over_equity": [round(x, 4) for x in notional]})
+    all_notional = [x for f in folds for x in f["entry_notional_over_equity"]]
+    return {"strategy_id": strat.strategy_id, "folds": len(folds),
+            "folds_with_engine_signal": sum(1 for f in folds if f["engine_signals"]),
+            "folds_with_trade": sum(1 for f in folds if f["trades"]), "total_trades": sum(f["trades"] for f in folds),
+            "rejected_entries_total": rejected, "entry_notional_over_equity": _q(all_notional), "per_fold": folds}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--symbol", required=True)
@@ -137,12 +160,24 @@ def main() -> int:
                f"funding archive gaps: {len(n1)}", f"open-interest archive gaps: {len(n2)} (days)",
                f"side data: {len(funding)} funding records, {len(oi)} open-interest days"],
            "candidates": []}
+    from cointrader.research.market_data import load_futures_terms  # noqa: E402
+    from cointrader.risk.engine import RiskEngine  # noqa: E402
+    from cointrader.settings import load_markets, load_risk  # noqa: E402
+    from cointrader.validation.policies import POLICIES  # noqa: E402
+    from cointrader.validation.walk_forward import generate_walk_forward_windows  # noqa: E402
+    pol = POLICIES["swing"]
+    windows = generate_walk_forward_windows(start, end, train=pol.fold_train, test=pol.fold_test, step=pol.fold_test)
+    futures, _ = load_futures_terms(args.symbol, start, end)
+    filters, _, _ = load_markets()
+    risk = RiskEngine(load_risk(), filters)
+    out["engine_per_fold"] = []
     for h in (5, 10):
         for side in (False, True):
             s = IndicatorVote(horizon=h, use_side_data=side)
             if side:
                 s = s.attach_side_data(funding=funding, open_interest=oi)
             out["candidates"].append(diagnose(candles, s, first))
+            out["engine_per_fold"].append(engine_view(candles, s, windows, risk, futures))
     text = json.dumps(out, ensure_ascii=False, indent=2)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
