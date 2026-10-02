@@ -111,6 +111,28 @@ class TestKlineArchive:
         assert [c.open_time for c in candles] == [t for t, *_ in rows]
         assert all(c.source == "binance_vision_archive" for c in candles)
 
+    def test_missing_monthly_falls_back_to_daily_files_and_reports_missing_days(self):
+        d0 = datetime(2019, 9, 8, tzinfo=timezone.utc)
+        base = "https://data.binance.vision/data/futures/um/daily/klines/BTCUSDT/1d/BTCUSDT-1d-"
+        archives = {
+            f"{base}2019-09-08.zip": _kline_zip("BTCUSDT", "1d", "2019-09-08", [(d0, 1.0, 2.0, 0.5, 1.5, 9.0)]),
+            f"{base}2019-09-10.zip": _kline_zip("BTCUSDT", "1d", "2019-09-10",
+                                                [(d0 + timedelta(days=2), 1.0, 2.0, 0.5, 1.5, 9.0)]),
+        }
+        client = BinanceVisionFuturesCandles(transport=lambda url: archives.get(url),
+                                             now=lambda: datetime(2020, 1, 1, tzinfo=timezone.utc))
+        candles = client.fetch("BTCUSDT", Timeframe.DAY_1, d0, datetime(2019, 9, 11, tzinfo=timezone.utc))
+        assert [c.open_time.day for c in candles] == [8, 10]
+        assert all(c.source == "binance_vision_archive" for c in candles)
+        assert [g.at.day for g in client.last_gaps] == [9]
+
+    def test_month_with_neither_monthly_nor_daily_is_one_gap(self):
+        client = BinanceVisionFuturesCandles(transport=lambda url: None,
+                                             now=lambda: datetime(2020, 1, 1, tzinfo=timezone.utc))
+        assert client.fetch("BTCUSDT", Timeframe.DAY_1, datetime(2019, 3, 1, tzinfo=timezone.utc),
+                            datetime(2019, 4, 1, tzinfo=timezone.utc)) == []
+        assert len(client.last_gaps) == 1 and "no daily files either" in client.last_gaps[0].detail
+
     def test_unsupported_timeframe_rejected(self):
         client = BinanceVisionFuturesCandles(transport=lambda url: None)
         with pytest.raises(ValueError):
