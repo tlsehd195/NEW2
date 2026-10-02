@@ -294,7 +294,10 @@ def run_event_backtest(
     if futures.margin_leverage <= 0:
         raise ValueError("margin_leverage must be > 0")
     warmup = strategy.warmup if warmup is None else warmup
-    quality_window = quality_window or warmup
+    quality_window = quality_window or getattr(strategy, "quality_window_bars", None) or warmup
+    max_hold = getattr(strategy, "max_hold_bars", None)
+    max_entries_per_day = getattr(strategy, "max_entries_per_day", None)
+    entries_by_day: Counter = Counter()
     assumptions = [
         f"fees taker={costs.taker_fee} maker={costs.maker_fee}",
         f"half_spread={costs.half_spread} (assumed, candles carry no book)",
@@ -551,6 +554,8 @@ def run_event_backtest(
             continue
         sig = strategy.signal(PrefixView(candles, i + 1))
         if position is not None:
+            if max_hold is not None and pending_exit is None and i - position.entry_index >= max_hold:
+                pending_exit = (i + costs.latency_bars, "time_stop")
             if pending_exit is None and ((position.direction > 0 and (sig.exit_long or sig.entry < 0))
                                          or (position.direction < 0 and (sig.exit_short or sig.entry > 0))):
                 pending_exit = (i + costs.latency_bars, "signal_exit")
@@ -558,6 +563,9 @@ def run_event_backtest(
         if sig.entry == 0 or pending is not None:
             continue
         signals += 1
+        if max_entries_per_day is not None and entries_by_day[now.date()] >= max_entries_per_day:
+            rejected["entry_cap_per_day"] += 1
+            continue
         lo = bisect.bisect_left(issue_times, candles[max(0, i - quality_window)].open_time)
         hi = bisect.bisect_right(issue_times, bar.open_time)
         dq = ("candle_issue_in_window",) if hi > lo else ()
@@ -576,6 +584,7 @@ def run_event_backtest(
         limit = None
         if costs.entry_order == "limit":
             limit = filters.round_price(bar.close * (1 - sig.entry * costs.limit_offset), up=sig.entry < 0)
+        entries_by_day[now.date()] += 1
         act = i + costs.latency_bars
         pending = _PendingEntry(sig.entry, decision.quantity, act, act + costs.limit_ttl_bars - 1, limit,
                                 sig.stop_distance, sig.take_profit_distance, sig.trailing_distance, sig.regime,

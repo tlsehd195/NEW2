@@ -100,9 +100,16 @@ def _obv_slope(window: Sequence[Candle]) -> float:
     return 0.0 if total == 0 else (series[-1] - series[0]) / total
 
 
-def raw_scores(history: Sequence[Candle], panel: Optional[Sequence[str]] = None) -> Optional[dict[str, float]]:
+def raw_scores(history: Sequence[Candle], panel: Optional[Sequence[str]] = None, *,
+               scale: float = 1.0) -> Optional[dict[str, float]]:
     """Signed score in (-1, 1) per indicator, or None when any input is
-    missing (fail-closed: an incomplete panel is not a vote)."""
+    missing (fail-closed: an incomplete panel is not a vote).
+
+    `scale` multiplies the saturation constants of the return-sized scores (`ema_trend`, `roc`, `vwap_dev`),
+    which are tuned to daily moves; 1.0 is the swing/daily behaviour. The other scores are already
+    dimensionless (RSI, Donchian, %B, OBV, ATR-normalised MACD, stochastic, CCI, MFI)."""
+    if not scale > 0:
+        raise ValueError("scale must be > 0")
     if len(history) < MIN_BARS:
         return None
     h = history[len(history) - MIN_BARS:]
@@ -124,8 +131,8 @@ def raw_scores(history: Sequence[Candle], panel: Optional[Sequence[str]] = None)
     px = closes[-1]
     lo, hi = don
     out = {
-        "ema_trend": _squash(parts["ema_trend"], 0.03),
-        "roc": _squash(parts["roc"], 0.05),
+        "ema_trend": _squash(parts["ema_trend"], 0.03 * scale),
+        "roc": _squash(parts["roc"], 0.05 * scale),
         "rsi": (parts["rsi"] - 50.0) / 50.0,
         "ma_alignment": float(parts["ma_alignment"]),
         "macd_hist": _squash(macd[2] / atr, 0.25),
@@ -134,7 +141,7 @@ def raw_scores(history: Sequence[Candle], panel: Optional[Sequence[str]] = None)
         "cci": _squash(_cci(w20), 100.0),
         # Mean-reversion indicators vote AGAINST stretch: high %B -> bearish.
         "bollinger_b": -_squash(bb["zscore"], 2.0),
-        "vwap_dev": -_squash(parts["vwap_dev"], 0.02),
+        "vwap_dev": -_squash(parts["vwap_dev"], 0.02 * scale),
         "obv_slope": _squash(_obv_slope(h), 0.3),
         "mfi": _mfi(w14),
     }
