@@ -316,6 +316,20 @@ class _KlineArchiveCandles:
         self._now = now
         self.last_gaps: tuple[ArchiveGap, ...] = ()
 
+    def _fetch_days(self, symbol, timeframe, interval, first_day, stop, start, end, received_at, by_time) -> list[ArchiveGap]:
+        gaps: list[ArchiveGap] = []
+        for day in _days(first_day, stop):
+            url = f"{self._base_url}/daily/klines/{symbol}/{interval}/{symbol}-{interval}-{day:%Y-%m-%d}.zip"
+            body = self._transport(url)
+            if body is None:
+                gaps.append(ArchiveGap(day, f"daily klines archive missing: {url}"))
+                continue
+            for row in _parse_csv_rows(body, KLINE_COLUMNS):
+                c = _kline_row_to_candle(symbol, timeframe, row, received_at, source=self._source)
+                if start <= c.open_time < end and c.close_time <= received_at:
+                    by_time[c.open_time] = c
+        return gaps
+
     def fetch(self, symbol: str, timeframe: Timeframe, start: datetime, end: datetime) -> list[Candle]:
         require_aware("start", start)
         require_aware("end", end)
@@ -333,24 +347,24 @@ class _KlineArchiveCandles:
             if month_end <= received_at:
                 url = f"{self._base_url}/monthly/klines/{symbol}/{interval}/{symbol}-{interval}-{month_start:%Y-%m}.zip"
                 body = self._transport(url)
-                if body is None:
-                    gaps.append(ArchiveGap(month_start, f"monthly klines archive missing: {url}"))
-                    continue
-                for row in _parse_csv_rows(body, KLINE_COLUMNS):
-                    c = _kline_row_to_candle(symbol, timeframe, row, received_at, source=self._source)
-                    if start <= c.open_time < end and c.close_time <= received_at:
-                        by_time[c.open_time] = c
-            else:
-                for day in _days(max(month_start, start), min(month_end, end)):
-                    url = f"{self._base_url}/daily/klines/{symbol}/{interval}/{symbol}-{interval}-{day:%Y-%m-%d}.zip"
-                    body = self._transport(url)
-                    if body is None:
-                        gaps.append(ArchiveGap(day, f"daily klines archive missing: {url}"))
-                        continue
+                if body is not None:
                     for row in _parse_csv_rows(body, KLINE_COLUMNS):
                         c = _kline_row_to_candle(symbol, timeframe, row, received_at, source=self._source)
                         if start <= c.open_time < end and c.close_time <= received_at:
                             by_time[c.open_time] = c
+                    continue
+                # Monthly file absent (e.g. a symbol's first, partial month): fall back to its daily files.
+                # Same archive, same `source`; every day still missing is reported as a gap.
+                first_day, stop = max(month_start, start), min(month_end, end)
+                month_gaps = self._fetch_days(symbol, timeframe, interval, first_day, stop, start, end,
+                                              received_at, by_time)
+                if len(month_gaps) == len(list(_days(first_day, stop))):
+                    gaps.append(ArchiveGap(month_start, f"monthly klines archive missing (no daily files either): {url}"))
+                else:
+                    gaps.extend(month_gaps)
+            else:
+                gaps.extend(self._fetch_days(symbol, timeframe, interval, max(month_start, start),
+                                             min(month_end, end), start, end, received_at, by_time))
         self.last_gaps = tuple(gaps)
         return [c for _, c in sorted(by_time.items())]
 
