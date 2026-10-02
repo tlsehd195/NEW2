@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "llmwiki": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "vendor/llmwiki-mcp/bin.bundle.cjs",
+        ".wiki"
+      ]
+    }
+  }
+}
