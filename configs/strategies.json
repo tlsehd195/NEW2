@@ -283,7 +283,8 @@
       "1d"
     ],
     "markets": [
-      "BTCUSDT"
+      "BTCUSDT",
+      "SOLUSDT"
     ],
     "version": "2",
     "warmup": 346,
@@ -312,7 +313,8 @@
       "1d"
     ],
     "markets": [
-      "BTCUSDT"
+      "BTCUSDT",
+      "SOLUSDT"
     ],
     "version": "2",
     "warmup": 351,
@@ -341,7 +343,8 @@
       "1d"
     ],
     "markets": [
-      "BTCUSDT"
+      "BTCUSDT",
+      "SOLUSDT"
     ],
     "version": "2",
     "warmup": 346,
@@ -370,7 +373,8 @@
       "1d"
     ],
     "markets": [
-      "BTCUSDT"
+      "BTCUSDT",
+      "SOLUSDT"
     ],
     "version": "2",
     "warmup": 351,
