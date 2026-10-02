@@ -25,9 +25,29 @@ Why this is a better fit than scalping for this codebase:
 
 - New strategy family `daytrade` (`candidates[0]` starts with `daytrade_`, so it has its own
   registration budget, separate from `swing_`).
-- **Direction** from closed **1d** and **1h** bars; **entry timing** from **15m** bars. 5m is not used
-  (cost share and bar count grow, signal does not).
+- **Direction** from closed **1d** and **1h** bars; **entry timing** from **15m** bars (default) or
+  **5m** bars (option, see below). 1m/3m are not used.
 - Exits: 2.5 ATR(1h) stop, vote reversal on 1h, hard time stop at 48 h.
+
+#### 5m vs 15m for entry timing (the owner asked whether 5m works: yes, as an option)
+
+| | 15m | 5m |
+|---|---|---|
+| bars per year per symbol | ~35k | ~105k (3x) |
+| backtest speed | ~100x slower than 1d | ~300x slower than 1d; needs the caching work first |
+| latency model (1 bar) | 15 min of slippage on market entry | 5 min, tighter fills |
+| entry signals | fewer, smoother | more, noisier; more false timing triggers |
+| missing-bar exposure | 1 hole blocks a shorter span | 3x more holes to catch; time-based quality window mandatory |
+| cost per trade | same (0.12–0.20% round trip) | same; but more entries means more total cost if the 1h/1d gate does not cap trades |
+
+Cost per trade does not depend on the timing bar; total cost does, through trade count. So the rule
+is the same for both: **the 1h/1d layers decide whether a trade may exist at all, the timing bar only
+chooses when inside that window**, and a per-day entry cap (proposal: 2 per symbol per day) bounds
+frequency. Expected: 5m gives somewhat earlier, better-priced entries but not a different edge,
+because direction still comes from 1h/1d. It also multiplies candidate count, so 15m and 5m are
+**separate pre-registered candidate sets, never tuned against each other on the same TEST**. Proposal:
+validate 15m first, then 5m as its own hypothesis. This is a trade-frequency and speed argument,
+not a measured result.
 
 ### 2. Multi-timeframe vote
 
@@ -37,7 +57,7 @@ Reuse `IndicatorVote` per timeframe, unchanged in calibration (Platt, L2=5, real
 |-------|------|---------|------|
 | regime | 1d | 5 d | side filter: only trade with the sign of P_1d (needs P_1d >= 0.55 on that side) |
 | direction | 1h | 12–24 bars | main vote, same 6 voters, enter at P >= 0.60 and >= 60% agreement |
-| timing | 15m | 8 bars | entry trigger: P_15m on the same side, or pull-back (bollinger_b / rsi vote flips to the side) |
+| timing | 15m (or 5m) | 8 bars (24 bars at 5m) | entry trigger: P_15m on the same side, or pull-back (bollinger_b / rsi vote flips to the side) |
 
 Combination stays an equal-weight log-odds mean across layers (every learned weight is a hidden trial,
 ADR-0023). Funding (contrarian) and OI-confirm votes attach to the 1h layer only (8h funding, daily OI
