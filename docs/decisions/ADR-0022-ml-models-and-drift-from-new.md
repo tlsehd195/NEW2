@@ -4,10 +4,9 @@
 **Date:** 2026-10-02
 **Deciders:** account owner (동동), Claude Code session
 
-> Numbering note: `scripts/adr_number.py` needs `origin/main`, and the GitHub
-> repo was empty when this was written, so 0022 (next after 0021 in this
-> checkout) was picked by hand. Run `python3 scripts/adr_number.py check`
-> once a remote main exists; renumber if it reports a clash.
+> Numbering note: `scripts/adr_number.py` could not run while the GitHub repo
+> was empty, so 0022 (next after 0021) was picked by hand; `adr_number.py check`
+> was run once main existed and reported no clash.
 
 ## Context
 
