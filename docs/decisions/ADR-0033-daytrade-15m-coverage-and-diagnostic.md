@@ -46,8 +46,39 @@ rejected entries, entry size over equity. It never reads returns or PnL, refuses
 lock (the warm-up included), registers and locks nothing. The workflow `vote_frequency_diag.yml` takes
 a `kind` input.
 
+## Result: BTCUSDT 15m, 2023-04-20 → 2024-06-18 (non-locked), Actions run 37047340738 (job ~81 min)
+
+Signal counts only: no returns, no PnL. 41,958 bars, funding and OI complete. Per walk-forward fold the
+engine view uses 58 folds (the whole range, not the 80% train+validation of a study).
+
+| candidate | entry-signal bars of ~40.8k | distinct entry runs at c0.6 / agree 0.6 | folds with a trade (of 58) | trades | typical trades per fold (median / max) |
+|---|---|---|---|---|---|
+| h16 | 4,387 (10.8%) | 943 | 54 | 520 | 8 / 23 |
+| h16 + side | 3,102 (7.6%) | 588 | 45 | 313 | 5 / 20 |
+| h48 | 7,992 (19.6%) | 851 | 56 | 528 | 9 / 24 |
+| h48 + side | 7,440 (18.2%) | 597 | 50 | 442 | 7 / 23 |
+
+What it shows:
+
+1. **The vote works at 15m.** Calibrated P spreads over about 0.38–0.67 (5th–95th percentile), so the
+   `score_scale` correction did what it was meant to (ADR-0032); signals are frequent, not rare.
+2. **No data-quality rejections at all** (0), so the time-based 192-bar window removes the ADR-0028 problem.
+3. **The binding limits are the risk-engine protections, not the vote or the 100/day ceiling.**
+   Rejected entries: stop-loss guard 284–997 and cooldown 173–337 per candidate. Trades are about 1 per
+   day (313–528 over 58 folds x 7 days), far below the 100/day ceiling.
+4. **Position size:** entry notional / equity has median 0.63–0.70, 95th percentile 1.4–1.6, maximum 2.0
+   (the leverage cap), because 2.5 x ATR(15m) stops are tight.
+5. The vol gate blocks 12.6% of bars (as designed; it only blocks entries).
+
+Arithmetic caveat, not a result: round-trip cost is about 0.12–0.20% of notional; at ~0.7x equity notional
+and ~1.3 trades per day that is roughly 0.1% of equity per day (a few tens of percent per year) before any
+edge. The implied stop is about 0.5% / 0.68 = 0.7% of price, so a "3% per trade" win would be ~4 R; with a
+12 h hold that is a stretch for a 15m vote. Whether the vote has an edge over its cost is exactly what the
+validation study measures; this diagnostic does not and must not be read as evidence either way.
+
+No constants were changed because of this run (counts look healthy).
+
 ## Next
 
-Run the diagnostic on BTCUSDT 2023-04-20 → 2024-06-18 (non-locked) to see whether the 15m vote produces
-signals and trades at all and what blocks them, before any registration. If the scale or gate constants
-need changing, that is decided and recorded here first, on signal counts only.
+Optionally repeat on ETHUSDT (2024-12-14 → 2026-08-31) and XRPUSDT. Then the pre-registration, which is
+blocked until 2026-10-29 02:32:24 UTC by the combined cap and needs the owner's go.
