@@ -80,7 +80,20 @@ contrarian + OI confirm)}. Direction is not a grid axis: every candidate may go 
 - Intraday costs are *less* certain than daily (spreads widen in volatility, stops gap). Reports keep the
   `BACKTEST` label plus a 2x-cost stress run.
 - "3% per trade" is an outcome to measure, not a parameter to fit; no threshold is tuned to hit it.
-- An entry cap per day (proposal 2 per symbol) bounds trade frequency and total cost.
+- Entry cap per symbol per day: the proposal was 2; **the owner chose no limit, or else 100**, so it is
+  **100 per symbol per day**, a runaway-safety ceiling rather than a strategy parameter (effectively
+  unlimited). Trade frequency is therefore bounded by the signal itself and by the protections that
+  already exist, not by this cap: the risk engine's daily loss limit (3%), max drawdown (15%), the
+  stop-loss guard (3 losses in 24 h pause 6 h) and drawdown guard (6% in 48 h pause 12 h) all still
+  apply (`configs/risk.json`, same engine as paper/live). The cap is a fixed pre-registered value;
+  changing it later means a new hypothesis id, like any other parameter.
+- Frequent entries must show up as cost: the event engine charges taker fee, half spread, volatility-scaled
+  impact and funding **per trade** (`Trade` records gross PnL, fees, spread, slippage, funding), so cost drag
+  from many entries lands in net returns, DSR and the 2x-cost stress run; the validation report must print
+  trades per day and total cost as a share of gross PnL, so an overtrading result cannot hide.
+- Trial-count rules: the cap value is not a grid axis (one fixed value), so it adds no trials; more
+  trades do not change DSR's trial count (that counts registered candidates), but they make fold
+  returns less noisy, which is why the cost-share report is mandatory.
 
 ### 5. Fit with fold and lock rules
 
@@ -135,4 +148,4 @@ exist), is harmless, tested and merged, so it stays, but is off the critical pat
 ## Open questions for the owner
 
 1. Approve option 2 (new `daytrade` kind), with or without a cross-family cap?
-2. Hold limit 12 h, stop 2.5 ATR and entry cap 2/day are proposals; acceptable as pre-registered defaults?
+2. Hold limit 12 h, stop 2.5 ATR and entry cap (now 100/day, owner's choice) are the pre-registered defaults.

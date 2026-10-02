@@ -3,7 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-10-03
 **Deciders:** account owner (tapped option A "신설+합산 상한" on the decision card, relayed by the coordinator
-session; the card also carried the proposed defaults 12 h max hold, 2.5 ATR stop, 2 entries per day), Claude Code session
+session; the card also carried the proposed defaults 12 h max hold, 2.5 ATR stop, 2 entries per day; the owner then replaced the entry cap, see below), Claude Code session
 
 ## Context
 
@@ -27,7 +27,9 @@ capacity unless a combined cap exists.
    window expiry.
 
 Defaults approved with the same choice (to be written into the pre-registration, not into code yet):
-max hold 12 h (48 bars), 2.5 ATR stop, at most 2 entries per symbol per day.
+max hold 12 h (48 bars), 2.5 ATR stop, at most **100** entries per symbol per day. The owner asked for no
+entry limit (or else 100) after the card; 100 is a runaway-safety ceiling, effectively unlimited. Risk-engine
+protections and per-trade costs are unchanged (details in ADR-0030).
 
 ## When registration becomes possible (computed from `research/preregistration.jsonl`, rule above)
 
