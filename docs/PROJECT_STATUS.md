@@ -5,7 +5,45 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-09-29 (H-0021 그리드 매매 실패, TEST-21 BNBUSDT 락)**
+**마지막 갱신: 2026-10-02 (NEW-에서 ML 모델·드리프트 감시 이식 ADR-0022, 지표 투표 앙상블 후보 ADR-0023)**
+
+## 2026-10-02: NEW-에서 ML 모델·드리프트 감시 이식 (ADR-0022) — 코드만, 검증 전
+
+주식 프로그램 `tlsehd195/NEW-`에서 학습 쪽 부품을 코인용으로 고쳐 가져왔다. 안전 파일, 설정,
+전략 레지스트리는 건드리지 않았다. **검증 결과 없음(INCONCLUSIVE)**.
+
+- `ml/`: 릿지 회귀(시간순 CV로 규제 강도 선택), 배깅 트리(고정 하이퍼파라미터), 서로 겹치지 않는
+  지표 6개(RSI, 볼린저 z, EMA50 위치, 거래량 z, VWAP 괴리, ATR%)와 미래 정보 없는 샘플 생성
+  (못 구한 값은 채우지 않고 버림), `MLStrategy`(신뢰도 %를 신호에 담음).
+- `monitoring/drift.py`: 평균·분산·분포 변화 감지. 알리기만 하고 모델이나 매매를 바꾸지 않는다.
+- 신뢰도는 모델 합의도/신호 크기 점수이고 승률이 아니다.
+- `MLStrategy`는 레지스트리에 없고 가설 id도 없다. 쓰려면 사전등록 → locked window 확인 →
+  워크포워드 → PBO/DSR → TEST 1회를 새 id로 밟는다.
+- 테스트 464개 통과. 기존 룩어헤드/워밍업/결정성 검사도 통과.
+- 가져오지 않은 것과 이유는 ADR-0022 5항. NEW2에 이미 있는 것(페이퍼 상태 저장, 대사, 성과)은 중복이라 제외.
+- GitHub `tlsehd195/NEW2`는 비어 있었고 이 체크아웃의 이력이 끊겨 있어, 2026-10-02에 현재 파일 상태를
+  한 커밋짜리 새 main으로 올렸다(그 이전 커밋 이력은 GitHub에 없다). ADR 번호는 `adr_number.py`가 원격 main이
+  없을 때 실패해 0022를 손으로 골랐고, 원격 main이 생긴 뒤 `check`로 충돌 없음을 확인했다.
+- 다음 후보: MLStrategy 사전등록, 페이퍼 러너에 드리프트 연결, 페이퍼 예측 기록을 라이브와 같은 형식으로 저널링.
+
+## 2026-10-02: 지표 투표 앙상블 후보 (ADR-0005 부록) — 코드만 추가, 미등록·미검증
+
+동동님 아이디어(유명 지표 여러 개가 각자 롱/숏 확신 %를 내고 합산해 진입 방향 결정)를 문헌 조사 후
+후보 코드로 만들었다. **가설 id 없음, 백테스트·TEST 미실행. 검증된 전략이 아니다.**
+
+- 설계 결정은 ADR-0023, 논문(S/A/B 등급표)은 ADR-0005 부록. 크립토에서 지표 합산을 직접 뒷받침하는 S등급은 없었다.
+  설계 선택(동일가중 로그오즈 평균, Platt 보정, 역할당 지표 1개, 사전 고정·소수 후보)은 각각
+  어느 논문에서 나왔는지 같은 부록에 적었다.
+- 코드: `features/indicator_votes.py`(지표 점수, 보정, 합산, 중복도 측정),
+  `strategies/indicator_vote.py`(후보 전략, 레지스트리 미등록), `tests/test_indicator_vote.py`.
+- NEW-에서 가져온 것(동동님 승인, stdlib로 재작성): `validation/reality_check_spa.py`(White RC·Hansen SPA),
+  `validation/trial_ledger.py`(사전등록 로그 기준 누적 시도 수로 DSR 보정),
+  `validation/signal_ic.py`(지표별 시계열 IC와 지표 간 상관). NEW-는 주식 횡단면, NEW2는 코인 단일 시계열이라
+  IC는 롤링 윈도우 방식으로 바꿨다. 아직 어떤 검증 파이프라인에도 연결하지 않았다.
+- 다음 단계(순서 지킬 것): 새 hypothesis id 사전등록 → locked window 확인 → 워크포워드 →
+  PBO/DSR → TEST 1회. 그 전에 변동성 게이트와 펀딩비·미결제약정 지표를 붙일지 정한다.
+- 알려진 한계: 기본 패널 6개 중 추세·모멘텀 계열 4개는 상관이 높다(합성 데이터 평균 |상관| 0.70).
+  ADR 번호 발급 스크립트는 원격 main이 비어 있어 실행 못 해서 ADR-0005에 부록으로 붙였다.
 
 ## 2026-10-02: NEW- 개발 도구 이식 (ADR-0024)
 
@@ -163,6 +201,35 @@ RiskEngine → 이벤트 백테스트 → 검증(무결성·워크포워드·PBO
   (새 가설은 30일당 계열 3개 예산), (3) 비-미국 리전 환경에서 페이퍼 트레이더 상시
   실행.
 - 미확인: `configs/markets.json` 거래 규칙(자리표시), Binance REST/WS 응답 필드 이름.
+
+## ADR 번호 색인
+
+번호는 `python3 scripts/adr_number.py new <slug> --title "..."`로만 발급한다(스레드끼리 번호가 겹치지 않게 하는 장치).
+원격 `main`이 없어 스크립트가 실패할 때는 임시로 손으로 고르고, 원격이 생기면 `adr_number.py check`로 확인한다
+(ADR-0022가 그 경우). 새 ADR을 쓸 때 이 표도 갱신한다. 0019, 0020은 이 체크아웃에 없다(다른 세션이 발급했을 수 있음).
+
+| 번호 | 제목 |
+|---|---|
+| 0001 | 스윙 우선 착수, 업비트 KRW 현물, NEW- 재사용 범위 |
+| 0002 | 바이낸스 선물/레버리지로 전환 |
+| 0003 | 자금이동(업비트→바이낸스)과 세금 리포트: 사람 승인 게이트 |
+| 0004 | 선물 레버리지: 청산가·펀딩비 계산 근거 |
+| 0005 | 전략 후보 문헌 근거: S/A/B/C 논문 등급, S등급만 채택 |
+| 0006 | 1시간봉 실행비용 문제로 일봉 실행 주기에서 문헌기반 모멘텀 재검증 |
+| 0007 | H-0006의 PBO 상승 원인(상관 높은 후보) 대응: 덜 상관된 모멘텀 후보 조합으로 재검증 |
+| 0008 | 일봉 모멘텀 저상관 후보(H-0007/8)를 세 번째 자산(KRW-SOL)으로 추가 교차검증 |
+| 0009 | 펀딩레이트 캐리 전략을 워크포워드 파이프라인에 통합하는 설계 |
+| 0010 | H-0009(28일 모멘텀, KRW-SOL)의 사전등록 기준 통과를 네 번째 자산(KRW-XRP)에서 재현 확인 |
+| 0011 | PROJECT_MASTER_PLAN.md 도입: 세션 간 연속성을 위한 헌법·읽기순서 체계 |
+| 0012 | GitHub Actions에서 Binance 공개 API 접근 불가 (451, 지역 차단) |
+| 0013 | Basis-neutral funding carry (hedged spot+futures) |
+| 0014 | Freqtrade-style protections and look-ahead checks |
+| 0015 | 스윙+스캘핑 거래 시스템 아키텍처 (데이터→피처→전략→리스크→실행→저널→연구) |
+| 0016 | Daily low-turnover long-only swing candidates (H-0015) |
+| 0017 | Cross-sectional coin portfolio candidates (H-0017) |
+| 0018 | Volatility-managed cross-sectional momentum (H-0018) |
+| 0021 | Grid trading (frequant-style) as a validated candidate |
+| 0022 | ML models, leak-free dataset, MLStrategy and drift monitor adopted from NEW- |
 
 ## 지금 무엇을 하고 있었나
 

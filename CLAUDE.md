@@ -32,6 +32,7 @@
 
 - ADR 번호는 손으로 고르지 않는다: `python3 scripts/adr_number.py new <slug> --title "..."`
   → 발급 즉시 커밋+푸시. 병합 직전 `python3 scripts/adr_number.py check`.
+- 설계 결정마다 ADR을 쓰고, 같은 변경에서 `docs/PROJECT_STATUS.md`도 갱신한다(NEW-와 같은 방식).
 - 작업 단위를 마치면 브랜치를 방치하지 않는다: 테스트 통과 → PR → CI 통과 → main 병합까지
   그 세션 안에서 끝낸다.
 - 여러 세션이 동시에 작업할 때 백그라운드 에이전트는 동시에 1개만 실행한다.
