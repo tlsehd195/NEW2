@@ -1,50 +1,68 @@
-"""Calibrated indicator-vote strategy (ADR-0005 appendix (2026-10-02)).
+"""Calibrated indicator-vote strategy (ADR-0023, ADR-0025).
 
-Many popular indicators each give P(long); the equal-weight log-odds
-mean decides. ONE fixed procedure, every knob fixed before any result is
-seen, so a candidate grid stays small enough for PBO/DSR to deflate
-(CLAUDE.md rule 1). Calibration data are only (score_t, sign of the
-return over the next `horizon` bars) pairs whose outcome bar is already
-visible -- the bar being decided is never in the fit.
+Many indicators each give P(long); the equal-weight log-odds mean decides.
+ONE fixed procedure, every knob fixed before any result is seen, so a
+candidate grid stays small enough for PBO/DSR to deflate (CLAUDE.md rule
+1). Calibration data are only (score_t, sign of the return over the next
+`horizon` bars) pairs whose outcome bar is already visible -- the bar being
+decided is never in the fit.
 
-Not registered, not run on TEST: it needs its own pre-registration
-(new hypothesis id) first.
+v2 adds (ADR-0025): a volatility GATE (no vote: it only blocks entries when
+the short/long realized-vol ratio is outside `vol_gate`) and, with
+`use_side_data=True`, two extra votes from funding rate and open interest.
+Side data is injected by the validation runner (`attach_side_data`) and is
+as-of filtered at every bar; a candidate that needs it but has none at
+decision time returns flat (fail-closed).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from typing import Optional, Sequence
 
 from cointrader.data.models import Candle
 from cointrader.features import indicators as ind
 from cointrader.features.indicator_votes import DEFAULT_PANEL, MIN_BARS, PlattCalibrator, Verdict, combine_votes, raw_scores
+from cointrader.features.side_indicators import (
+    funding_crowding_score, known_funding, known_open_interest, oi_confirmation_score, volatility_ratio,
+)
 from cointrader.strategies.base import MarketContext, Signal, flat
+
+SIDE_PANEL = ("funding_crowding", "oi_confirm")
 
 
 @dataclass(frozen=True)
 class IndicatorVote:
-    horizon: int = 12  # bars the calibration outcome looks ahead
-    fit_lookback: int = 400  # trailing bars of realized pairs used to calibrate
+    horizon: int = 5  # bars the calibration outcome looks ahead
+    fit_lookback: int = 200  # trailing bars of realized pairs used to calibrate
     enter_confidence: float = 0.60  # combined P needed to enter (hysteresis: exit below exit_confidence)
     exit_confidence: float = 0.52
     min_agree: float = 0.6  # fraction of indicators on the entry side
     stop_atr: float = 2.5
     atr_period: int = 14
     allow_short: bool = True
+    use_side_data: bool = False  # add funding + open-interest votes
+    vol_gate_hi: float = 2.0  # block entries when short/long vol ratio exceeds this
+    vol_gate_lo: float = 0.5  # ... or falls below this
     timeframe: str = "1d"
     family: str = "swing"
-    version: str = "1"
+    version: str = "2"
+    # Injected after construction; never part of id/equality/repr.
+    side: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
+    _cache: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
 
     def __post_init__(self) -> None:
         if not 0.5 < self.exit_confidence < self.enter_confidence < 1.0:
             raise ValueError("need 0.5 < exit_confidence < enter_confidence < 1")
         if self.horizon < 1 or self.fit_lookback < 10 * self.horizon:
             raise ValueError("fit_lookback must be >= 10 * horizon")
+        if not 0 < self.vol_gate_lo < 1 < self.vol_gate_hi:
+            raise ValueError("need 0 < vol_gate_lo < 1 < vol_gate_hi")
 
     @property
     def strategy_id(self) -> str:
-        return f"swing_indicator_vote_h{self.horizon}_c{self.enter_confidence:g}_v{self.version}"
+        side = "_side" if self.use_side_data else ""
+        return f"swing_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}_v{self.version}"
 
     @property
     def warmup(self) -> int:
@@ -54,7 +72,40 @@ class IndicatorVote:
     def parameters(self) -> dict:
         return {"horizon": self.horizon, "fit_lookback": self.fit_lookback, "enter_confidence": self.enter_confidence,
                 "exit_confidence": self.exit_confidence, "min_agree": self.min_agree, "stop_atr": self.stop_atr,
-                "atr_period": self.atr_period, "allow_short": self.allow_short}
+                "atr_period": self.atr_period, "allow_short": self.allow_short, "use_side_data": self.use_side_data,
+                "vol_gate_hi": self.vol_gate_hi, "vol_gate_lo": self.vol_gate_lo}
+
+    def attach_side_data(self, *, funding: Sequence, open_interest: Sequence) -> "IndicatorVote":
+        """A copy holding the (time-sorted) funding and open-interest records.
+        Records are filtered by decision time inside every score call."""
+        return replace(self, side={"funding": sorted(funding, key=lambda r: r.funding_time),
+                                   "oi": sorted(open_interest, key=lambda p: p.as_of)}, _cache={})
+
+    # ------------------------------------------------------------ scores
+    def _scores_at(self, prefix: Sequence[Candle]) -> Optional[dict]:
+        sc = raw_scores(prefix, DEFAULT_PANEL)
+        if sc is None or not self.use_side_data:
+            return sc
+        now = prefix[-1].close_time
+        fund = funding_crowding_score(known_funding(self.side.get("funding", ()), now))
+        oi = oi_confirmation_score(known_open_interest(self.side.get("oi", ()), now), [c.close for c in prefix[-30:]])
+        if fund is None or oi is None:
+            return None  # fail-closed: a side vote is missing, so no panel at this bar
+        return {**sc, "funding_crowding": fund, "oi_confirm": oi}
+
+    def _scores_cached(self, history: Sequence[Candle], t: int) -> Optional[dict]:
+        """Scores for bar index t. Cached per underlying candle list (a
+        PrefixView shares one list across a sequential run); a different
+        list rebuilds, and the cache holds the list so its id can't be reused."""
+        underlying = getattr(history, "_candles", history)
+        if self._cache.get("src") is not underlying:
+            self._cache.clear()
+            self._cache["src"] = underlying
+            self._cache["scores"] = {}
+        scores = self._cache["scores"]
+        if t not in scores:
+            scores[t] = self._scores_at(history[: t + 1])
+        return scores[t]
 
     def verdict(self, history: Sequence[Candle]) -> Optional[Verdict]:
         """Per-indicator and combined P(long) for the last bar, or None
@@ -62,13 +113,13 @@ class IndicatorVote:
         n = len(history)
         if n < self.warmup:
             return None
-        today = raw_scores(history, DEFAULT_PANEL)
+        today = self._scores_cached(history, n - 1)
         if today is None:
             return None
         rows: dict[str, list[tuple[float, int]]] = {k: [] for k in today}
         last = n - 1 - self.horizon  # outcome bar must already be visible
         for t in range(max(MIN_BARS, last - self.fit_lookback), last + 1):
-            sc = raw_scores(history[: t + 1], DEFAULT_PANEL)
+            sc = self._scores_cached(history, t)
             if sc is None:
                 continue
             ret = history[t + self.horizon].close / history[t].close - 1.0
@@ -87,14 +138,18 @@ class IndicatorVote:
         if v is None:
             return flat("warmup_or_indicator_unavailable")
         atr = ind.atr(list(history[-(self.atr_period * 4):]), self.atr_period)
-        feats = {"p_long": v.p_long, "agree_long": v.agree_long, "agree_short": v.agree_short,
+        ratio = volatility_ratio(history)
+        feats = {"p_long": v.p_long, "agree_long": v.agree_long, "agree_short": v.agree_short, "vol_ratio": ratio,
                  **{f"p_{k}": p for k, p in v.per_indicator.items()}}
-        if atr is None or atr <= 0:
-            return flat("atr_unavailable", features=feats)
+        if atr is None or atr <= 0 or ratio is None:
+            return flat("atr_or_vol_unavailable", features=feats)
         total = max(1, len(v.per_indicator))
         exit_long, exit_short = v.p_long < self.exit_confidence, v.p_long > 1 - self.exit_confidence
         common = dict(stop_distance=self.stop_atr * atr, features=feats, exit_long=exit_long, exit_short=exit_short)
         strength = min(1.0, (v.confidence - 0.5) * 4)
+        gated = not (self.vol_gate_lo <= ratio <= self.vol_gate_hi)
+        if gated:
+            return Signal(0, exit_long, exit_short, 0.0, "vol_gate_blocks_entry", features=feats)
         if v.p_long >= self.enter_confidence and v.agree_long / total >= self.min_agree:
             return Signal(1, strength=strength, reason="vote_long", **common)
         if self.allow_short and v.p_long <= 1 - self.enter_confidence and v.agree_short / total >= self.min_agree:

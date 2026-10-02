@@ -31,7 +31,7 @@ sys.path.insert(0, str(REPO / "src"))
 from cointrader.data.models import Timeframe  # noqa: E402
 from cointrader.research.hypotheses import register_checked  # noqa: E402
 from cointrader.research.lifecycle import CandidateLedger  # noqa: E402
-from cointrader.research.market_data import load_candles, load_futures_terms  # noqa: E402
+from cointrader.research.market_data import load_candles, load_funding, load_futures_terms, load_open_interest  # noqa: E402
 from cointrader.risk.engine import RiskEngine  # noqa: E402
 from cointrader.settings import load_markets, load_risk  # noqa: E402
 from cointrader.strategies.registry import StrategyRegistry  # noqa: E402
@@ -92,6 +92,18 @@ def main() -> int:
     # Warm-up history before the registered range (indicator input only; never scored, lock-checked).
     warmup_start = hypothesis.data_start - (max(c.warmup for c in candidates) + 1) * tf.delta
     candles, notes = load_candles(args.symbol, tf, warmup_start, hypothesis.data_end)
+    fnotes_side: list[str] = []
+    if any(getattr(c, "use_side_data", False) for c in candidates):
+        # Side-data candidates get funding + open interest over the whole loaded span (warm-up included);
+        # each score call filters to records known at its own bar, so nothing from the future is visible.
+        funding_map, n1 = load_funding(args.symbol, candles[0].open_time, hypothesis.data_end)
+        oi_points, n2 = load_open_interest(args.symbol, candles[0].open_time, hypothesis.data_end)
+        from cointrader.data.binance_funding import FundingRateRecord  # noqa: E402
+        funding_records = [FundingRateRecord(args.symbol, t, r, float("nan"), "binance_vision_archive")
+                           for t, r in funding_map.items()]
+        candidates = [c.attach_side_data(funding=funding_records, open_interest=oi_points)
+                      if getattr(c, "use_side_data", False) else c for c in candidates]
+        fnotes_side = n1 + n2 + [f"side data: {len(funding_records)} funding records, {len(oi_points)} open-interest days"]
     futures, fnotes = load_futures_terms(args.symbol, hypothesis.data_start, hypothesis.data_end)
     filters, _, _ = load_markets()
     report = run_signal_study(hypothesis, log, candles, candidates, locked, policy=policy,
@@ -112,7 +124,7 @@ def main() -> int:
         "test_window_locked": {"name": window.name, "start": window.start.isoformat(), "end": window.end.isoformat()},
         "candidates": [{k: _safe(v) for k, v in dataclasses.asdict(c).items() if k != "test_summary"}
                        | {"test_summary": c.test_summary} for c in report.candidates],
-        "lifecycle_transitions": transitions, "data_notes": notes + fnotes,
+        "lifecycle_transitions": transitions, "data_notes": notes + fnotes + fnotes_side,
     }
     text = json.dumps(out, ensure_ascii=False, indent=2, default=_safe)
     if args.out:

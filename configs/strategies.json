@@ -274,5 +274,121 @@
     "risk_profile": "default",
     "hypothesis_id": null,
     "notes": "research candidate (H-0015, daily low-turnover); no validated edge"
+  },
+  {
+    "strategy_id": "swing_indicator_vote_h5_c0.6_v2",
+    "name": "IndicatorVote",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT"
+    ],
+    "version": "2",
+    "warmup": 346,
+    "parameters": {
+      "horizon": 5,
+      "fit_lookback": 200,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (ADR-0023/0025); calibrated indicator vote; no validated edge"
+  },
+  {
+    "strategy_id": "swing_indicator_vote_h10_c0.6_v2",
+    "name": "IndicatorVote",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT"
+    ],
+    "version": "2",
+    "warmup": 351,
+    "parameters": {
+      "horizon": 10,
+      "fit_lookback": 200,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (ADR-0023/0025); calibrated indicator vote; no validated edge"
+  },
+  {
+    "strategy_id": "swing_indicator_vote_side_h5_c0.6_v2",
+    "name": "IndicatorVote",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT"
+    ],
+    "version": "2",
+    "warmup": 346,
+    "parameters": {
+      "horizon": 5,
+      "fit_lookback": 200,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": true,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (ADR-0023/0025); calibrated indicator vote; no validated edge"
+  },
+  {
+    "strategy_id": "swing_indicator_vote_side_h10_c0.6_v2",
+    "name": "IndicatorVote",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT"
+    ],
+    "version": "2",
+    "warmup": 351,
+    "parameters": {
+      "horizon": 10,
+      "fit_lookback": 200,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": true,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (ADR-0023/0025); calibrated indicator vote; no validated edge"
   }
 ]
