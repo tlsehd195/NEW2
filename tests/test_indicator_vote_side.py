@@ -114,3 +114,20 @@ def test_vol_gate_blocks_entries_but_not_exits():
     assert sig.entry == 0
     with pytest.raises(ValueError):
         IndicatorVote(vol_gate_hi=0.9)
+
+
+def test_strategy_can_actually_enter_on_a_trending_series():
+    """Regression: an ATR window one bar short made every signal 'atr_or_vol_unavailable'."""
+    s = IndicatorVote(horizon=5, fit_lookback=100, enter_confidence=0.55, exit_confidence=0.51, min_agree=0.5)
+    candles = make_candles(s.warmup + 120, seed=21, timeframe=Timeframe.DAY_1, drift=0.004, vol=0.012)
+    reasons = {s.signal(candles[:end]).reason for end in range(s.warmup, len(candles), 4)}
+    assert "atr_or_vol_unavailable" not in reasons and "warmup_or_indicator_unavailable" not in reasons
+    assert reasons & {"vote_long", "vote_short"}
+
+
+def test_entry_signals_carry_a_defined_regime_so_the_risk_engine_accepts_them():
+    """Regression: Signal.regime defaulted to UNDEFINED and the risk engine rejected every entry."""
+    s = IndicatorVote(horizon=5, fit_lookback=100, enter_confidence=0.55, exit_confidence=0.51, min_agree=0.5)
+    candles = make_candles(s.warmup + 120, seed=21, timeframe=Timeframe.DAY_1, drift=0.004, vol=0.012)
+    entries = [sg for sg in (s.signal(candles[:e]) for e in range(s.warmup, len(candles), 4)) if sg.entry != 0]
+    assert entries and all(sg.regime != "UNDEFINED" for sg in entries)

@@ -22,6 +22,7 @@ from typing import Optional, Sequence
 
 from cointrader.data.models import Candle
 from cointrader.features import indicators as ind
+from cointrader.features.regime import RegimeConfig, classify_regime
 from cointrader.features.indicator_votes import DEFAULT_PANEL, MIN_BARS, PlattCalibrator, Verdict, combine_votes, raw_scores
 from cointrader.features.side_indicators import (
     funding_crowding_score, known_funding, known_open_interest, oi_confirmation_score, volatility_ratio,
@@ -29,6 +30,7 @@ from cointrader.features.side_indicators import (
 from cointrader.strategies.base import MarketContext, Signal, flat
 
 SIDE_PANEL = ("funding_crowding", "oi_confirm")
+_REGIME = RegimeConfig()
 
 
 @dataclass(frozen=True)
@@ -137,21 +139,24 @@ class IndicatorVote:
         v = self.verdict(history)
         if v is None:
             return flat("warmup_or_indicator_unavailable")
-        atr = ind.atr(list(history[-(self.atr_period * 4):]), self.atr_period)
+        atr = ind.atr(list(history[-(self.atr_period * 4 + 1):]), self.atr_period)
         ratio = volatility_ratio(history)
+        # The risk engine refuses entries in an UNDEFINED regime; the regime is context only, it is not a vote.
+        regime = classify_regime(history[len(history) - _REGIME.warmup:], _REGIME).regime.value
         feats = {"p_long": v.p_long, "agree_long": v.agree_long, "agree_short": v.agree_short, "vol_ratio": ratio,
                  **{f"p_{k}": p for k, p in v.per_indicator.items()}}
         if atr is None or atr <= 0 or ratio is None:
             return flat("atr_or_vol_unavailable", features=feats)
         total = max(1, len(v.per_indicator))
         exit_long, exit_short = v.p_long < self.exit_confidence, v.p_long > 1 - self.exit_confidence
-        common = dict(stop_distance=self.stop_atr * atr, features=feats, exit_long=exit_long, exit_short=exit_short)
+        common = dict(stop_distance=self.stop_atr * atr, features=feats, exit_long=exit_long, exit_short=exit_short,
+                      regime=regime)
         strength = min(1.0, (v.confidence - 0.5) * 4)
         gated = not (self.vol_gate_lo <= ratio <= self.vol_gate_hi)
         if gated:
-            return Signal(0, exit_long, exit_short, 0.0, "vol_gate_blocks_entry", features=feats)
+            return Signal(0, exit_long, exit_short, 0.0, "vol_gate_blocks_entry", regime=regime, features=feats)
         if v.p_long >= self.enter_confidence and v.agree_long / total >= self.min_agree:
             return Signal(1, strength=strength, reason="vote_long", **common)
         if self.allow_short and v.p_long <= 1 - self.enter_confidence and v.agree_short / total >= self.min_agree:
             return Signal(-1, strength=strength, reason="vote_short", **common)
-        return Signal(0, exit_long, exit_short, 0.0, "vote_no_entry", features=feats)
+        return Signal(0, exit_long, exit_short, 0.0, "vote_no_entry", regime=regime, features=feats)
