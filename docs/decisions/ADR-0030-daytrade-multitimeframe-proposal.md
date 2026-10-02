@@ -134,6 +134,24 @@ it is effectively extra trial capacity. If that is not wanted, add a **cross-fam
 30 days across all kinds) in the same change. That is a rule change; I will not make it, register
 anything, or raise a budget without the owner's explicit approval.
 
+## Both directions, and a single bar size
+
+The owner chose **long and short**, and asked which one bar size to use if only one is used.
+
+- Single bar size: **15m** (recommendation). It is the best balance of noise (5m triggers more false
+  entries), sample size (35k bars/year is plenty for 16 folds), and speed (3x faster than 5m). If
+  the harness stays single-timeframe at first, run one set on 15m only; 1h/1d gates and 5m stay options.
+- Short side must be modelled, not mirrored: funding is **paid by longs and received by shorts only when
+  funding is positive**, so the real 8h series is applied with its sign to both sides (the engine's
+  `FuturesTerms` already takes it); shorts get the same fees/spread/impact but a stop-out gap risk
+  that is symmetric to longs only if bars are symmetric, so the stress run at 2x costs covers both.
+- Risk: the existing risk engine (0.5% equity per trade, 2.5 ATR stop, 3x leverage cap) applies to
+  both sides; liquidation distance for shorts is checked against the stop with the same margin rule
+  (no change to `configs/live/` or safety files). Existing `allow_short` and the funding (contrarian)
+  and OI-confirm votes already work for both sides in `IndicatorVote`.
+- More freedom (2 sides) means more trials; candidate count stays at <= 4 per hypothesis
+  (horizon x side-data), side direction is not an extra grid axis.
+
 ## Loader fallback (ADR-0029) and intraday data prep
 
 The daily-file fallback was written for a daily-bar problem (and did not solve it). It does not
@@ -151,5 +169,5 @@ registration is still ~2026-10-29 09:14 KST; `daytrade_` is a separate family an
 1. Confirm: build the day-trade harness first (multi-timeframe view, time-based quality window, speed
    work), each step a small PR + ADR. Swing re-validation is dropped (owner chose A).
 2. Hold limit 12 h and stop 2.5 ATR(1h) are proposals; acceptable as pre-registered defaults?
-3. Long-only first (current default), or both sides?
+3. ~~Long-only first~~ **Decided by the owner: long and short** (see "Both directions").
 4. Option 2 (new `daytrade` kind) with or without a cross-family cap?
