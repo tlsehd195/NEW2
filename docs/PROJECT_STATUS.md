@@ -177,6 +177,35 @@ RiskEngine → 이벤트 백테스트 → 검증(무결성·워크포워드·PBO
   실행.
 - 미확인: `configs/markets.json` 거래 규칙(자리표시), Binance REST/WS 응답 필드 이름.
 
+## ADR 번호 색인
+
+번호는 `python3 scripts/adr_number.py new <slug> --title "..."`로만 발급한다(스레드끼리 번호가 겹치지 않게 하는 장치).
+원격 `main`이 없어 스크립트가 실패할 때는 임시로 손으로 고르고, 원격이 생기면 `adr_number.py check`로 확인한다
+(ADR-0022가 그 경우). 새 ADR을 쓸 때 이 표도 갱신한다. 0019, 0020은 이 체크아웃에 없다(다른 세션이 발급했을 수 있음).
+
+| 번호 | 제목 |
+|---|---|
+| 0001 | 스윙 우선 착수, 업비트 KRW 현물, NEW- 재사용 범위 |
+| 0002 | 바이낸스 선물/레버리지로 전환 |
+| 0003 | 자금이동(업비트→바이낸스)과 세금 리포트: 사람 승인 게이트 |
+| 0004 | 선물 레버리지: 청산가·펀딩비 계산 근거 |
+| 0005 | 전략 후보 문헌 근거: S/A/B/C 논문 등급, S등급만 채택 |
+| 0006 | 1시간봉 실행비용 문제로 일봉 실행 주기에서 문헌기반 모멘텀 재검증 |
+| 0007 | H-0006의 PBO 상승 원인(상관 높은 후보) 대응: 덜 상관된 모멘텀 후보 조합으로 재검증 |
+| 0008 | 일봉 모멘텀 저상관 후보(H-0007/8)를 세 번째 자산(KRW-SOL)으로 추가 교차검증 |
+| 0009 | 펀딩레이트 캐리 전략을 워크포워드 파이프라인에 통합하는 설계 |
+| 0010 | H-0009(28일 모멘텀, KRW-SOL)의 사전등록 기준 통과를 네 번째 자산(KRW-XRP)에서 재현 확인 |
+| 0011 | PROJECT_MASTER_PLAN.md 도입: 세션 간 연속성을 위한 헌법·읽기순서 체계 |
+| 0012 | GitHub Actions에서 Binance 공개 API 접근 불가 (451, 지역 차단) |
+| 0013 | Basis-neutral funding carry (hedged spot+futures) |
+| 0014 | Freqtrade-style protections and look-ahead checks |
+| 0015 | 스윙+스캘핑 거래 시스템 아키텍처 (데이터→피처→전략→리스크→실행→저널→연구) |
+| 0016 | Daily low-turnover long-only swing candidates (H-0015) |
+| 0017 | Cross-sectional coin portfolio candidates (H-0017) |
+| 0018 | Volatility-managed cross-sectional momentum (H-0018) |
+| 0021 | Grid trading (frequant-style) as a validated candidate |
+| 0022 | ML models, leak-free dataset, MLStrategy and drift monitor adopted from NEW- |
+
 ## 지금 무엇을 하고 있었나
 
 일봉 모멘텀(ADR-0006/0007) 계열의 교차자산 검증을 BTC→ETH→SOL→XRP 순으로
