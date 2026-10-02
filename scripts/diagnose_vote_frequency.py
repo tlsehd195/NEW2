@@ -25,7 +25,11 @@ sys.path.insert(0, str(REPO / "src"))
 from cointrader.backtest.engine import PrefixView  # noqa: E402
 from cointrader.features import indicators as ind  # noqa: E402
 from cointrader.features.side_indicators import volatility_ratio  # noqa: E402
+from cointrader.strategies.daytrade import DayTradeVote  # noqa: E402
 from cointrader.strategies.indicator_vote import IndicatorVote  # noqa: E402
+
+# kind -> (strategy class, timeframe, horizons). swing is the original 1d diagnostic; daytrade is the 15m one (ADR-0033).
+KINDS = {"swing": (IndicatorVote, "1d", (5, 10)), "daytrade": (DayTradeVote, "15m", (16, 48))}
 
 GRID_ENTER = (0.55, 0.58, 0.60, 0.65)
 GRID_AGREE = (0.5, 0.6, 0.7)
@@ -132,6 +136,7 @@ def engine_view(candles: list, strat: IndicatorVote, windows: list, risk, future
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--kind", choices=sorted(KINDS), default="swing")
     ap.add_argument("--symbol", required=True)
     ap.add_argument("--start", required=True, help="first decision day (inclusive)")
     ap.add_argument("--end", required=True, help="end of range (exclusive); must not touch a locked window")
@@ -143,8 +148,9 @@ def main() -> int:
     from cointrader.research.market_data import load_candles, load_funding, load_open_interest  # noqa: E402
     from cointrader.validation.locked_windows import assert_not_locked, load_locked_windows  # noqa: E402
 
-    start, end, tf = _utc(args.start), _utc(args.end), Timeframe("1d")
-    probe = IndicatorVote()
+    cls, tf_value, horizons = KINDS[args.kind]
+    start, end, tf = _utc(args.start), _utc(args.end), Timeframe(tf_value)
+    probe = cls()
     warm_start = start - (probe.warmup + 1) * tf.delta
     assert_not_locked(load_locked_windows(REPO / "configs" / "locked_windows.json"), args.symbol, warm_start, end)
 
@@ -154,7 +160,7 @@ def main() -> int:
     funding = [FundingRateRecord(args.symbol, t, r, float("nan"), "binance_vision_archive") for t, r in funding_map.items()]
     first = next(i for i, c in enumerate(candles) if c.open_time >= start)
     out = {"label": "DIAGNOSTIC (signal counts only; no returns, no PnL; not a validation result)",
-           "symbol": args.symbol, "decision_range": [start.isoformat(), end.isoformat()],
+           "kind": args.kind, "timeframe": tf_value, "symbol": args.symbol, "decision_range": [start.isoformat(), end.isoformat()],
            "source": "binance_vision_archive", "candles": len(candles),
            "data_notes": [n for n in notes if not n.startswith("open interest")][:20] + [
                f"funding archive gaps: {len(n1)}", f"open-interest archive gaps: {len(n2)} (days)",
@@ -165,15 +171,15 @@ def main() -> int:
     from cointrader.settings import load_markets, load_risk  # noqa: E402
     from cointrader.validation.policies import POLICIES  # noqa: E402
     from cointrader.validation.walk_forward import generate_walk_forward_windows  # noqa: E402
-    pol = POLICIES["swing"]
+    pol = POLICIES[args.kind]
     windows = generate_walk_forward_windows(start, end, train=pol.fold_train, test=pol.fold_test, step=pol.fold_test)
     futures, _ = load_futures_terms(args.symbol, start, end)
     filters, _, _ = load_markets()
     risk = RiskEngine(load_risk(), filters)
     out["engine_per_fold"] = []
-    for h in (5, 10):
+    for h in horizons:
         for side in (False, True):
-            s = IndicatorVote(horizon=h, use_side_data=side)
+            s = cls(horizon=h, use_side_data=side)
             if side:
                 s = s.attach_side_data(funding=funding, open_interest=oi)
             out["candidates"].append(diagnose(candles, s, first))
