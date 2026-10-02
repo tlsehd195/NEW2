@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cointrader"
+version = "0.1.0"
+description = "Crypto swing (and later scalping) research, validation and trading system"
+requires-python = ">=3.11"
+readme = "README.md"
+# src/ stays standard-library only (same boundary as tlsehd195/NEW-):
+# exchange access uses urllib, validation math uses statistics/math.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]

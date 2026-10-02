@@ -1,0 +1,16 @@
+{
+  "_comment": "ADR-0015 data retention. Layers other than raw are PROTECTED: delete_after_days must stay null (the loader refuses otherwise). raw = exchange messages as received; its long-term form is the 1m trade/book stats in 'normalized'. Sizes in bytes.",
+  "layers": {
+    "raw":        {"compress_after_days": 1, "delete_after_days": 14},
+    "normalized": {"compress_after_days": 7, "delete_after_days": null},
+    "feature":    {"compress_after_days": 7, "delete_after_days": null},
+    "decision":   {"compress_after_days": 30, "delete_after_days": null},
+    "execution":  {"compress_after_days": 30, "delete_after_days": null},
+    "outcome":    {"compress_after_days": null, "delete_after_days": null},
+    "quality":    {"compress_after_days": 30, "delete_after_days": null},
+    "safety":     {"compress_after_days": null, "delete_after_days": null},
+    "audit":      {"compress_after_days": 30, "delete_after_days": null}
+  },
+  "warn_total_bytes": 5000000000,
+  "critical_total_bytes": 20000000000
+}

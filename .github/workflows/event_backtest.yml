@@ -1,0 +1,40 @@
+name: Run event backtest (exploration, BACKTEST label)
+
+on:
+  workflow_dispatch:
+    inputs:
+      strategy:
+        description: "Registered strategy id (configs/strategies.json)"
+        required: true
+        default: "swing_trend_ema_atr_20_50_v1"
+      symbol:
+        required: true
+        default: "BTCUSDT"
+      start:
+        required: true
+        default: "2022-01-01"
+      end:
+        required: true
+        default: "2023-01-01"
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      - name: Run backtest
+        # Inputs go through env vars, never interpolated into the shell script.
+        env:
+          STRATEGY: ${{ inputs.strategy }}
+          SYMBOL: ${{ inputs.symbol }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+        run: |
+          python3 scripts/run_backtest.py --strategy "$STRATEGY" --symbol "$SYMBOL" \
+            --start "$START" --end "$END" --out reports/backtest.json
+      - name: Print report
+        run: cat reports/backtest.json

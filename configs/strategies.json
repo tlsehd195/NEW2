@@ -1,0 +1,278 @@
+[
+  {
+    "strategy_id": "swing_trend_ema_atr_20_50_v1",
+    "name": "TrendEmaAtr",
+    "family": "swing",
+    "timeframes": [
+      "1h"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "fast": 20,
+      "slow": 50,
+      "atr_period": 14,
+      "stop_atr": 2.5,
+      "trail_atr": 3.0,
+      "allow_short": true
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "swing_breakout_volume_20_10_v1",
+    "name": "BreakoutVolume",
+    "family": "swing",
+    "timeframes": [
+      "1h"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "entry": 20,
+      "exit": 10,
+      "min_rel_volume": 1.5,
+      "atr_period": 14,
+      "stop_atr": 2.0,
+      "allow_short": true
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "swing_bollinger_reversion_20_2_v1",
+    "name": "BollingerReversion",
+    "family": "swing",
+    "timeframes": [
+      "1h"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "period": 20,
+      "z_entry": 2.0,
+      "rsi_period": 14,
+      "rsi_low": 30.0,
+      "rsi_high": 70.0,
+      "stop_atr": 1.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "swing_regime_hybrid_v1",
+    "name": "RegimeHybrid",
+    "family": "swing",
+    "timeframes": [
+      "1h"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {},
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "scalp_vwap_reversion_30_2_v1",
+    "name": "VwapReversion",
+    "family": "scalp",
+    "timeframes": [
+      "1m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "vwap_period": 30,
+      "k_atr": 2.0,
+      "atr_period": 14,
+      "stop_atr": 1.0
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "scalp_breakout_volume_30_2_v1",
+    "name": "RangeBreakoutVolume",
+    "family": "scalp",
+    "timeframes": [
+      "5m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "lookback": 30,
+      "min_rel_volume": 2.0,
+      "stop_atr": 1.0,
+      "take_profit_atr": 1.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "scalp_short_mean_reversion_20_3_v1",
+    "name": "ShortTermMeanReversion",
+    "family": "scalp",
+    "timeframes": [
+      "1m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "period": 20,
+      "z_entry": 3.0,
+      "stop_atr": 1.0
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate; no validated edge"
+  },
+  {
+    "strategy_id": "scalp_microstructure_momentum_v1",
+    "name": "MicrostructureMomentum",
+    "family": "scalp",
+    "timeframes": [
+      "1m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 58,
+    "parameters": {
+      "min_trade_imbalance": 0.3,
+      "min_book_imbalance": 0.3,
+      "stop_atr": 0.75,
+      "take_profit_atr": 1.0
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "book-confirmed; needs recorded microstructure; paper-only data collection"
+  },
+  {
+    "strategy_id": "swing_daily_sma_trend_100_v1",
+    "name": "SmaTrendFilter",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "period": 100,
+      "slope_bars": 20,
+      "atr_period": 20,
+      "stop_atr": 3.0
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (H-0015, daily low-turnover); no validated edge"
+  },
+  {
+    "strategy_id": "swing_daily_donchian_55_20_v1",
+    "name": "DonchianTrend",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "entry": 55,
+      "exit": 20,
+      "atr_period": 20,
+      "stop_atr": 2.0
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (H-0015, daily low-turnover); no validated edge"
+  },
+  {
+    "strategy_id": "swing_daily_trend_pullback_100_20_v1",
+    "name": "TrendPullback",
+    "family": "swing",
+    "timeframes": [
+      "1d"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 201,
+    "parameters": {
+      "trend": 100,
+      "period": 20,
+      "z_entry": 1.5,
+      "atr_period": 20,
+      "stop_atr": 2.0
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "research candidate (H-0015, daily low-turnover); no validated edge"
+  }
+]

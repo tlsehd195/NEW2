@@ -1,0 +1,1089 @@
+[
+  {
+    "name": "TEST-1",
+    "market": "KRW-BTC",
+    "start": "2025-07-14T04:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "ma_cross_12_48",
+      "ma_cross_24_96",
+      "ma_cross_24_168",
+      "ma_cross_48_240",
+      "donchian_24_12",
+      "donchian_48_24",
+      "donchian_96_48",
+      "donchian_168_72"
+    ],
+    "note": "H-0001, 실제 업비트 KRW-BTC 1시간봉(2026-09-28 GitHub Actions 실행, 49571개 캔들, 품질이슈 34건 경미한 gap). 116개 워크포워드 폴드, PBO=0.057(낮음=과최적화 아님), 단 DSR은 전부 0.95 미달(최고 donchian_168_72=0.177) — 8개 기준전략 전부 사전등록 기준 미달, INCONCLUSIVE. TEST에서 donchian_168_72가 -10.4%로 보유(-34.09%)보다 손실이 적었으나 DSR이 낮아 우연과 구분되지 않음."
+  },
+  {
+    "name": "TEST-2",
+    "market": "KRW-BTC",
+    "start": "2024-08-06T14:00:00+00:00",
+    "end": "2025-07-01T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_24",
+      "ts_momentum_168",
+      "ts_momentum_336",
+      "ts_momentum_504",
+      "ts_momentum_672"
+    ],
+    "note": "H-0002, 실제 업비트 KRW-BTC 1시간봉(2026-09-28 GitHub Actions 실행, 문헌근거 절대모멘텀 5개 지평(1일/1주/2주/3주/4주, ADR-0005: Liu&Tsyvinski 2021, Liu·Tsyvinski·Wu 2022) 검증. 91개 워크포워드 폴드, PBO=0.029(낮음). DSR은 5개 전부 0.95 미달(최고 ts_momentum_672=2.8e-07, 사실상 0) — 사전등록 기준 전부 미달, INCONCLUSIVE. TEST 구간(강한 상승장, 보유수익 +84.81%)에서 5개 전부 보유 대비 크게 손실: ts_momentum_24 -97.79%, ts_momentum_168 -58.88%, ts_momentum_336 -49.24%, ts_momentum_504 -22.71%, ts_momentum_672 -19.05%. 짧은 지평일수록 손실이 컸다(과다거래·되돌림 추정)."
+  },
+  {
+    "name": "TEST-3",
+    "market": "KRW-BTC",
+    "start": "2023-11-13T09:00:00+00:00",
+    "end": "2024-08-01T00:00:00+00:00",
+    "observed_by": [
+      "adaptive_ensemble_240",
+      "adaptive_ensemble_500",
+      "adaptive_ensemble_720"
+    ],
+    "note": "H-0003, 실제 업비트 KRW-BTC 1시간봉(2026-09-28 GitHub Actions 실행). RSI/볼린저밴드%B/거래량z스코어/VWAP괴리 4개 지표를 각자의 롤링 상관계수로 가중합하는 적응형 앙상블(고정 절차, ADR 없음 -- 사용자 아이디어를 재현가능한 알고리즘으로 고정, fit_lookback 240/500/720 3개 변형). 72개 워크포워드 폴드, PBO=0.0. DSR은 3개 전부 0(사실상 없음) -- 사전등록 기준 전부 미달, INCONCLUSIVE. TEST 구간(보유수익 +83.88%)에서 3개 전부 자본 거의 전액 손실: -99.01%(240), -99.11%(500), -98.87%(720). 거의 모든 워크포워드 폴드에서도 일관되게 큰 손실(-9%~-53%) -- 매 봉마다 상관계수 부호가 바뀌며 롱/플랫을 자주 뒤집는 구조라 비용+타이밍 손실이 누적된 것으로 추정(포지션 변경에 최소 유지기간·임계값이 없음). 향후 이 계열을 다시 시도한다면 히스테리시스/임계값 추가가 먼저 필요."
+  },
+  {
+    "name": "TEST-4",
+    "market": "KRW-BTC",
+    "start": "2023-04-08T04:00:00+00:00",
+    "end": "2023-11-01T00:00:00+00:00",
+    "observed_by": [
+      "adaptive_ensemble_240_h0.3",
+      "adaptive_ensemble_500_h0.3",
+      "adaptive_ensemble_720_h0.3"
+    ],
+    "note": "H-0004, 실제 업비트 KRW-BTC 1시간봉(2026-09-28 GitHub Actions 실행, 24777개 캔들, 품질이슈 21건 경미한 gap). H-0003의 적응형 앙상블에 히스테리시스(0.3) 밴드를 추가한 버전(candidate_set=adaptive_hysteresis). 56개 워크포워드 폴드(fold_train=32일/fold_test=14일). PBO=1.0인데, 이는 실제 과최적화가 아니라 계산상 아티팩트로 확인됨: adaptive_ensemble_500_h0.3과 _720_h0.3이 56개 폴드 전부에서 정확히 0.0(전혀 매매 안 함, deflated_sharpe=null)을 기록해 동점으로 항상 인-샘플 1위를 차지하고, 동점 처리 순서상 OOS 중간 순위(3개 중 2위)에 결정적으로 고정되어 매 CSCV 분할에서 logit=0(<=0, 과최적화로 집계)이 나온 것 -- 500/720은 fit_lookback(500·720봉)이 32일 훈련 구간 대비 너무 길어 상관계수 기반 점수가 0.3 밴드를 한 번도 넘지 못해 폴드 내내 완전히 플랫 상태였다(로컬 재현으로 확인: 짧은 32+14일 구간에서는 발동 안 하지만, 6~7개월짜리 TEST 구간에서는 가끔 발동함 -- fold 길이 대비 lookback이 너무 크다는 설계상 한계). 실제 매매가 발생한 건 adaptive_ensemble_240_h0.3뿐: DSR=0.476(0.95 미달), mean_fold_return=-0.074%. 세 후보 전부 사전등록 기준(max_pbo 0.2, min_dsr 0.95) 미달 -- INCONCLUSIVE. TEST 구간(보유수익 +26.55%)에서 손실 폭은 H-0003(-99%대)보다 크게 개선: 240=+8.66%, 500=+23.99%, 720=+19.50% (모두 여전히 보유 대비 열위, 통계적 유의성 없음). 히스테리시스 도입은 H-0003의 파국적 손실은 막았으나, 큰 fit_lookback 변형은 짧은 워크포워드 폴드에서 사실상 검증되지 못했다 -- 향후 재시도 시 fold_train/fold_test을 fit_lookback에 맞게 늘리거나 밴드를 lookback별로 조정해야 함."
+  },
+  {
+    "name": "TEST-5",
+    "market": "KRW-BTC",
+    "start": "2022-10-19T00:00:00+00:00",
+    "end": "2023-04-01T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_2",
+      "ts_momentum_7",
+      "ts_momentum_14",
+      "ts_momentum_21",
+      "ts_momentum_28"
+    ],
+    "note": "H-0005, 실제 업비트 KRW-BTC 일봉(2026-09-28 GitHub Actions 실행, 820개 캔들, 품질이슈 0건). ADR-0006: H-0002(시간봉 실행)의 손실이 지평이 짧을수록(=매매가 잦을수록) 커진 패턴이 실행비용 문제라는 가설 아래, 동일 문헌기반 모멘텀 신호를 일봉 실행주기(candidate_set=momentum_daily, lookback 2/7/14/21/28일)로 재검증. 29개 워크포워드 폴드(fold_train=60일/fold_test=20일). H-0002와 뚜렷이 다른 양상: 5개 후보 전부 평균 폴드수익이 플러스(H-0002는 전부 마이너스)이고 DSR도 0.318~0.684로 크게 상승(H-0002는 사실상 0). TEST 구간(보유수익 +33.54%)에서도 전부 플러스: 2일=+29.37%, 7일=+25.31%, 14일=+25.40%, 21일=+25.04%, 28일=+49.56%(보유 대비 우위). 다만 PBO=0.457(기준 0.2 초과)과 DSR 전부 0.95 미달로 사전등록 성공기준은 통과하지 못함 -- INCONCLUSIVE. 그러나 시간봉 대비 성과가 일관되게 크게 개선된 것은 ADR-0006의 실행비용 가설을 뒷받침하는 강한 정황이며, 이 계열은 향후 재시도 가치가 있다(예: 더 긴 데이터 구간, 다른 자산, 코스트모델 민감도 분석)."
+  },
+  {
+    "name": "TEST-6",
+    "market": "KRW-BTC",
+    "start": "2021-08-20T00:00:00+00:00",
+    "end": "2022-10-18T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_2",
+      "ts_momentum_7",
+      "ts_momentum_14",
+      "ts_momentum_21",
+      "ts_momentum_28"
+    ],
+    "note": "H-0006, 실제 업비트 KRW-BTC 일봉(2026-09-28 GitHub Actions 실행, 1849개 캔들 -- 업비트 KRW-BTC 상장 시점부터, 품질이슈 0건). H-0005와 같은 5개 후보를 훨씬 긴 역사(2017~2022-10-18, 워크포워드 TRAIN+VALIDATION만 81개 폴드, H-0005의 29개보다 약 3배)로 재검증. 평균 폴드수익은 5개 전부 3.5~4.4%로 매우 견조하고 DSR도 0.552~0.841로 이 프로젝트 전체에서 가장 높음(0.95 기준에는 여전히 못 미침) -- 폴드 수를 늘리자 신호 자체의 통계적 근거는 뚜렷이 강해졌다. 반대로 PBO는 0.857로 H-0005(0.457)보다 오히려 악화됐는데, 이는 실제 과최적화라기보다 5개 후보(2/7/14/21/28일)가 같은 신호의 변형이라 서로 상관관계가 매우 높아서 CSCV가 '그중 무엇이 인샘플 최고인지'를 신뢰성 있게 OOS로 못 넘기는 구조적 한계로 해석됨(신호가 있는지 여부와, 5개 중 최선을 고르는 선택 자체가 유의미한지는 별개 질문). TEST 구간(2021-08-20~2022-10-18, 테라·FTX 붕괴를 포함하는 강한 하락장, 보유수익 -49.75%)에서 5개 전부 마이너스였지만 보유보다는 손실이 훨씬 작음: 2일=-17.95%, 7일=-23.12%, 14일=-23.12%, 21일=-22.82%, 28일=-9.29% -- 하락장 방어력이 있다는 정황. 사전등록 기준(max_pbo 0.2, min_dsr 0.95) 여전히 미달 -- INCONCLUSIVE. 다음 시도라면 상관관계가 높은 5개 후보를 그대로 CSCV에 넣기보다, 후보 수를 줄이거나 덜 상관된 후보 조합으로 PBO를 다시 계산하는 방법을 검토할 가치가 있음."
+  },
+  {
+    "name": "TEST-7",
+    "market": "KRW-BTC",
+    "start": "2020-09-14T00:00:00+00:00",
+    "end": "2021-08-19T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_2",
+      "ts_momentum_14",
+      "ts_momentum_28"
+    ],
+    "note": "H-0007, 실제 업비트 KRW-BTC 일봉(2026-09-28 GitHub Actions 실행, 1424개 캔들, 품질이슈 0건). ADR-0007: H-0006이 PBO=0.857로 악화된 원인이 상관관계 높은 5개 후보라는 가설을 검증하기 위해, 같은 신호의 3개 후보(2/14/28일, 상관관계를 줄이려 서로 멀리 떨어진 지평만 선택)를 새 구간(2017~2021-08-19, H-0006의 TRAIN+VALIDATION 구간 재사용, TEST는 겹치지 않는 새 범위)에서 재검증. 가설이 확인됨: PBO가 0.857 -> 0.371로 크게 낮아짐(여전히 기준 0.2 초과지만 방향은 뚜렷). DSR은 오히려 이 프로젝트 전체 최고치 경신: 2일=0.852, 14일=0.885, 28일=0.482 (0.95 기준에는 여전히 못 미침). TEST 구간(2020-09-14~2021-08-19, 2020-2021 강세장, 보유수익 +325.58%)에서 2일=+237.89%, 14일=+286.31%, 28일=+392.87%(보유 대비 우위). 사전등록 기준(max_pbo 0.2, min_dsr 0.95) 여전히 미달 -- INCONCLUSIVE, 실전 배치 근거 아님. 다만 후보 수를 줄이고 상관관계를 낮추면 PBO가 실제로 개선된다는 것을 확인했으므로, 이 방향(더 적고 덜 상관된 후보, 혹은 아예 단일 후보의 DSR만 보는 방식)이 이 신호 계열에서 사전등록 기준을 통과할 가장 유망한 경로로 보인다."
+  },
+  {
+    "name": "TEST-8",
+    "market": "KRW-ETH",
+    "start": "2024-12-07T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_2",
+      "ts_momentum_14",
+      "ts_momentum_28"
+    ],
+    "note": "H-0008, 실제 업비트 KRW-ETH 일봉(2026-09-28 GitHub Actions 실행, 3165개 캔들, 품질이슈 0건). H-0007과 동일한 3개 후보(2/14/28일, 덜 상관됨)를 처음으로 BTC가 아닌 KRW-ETH에서 자산 교차검증(2018-01-01~2026-09-01, 123개 워크포워드 폴드). PBO=0.343 -- H-0007(0.371)과 비슷한 수준, H-0006(0.857)보다는 크게 개선되어 후보 축소/저상관 접근이 자산을 바꿔도 재현됨을 시사. DSR: 2일=0.709, 14일=0.923(최고), 28일=0.764 -- 14일 후보가 0.95 기준에 근접했으나 여전히 미달. TEST 구간(2024-12-07~2026-09-01, ETH 약세장, 보유수익 -39.75%)에서 세 후보 전부 보유 대비 우위: 2일=-26.86%, 14일=-12.37%, 28일=+39.65%(유일한 절대 플러스). 사전등록 기준(max_pbo 0.2, min_dsr 0.95) 여전히 미달 -- INCONCLUSIVE. 하락장에서 손실을 크게 줄이거나(2/14일) 플러스로 전환(28일)하는 방어적 패턴이 BTC(H-0007)에 이어 ETH에서도 재현됨은 고무적이나, 실전 배치 근거는 아니다."
+  },
+  {
+    "name": "TEST-9",
+    "market": "KRW-SOL",
+    "start": "2025-07-14T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_2",
+      "ts_momentum_14",
+      "ts_momentum_28"
+    ],
+    "note": "H-0009, 실제 업비트 KRW-SOL 일봉(2026-09-28 GitHub Actions 실행, 1782개 캔들, 품질이슈 0건). H-0007/H-0008과 동일한 3개 후보(2/14/28일)를 세 번째 자산 KRW-SOL(2021-01-01~2026-09-01, 79개 워크포워드 폴드)에서 교차검증. PBO=0.0(프로젝트 전체 최저치). DSR: 2일=0.509, 14일=0.744, **28일=0.983 -- 이 프로젝트에서 처음으로 사전등록 기준(min_dsr 0.95)을 통과**(38개 전체 등록 후보로 디플레이션 반영됨). TEST 구간(2025-07-14~2026-09-01, SOL 약세장, 보유수익 -35.33%)에서 28일 후보 test_return=-1.37%, 초과수익 +33.96%(min_test_excess_return 0.0 기준 통과). 28일 후보 단독으로 사전등록 3개 기준(max_pbo<=0.2, min_dsr>=0.95, min_test_excess_return>=0.0)을 모두 충족한 이 프로젝트 최초 사례 -- 백테스트 기준 OOS_TESTED 상태로 볼 수 있으나, SOL은 상장 이력이 짧아 폴드 수(79)가 BTC/ETH보다 적고, 단일 TEST 구간·단일 자산의 결과라 실거래 승인 근거는 아니다(킬스위치 해제·라이브 승인은 사람만 가능). 다른 자산/구간에서 재현되는지 추가 확인이 필요하다."
+  },
+  {
+    "name": "TEST-10",
+    "market": "KRW-XRP",
+    "start": "2024-12-07T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "ts_momentum_2",
+      "ts_momentum_14",
+      "ts_momentum_28"
+    ],
+    "note": "H-0010, 실제 업비트 KRW-XRP 일봉(2026-09-28 GitHub Actions 실행, 3165개 캔들, 품질이슈 0건). H-0009(KRW-SOL)에서 28일 후보가 처음으로 사전등록 기준을 통과한 것이 재현되는지 네 번째 자산에서 확인(ADR-0010, 2018-01-01~2026-09-01, 123개 워크포워드 폴드, 동일한 3개 후보 변경 없이 사용). **재현되지 않음 -- PBO=0.686(프로젝트 전체 최고치, 기준 0.2의 3배 이상 초과)**. DSR: 2일=0.844, 14일=0.924, 28일=0.800 -- 전부 0.95 미달. TEST 구간(2024-12-07~2026-09-01, XRP 약세장, 보유수익 -44.24%)에서 2일 후보만 보유보다 손실이 작고(-13.79%), 14일(-45.49%)과 28일(-57.10%)은 오히려 **보유보다 더 크게 잃음**(초과수익 음수, min_test_excess_return 기준도 불통과). H-0009의 28일 후보 통과는 SOL 특유의 단일 구간 결과였을 가능성이 높다는 뜻 -- 이 신호 계열이 일반적인 교차자산 edge라는 근거가 약해졌다. INCONCLUSIVE(사실상 실패에 가까움). 다음 단계는 H-0009의 결과를 근거 삼아 더 밀어붙이기보다, 이 신호 계열 자체의 한계를 인정하고 다른 방향(펀딩 캐리 등)을 우선하는 쪽이 합리적이다."
+  },
+  {
+    "name": "TEST-11",
+    "market": "BTCUSDT",
+    "start": "2025-05-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "funding_carry_3_0.0001",
+      "funding_carry_9_0.0001",
+      "funding_carry_21_0.0001"
+    ],
+    "note": "H-0011, 실제 바이낸스 BTCUSDT 무기한선물(2026-09-28 GitHub Actions 실행, data.binance.vision 정적 아카이브 경로, 펀딩정산 7305건/시간봉 캔들 58440개, 아카이브 누락 0건, 품질이슈 0건). 펀딩레이트 캐리(ADR-0009, lookback 3/9/21 정산주기 3개 후보, 2020-01-01~2026-09-01, 137개 워크포워드 폴드)의 첫 실데이터 검증. **모든 기준 미달**: PBO=0.943(기준 0.2의 4.7배, 프로젝트 전체 최악치 -- 사실상 무작위 수준). DSR: 3정산=0.00066, 9정산=0.00003, 21정산=0.000088 -- 셋 다 사실상 0(기준 0.95에 한참 못 미침). TEST 구간(2025-05-02~2026-09-01)에서 세 후보 모두 손실: 3정산 -8.51%, 9정산 -8.06%, 21정산 -2.82%(초과수익 전부 음수, min_test_excess_return 기준도 불통과). test_funding_only_return(펀딩 PnL만 분리)은 +0.02%~+0.44%로 미미하게 플러스 -- 즉 손실의 거의 전부가 가격 리스크(단순 롱/숏 방향성 베팅)에서 왔고, 정작 캐리(펀딩비 수취)의 순효과는 거의 없었다. INCONCLUSIVE(사실상 실패 -- 이 3-후보 그리드로는 펀딩 캐리 edge를 확인하지 못함). 다음 단계를 고려한다면 이 그리드를 다른 자산에 반복 적용하기보다(모멘텀 계열에서 이미 겪은 다중검정 함정과 동일), 방향성 리스크를 실제로 헤지하는 공식화(현물-선물 베이시스 중립 구성 등, Management Science 원 논문의 실제 포지션 구성을 다시 확인)부터 검토하는 편이 합리적이다."
+  },
+  {
+    "name": "TEST-12",
+    "market": "BTCUSDT",
+    "start": "2024-06-18T16:00:00+00:00",
+    "end": "2025-05-01T00:00:00+00:00",
+    "observed_by": [
+      "basis_carry_3_0.0001",
+      "basis_carry_9_0.0001",
+      "basis_carry_21_0.0001"
+    ],
+    "note": "H-0012 베이시스 중립(현물 롱/선물 숏 헤지) 펀딩 캐리, 실 바이낸스 BTCUSDT 데이터(data.binance.vision 아카이브, 현물+선물+펀딩 3계열, funding 4743건/선물봉 37944개/현물봉 37930개, 갭 0, 현물 품질이슈 7건(결측봉, 무시 가능한 수준)). 88개 워크포워드 폴드. PBO=0.1143(기준 0.2 통과), DSR 3후보 전부 0.0(기준 0.95 미달), TEST 수익률 전부 대폭 손실(-15.62%/-23.30%/-13.80%). test_funding_only_return은 3후보 전부 미미하게 플러스(+1.48%~+2.55%, H-0011과 동일 패턴 재확인 — 펀딩비 수취 메커니즘 자체는 문제 없음). 반면 test_basis_only_return(가격 다리 순수익, 비용 차감 포함)은 3후보 전부 큰 폭 마이너스(-15.61%~-25.21%) — 헤지가 방향성 리스크를 상쇄하지 못했다는 뜻. 다만 test_liquidity_capped_settlements가 후보당 61/196/118건으로 많아, 트레일링 펀딩비 평균 부호가 자주 뒤집히며 포지션 플립이 잦았을 가능성이 있고 이게 순수 베이시스 확대가 아니라 체결비용/캡 누적 때문일 수도 있음 — 이 리포트만으로는 둘을 분리 못 함. INCONCLUSIVE(사실상 실패, PBO만 기준 통과, DSR/TEST수익 기준 전부 미달). 이 구간은 앞으로 어떤 용도로도 재사용하지 않음."
+  },
+  {
+    "name": "TEST-14",
+    "market": "SOLUSDT",
+    "start": "2025-01-29T19:12:00+00:00",
+    "end": "2025-03-01T00:00:00+00:00",
+    "observed_by": [
+      "scalp_vwap_reversion_30_2_v1",
+      "scalp_short_mean_reversion_20_3_v1"
+    ],
+    "note": "H-0014 scalp SOLUSDT 1m; TEST used once by run_validation.py at 2026-09-28T22:25:33.505557+00:00"
+  },
+  {
+    "name": "TEST-13",
+    "market": "ETHUSDT",
+    "start": "2023-12-07T19:00:00+00:00",
+    "end": "2024-12-01T00:00:00+00:00",
+    "observed_by": [
+      "swing_trend_ema_atr_20_50_v1",
+      "swing_breakout_volume_20_10_v1",
+      "swing_bollinger_reversion_20_2_v1",
+      "swing_regime_hybrid_v1"
+    ],
+    "note": "H-0013 swing ETHUSDT 1h; TEST used once by run_validation.py at 2026-09-28T22:41:54.399874+00:00"
+  },
+  {
+    "name": "TEST-15",
+    "market": "ETHUSDT",
+    "start": "2023-04-06T00:00:00+00:00",
+    "end": "2023-12-07T00:00:00+00:00",
+    "observed_by": [
+      "swing_daily_sma_trend_100_v1",
+      "swing_daily_donchian_55_20_v1",
+      "swing_daily_trend_pullback_100_20_v1"
+    ],
+    "note": "H-0015 swing ETHUSDT 1d; TEST used once by run_validation.py at 2026-09-29T00:13:21.658657+00:00"
+  },
+  {
+    "name": "TEST-16",
+    "market": "XRPUSDT",
+    "start": "2024-01-24T00:00:00+00:00",
+    "end": "2024-12-07T00:00:00+00:00",
+    "observed_by": [
+      "swing_daily_sma_trend_100_v1",
+      "swing_daily_donchian_55_20_v1",
+      "swing_daily_trend_pullback_100_20_v1"
+    ],
+    "note": "H-0016 swing XRPUSDT 1d; TEST used once by run_validation.py at 2026-09-29T00:31:13.887092+00:00"
+  },
+  {
+    "name": "TEST-17",
+    "market": "XS:USDTM-2020",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:BTCUSDT",
+    "market": "BTCUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:ETHUSDT",
+    "market": "ETHUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:BCHUSDT",
+    "market": "BCHUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:XRPUSDT",
+    "market": "XRPUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:EOSUSDT",
+    "market": "EOSUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:LTCUSDT",
+    "market": "LTCUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:TRXUSDT",
+    "market": "TRXUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:ETCUSDT",
+    "market": "ETCUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:LINKUSDT",
+    "market": "LINKUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:XLMUSDT",
+    "market": "XLMUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:ADAUSDT",
+    "market": "ADAUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:XMRUSDT",
+    "market": "XMRUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:DASHUSDT",
+    "market": "DASHUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:ZECUSDT",
+    "market": "ZECUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:XTZUSDT",
+    "market": "XTZUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:BNBUSDT",
+    "market": "BNBUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:ATOMUSDT",
+    "market": "ATOMUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:ONTUSDT",
+    "market": "ONTUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:IOTAUSDT",
+    "market": "IOTAUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:BATUSDT",
+    "market": "BATUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:VETUSDT",
+    "market": "VETUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:NEOUSDT",
+    "market": "NEOUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:QTUMUSDT",
+    "market": "QTUMUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-17:IOSTUSDT",
+    "market": "IOSTUSDT",
+    "start": "2022-08-17T00:00:00+00:00",
+    "end": "2023-04-06T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_v1",
+      "xsec_momentum_21d_long_v1",
+      "xsec_low_volume_7d_ls_v1"
+    ],
+    "note": "coin of XS:USDTM-2020; H-0017 xsec XS:USDTM-2020 1d; TEST used once by run_xsec_validation.py at 2026-09-29T00:55:08.662890+00:00"
+  },
+  {
+    "name": "TEST-18",
+    "market": "XS:USDTM-2023",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:BCHUSDT",
+    "market": "BCHUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:EOSUSDT",
+    "market": "EOSUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:LTCUSDT",
+    "market": "LTCUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:TRXUSDT",
+    "market": "TRXUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ETCUSDT",
+    "market": "ETCUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:LINKUSDT",
+    "market": "LINKUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:XLMUSDT",
+    "market": "XLMUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ADAUSDT",
+    "market": "ADAUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:XMRUSDT",
+    "market": "XMRUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:DASHUSDT",
+    "market": "DASHUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ZECUSDT",
+    "market": "ZECUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:XTZUSDT",
+    "market": "XTZUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:BNBUSDT",
+    "market": "BNBUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ATOMUSDT",
+    "market": "ATOMUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ONTUSDT",
+    "market": "ONTUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:IOTAUSDT",
+    "market": "IOTAUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:BATUSDT",
+    "market": "BATUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:VETUSDT",
+    "market": "VETUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:NEOUSDT",
+    "market": "NEOUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:QTUMUSDT",
+    "market": "QTUMUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:IOSTUSDT",
+    "market": "IOSTUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:DOTUSDT",
+    "market": "DOTUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:UNIUSDT",
+    "market": "UNIUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:AVAXUSDT",
+    "market": "AVAXUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:AAVEUSDT",
+    "market": "AAVEUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:FILUSDT",
+    "market": "FILUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:NEARUSDT",
+    "market": "NEARUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:MATICUSDT",
+    "market": "MATICUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ALGOUSDT",
+    "market": "ALGOUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:COMPUSDT",
+    "market": "COMPUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:MKRUSDT",
+    "market": "MKRUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:SNXUSDT",
+    "market": "SNXUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:YFIUSDT",
+    "market": "YFIUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:SUSHIUSDT",
+    "market": "SUSHIUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:CRVUSDT",
+    "market": "CRVUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:KSMUSDT",
+    "market": "KSMUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:EGLDUSDT",
+    "market": "EGLDUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:FTMUSDT",
+    "market": "FTMUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:THETAUSDT",
+    "market": "THETAUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:GRTUSDT",
+    "market": "GRTUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:1INCHUSDT",
+    "market": "1INCHUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:RUNEUSDT",
+    "market": "RUNEUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ZILUSDT",
+    "market": "ZILUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:KAVAUSDT",
+    "market": "KAVAUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:WAVESUSDT",
+    "market": "WAVESUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ENJUSDT",
+    "market": "ENJUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:RENUSDT",
+    "market": "RENUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:ZRXUSDT",
+    "market": "ZRXUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:KNCUSDT",
+    "market": "KNCUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:OMGUSDT",
+    "market": "OMGUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-18:BANDUSDT",
+    "market": "BANDUSDT",
+    "start": "2026-01-02T00:00:00+00:00",
+    "end": "2026-09-01T00:00:00+00:00",
+    "observed_by": [
+      "xsec_momentum_21d_ls_invvol30_v1",
+      "xsec_momentum_21d_ls_voltarget20_v1"
+    ],
+    "note": "coin of XS:USDTM-2023; H-0018 xsec XS:USDTM-2023 1d; TEST used once by run_xsec_validation.py at 2026-09-29T02:32:23.564561+00:00"
+  },
+  {
+    "name": "TEST-21",
+    "market": "BNBUSDT",
+    "start": "2025-06-18T00:00:00+00:00",
+    "end": "2026-01-01T00:00:00+00:00",
+    "observed_by": [
+      "grid_neutral_1p5sigma_v1",
+      "grid_spot_1p5sigma_v1",
+      "grid_neutral_range_filter_v1"
+    ],
+    "note": "H-0021 grid BNBUSDT 15m; TEST used once by run_grid_validation.py at 2026-09-29T04:34:15.812183+00:00"
+  }
+]

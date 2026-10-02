@@ -1,0 +1,11 @@
+{
+  "_comment": "Binance USD-M perpetual trading rules. UNVERIFIED placeholders typed from memory (sandbox and GitHub Actions cannot reach fapi.binance.com, ADR-0012). Refresh from GET /fapi/v1/exchangeInfo (BinanceFuturesClient.exchange_filters) before any live use. Meme coins and low-quality altcoins are excluded by project decision.",
+  "verified": false,
+  "exchange": "binance_usdm",
+  "markets": {
+    "BTCUSDT": {"tick_size": 0.1,    "step_size": 0.001, "min_quantity": 0.001, "min_notional": 100.0, "large_trade_quantity": 2.0},
+    "ETHUSDT": {"tick_size": 0.01,   "step_size": 0.001, "min_quantity": 0.001, "min_notional": 20.0,  "large_trade_quantity": 30.0},
+    "SOLUSDT": {"tick_size": 0.01,   "step_size": 1.0,   "min_quantity": 1.0,   "min_notional": 5.0,   "large_trade_quantity": 500.0},
+    "XRPUSDT": {"tick_size": 0.0001, "step_size": 0.1,   "min_quantity": 0.1,   "min_notional": 5.0,   "large_trade_quantity": 50000.0}
+  }
+}

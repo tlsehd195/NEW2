@@ -1,0 +1,20 @@
+{
+  "_comment": "Paper trading (default mode). No real orders are possible from this configuration: the paper trader only ever builds a PaperBroker. Live settings live in configs/live/ and need a human approval (ADR-0015).",
+  "environment": "paper",
+  "live_trading_enabled": false,
+  "initial_balance": 10000.0,
+  "symbols": ["BTCUSDT", "ETHUSDT"],
+  "strategies": [
+    "swing_trend_ema_atr_20_50_v1",
+    "swing_regime_hybrid_v1",
+    "scalp_vwap_reversion_30_2_v1",
+    "scalp_short_mean_reversion_20_3_v1"
+  ],
+  "state_dir": "var/paper",
+  "data_root": "var/data",
+  "kill_switch_path": "var/paper/paper_kill_switch.jsonl",
+  "record_raw": false,
+  "save_every_seconds": 60,
+  "reconcile_every_seconds": 300,
+  "notify_min_severity": "TRADE"
+}

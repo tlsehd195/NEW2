@@ -1,0 +1,65 @@
+name: Run cross-sectional validation (pre-registered; TEST used once, then locked for every coin)
+
+on:
+  workflow_dispatch:
+    inputs:
+      hypothesis_id:
+        description: "New pre-registration id, e.g. H-0017"
+        required: true
+      universe:
+        description: "Key in configs/xsec_universes.json"
+        required: true
+        default: "USDTM-2020"
+      strategies:
+        description: "Space-separated xsec candidate ids"
+        required: true
+      start:
+        required: true
+      end:
+        required: true
+      statement:
+        required: true
+      rationale:
+        description: ">= 40 chars: what is new versus earlier hypotheses"
+        required: true
+      registered_by:
+        required: true
+        default: "동동"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      - name: Run validation
+        # Inputs go through env vars, never interpolated into the shell script.
+        env:
+          HID: ${{ inputs.hypothesis_id }}
+          UNIVERSE: ${{ inputs.universe }}
+          STRATEGIES: ${{ inputs.strategies }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          STATEMENT: ${{ inputs.statement }}
+          RATIONALE: ${{ inputs.rationale }}
+          REGISTERED_BY: ${{ inputs.registered_by }}
+        run: |
+          # shellcheck disable=SC2086
+          python3 scripts/run_xsec_validation.py --hypothesis-id "$HID" --universe "$UNIVERSE" --strategies $STRATEGIES \
+            --start "$START" --end "$END" --statement "$STATEMENT" --rationale "$RATIONALE" \
+            --registered-by "$REGISTERED_BY" --out reports/xsec_validation.json > /dev/null
+      - name: Print report
+        if: always()
+        run: cat reports/xsec_validation.json || echo "no report written"
+      - name: Print files that must be committed back (locks, pre-registration, ledger)
+        # The runner's checkout is thrown away; these exact lines are copied into the repo afterwards.
+        if: always()
+        run: |
+          git status --short
+          git add --intent-to-add research configs/locked_windows.json
+          echo "=== added lines ==="
+          git diff --no-color --unified=0 -- configs/locked_windows.json research | grep '^+' | grep -v '^+++' || echo "(none)"

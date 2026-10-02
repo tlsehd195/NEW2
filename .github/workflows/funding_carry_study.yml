@@ -1,0 +1,71 @@
+name: Run funding carry study
+
+on:
+  workflow_dispatch:
+    inputs:
+      hypothesis_id:
+        description: "Pre-registration id, e.g. H-0011"
+        required: true
+        default: "H-0011"
+      statement:
+        description: "Hypothesis statement"
+        required: true
+        default: "펀딩레이트 캐리(3개 후보)가 비용 차감 후 BTCUSDT 무포지션 대비 우위"
+      symbol:
+        description: "Binance USDT-M futures symbol, e.g. BTCUSDT"
+        required: true
+        default: "BTCUSDT"
+      start:
+        required: true
+        default: "2021-01-01"
+      end:
+        required: true
+        default: "2026-09-01"
+      registered_by:
+        required: true
+        default: "동동"
+      candidate_set:
+        description: "funding_carry"
+        required: true
+        default: "funding_carry"
+      fold_train_days:
+        required: true
+        default: "30"
+      fold_test_days:
+        required: true
+        default: "14"
+
+jobs:
+  study:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      - name: Run study
+        run: |
+          python3 scripts/run_funding_carry_study.py \
+            --hypothesis-id "${{ inputs.hypothesis_id }}" \
+            --statement "${{ inputs.statement }}" \
+            --symbol "${{ inputs.symbol }}" \
+            --start "${{ inputs.start }}" \
+            --end "${{ inputs.end }}" \
+            --registered-by "${{ inputs.registered_by }}" \
+            --candidate-set "${{ inputs.candidate_set }}" \
+            --fold-train-days "${{ inputs.fold_train_days }}" \
+            --fold-test-days "${{ inputs.fold_test_days }}" \
+            --out "reports/${{ inputs.hypothesis_id }}.json"
+      - name: Print report
+        # Same reason as swing_study.yml: the sandbox this is normally
+        # verified from cannot reach the artifact download host, so the
+        # report also goes straight into the job log.
+        run: cat "reports/${{ inputs.hypothesis_id }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: funding-carry-study-${{ inputs.hypothesis_id }}
+          path: |
+            reports/${{ inputs.hypothesis_id }}.json
+            research/preregistration.jsonl
+          if-no-files-found: warn
