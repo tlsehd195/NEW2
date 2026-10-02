@@ -9,7 +9,9 @@ from __future__ import annotations
 from datetime import datetime
 
 from cointrader.backtest.event_engine import FuturesTerms
-from cointrader.data.binance_vision import BinanceVisionFundingRateHistory, BinanceVisionFuturesCandles
+from cointrader.data.binance_vision import (
+    BinanceVisionFundingRateHistory, BinanceVisionFuturesCandles, BinanceVisionOpenInterestHistory,
+)
 from cointrader.data.models import Candle, Timeframe
 from cointrader.data.quality import check_candles
 
@@ -27,6 +29,13 @@ def load_futures_terms(symbol: str, start: datetime, end: datetime, *, leverage:
     records = hist.fetch(symbol, start, end)
     notes = [f"funding archive gap: {g}" for g in hist.last_gaps]
     return FuturesTerms(margin_leverage=leverage, funding={r.funding_time: r.funding_rate for r in records}), notes
+
+
+def load_open_interest(symbol: str, start: datetime, end: datetime) -> tuple[list, list[str]]:
+    """Daily open-interest points; archive gaps are reported, never filled."""
+    hist = BinanceVisionOpenInterestHistory()
+    points = hist.fetch(symbol, start, end)
+    return points, [f"open interest archive gap: {g}" for g in hist.last_gaps]
 
 
 def load_funding(symbol: str, start: datetime, end: datetime) -> tuple[dict, list[str]]:

@@ -61,6 +61,10 @@ SPOT_BASE_URL = "https://data.binance.vision/data/spot"
 SOURCE = "binance_vision_archive"
 
 FUNDING_COLUMNS = ("calc_time", "funding_interval_hours", "last_funding_rate")
+# Daily "metrics" files (5-minute rows). Column names are from the archive's
+# published schema and have NOT been verified from this sandbox (the proxy
+# blocks data.binance.vision); `_parse_csv_rows` fails closed on a mismatch.
+METRICS_COLUMNS = ("create_time", "symbol", "sum_open_interest", "sum_open_interest_value")
 KLINE_COLUMNS = (
     "open_time", "open", "high", "low", "close", "volume", "close_time",
     "quote_volume", "count", "taker_buy_volume", "taker_buy_quote_volume", "ignore",
@@ -245,6 +249,50 @@ class BinanceVisionFundingRateHistory:
                             records[rec.funding_time] = rec
         self.last_gaps = tuple(gaps)
         return sorted(records.values(), key=lambda r: r.funding_time)
+
+
+@dataclass(frozen=True)
+class OpenInterestPoint:
+    """Last 5-minute open-interest reading of one UTC day. `as_of` is that
+    row's own timestamp: the value is usable only from `as_of` onward."""
+
+    symbol: str
+    as_of: datetime
+    open_interest: float  # base-asset contracts
+    source: str = SOURCE
+
+
+def _metrics_time(raw: str) -> datetime:
+    return datetime.strptime(raw.strip(), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+
+
+class BinanceVisionOpenInterestHistory:
+    """One `OpenInterestPoint` per UTC day from the daily metrics archive
+    (last row of the day). A missing day is an `ArchiveGap`, never filled."""
+
+    def __init__(self, *, transport: Transport = _urllib_transport) -> None:
+        self._transport = transport
+        self.last_gaps: tuple[ArchiveGap, ...] = ()
+
+    def fetch(self, symbol: str, start: datetime, end: datetime) -> list[OpenInterestPoint]:
+        require_aware("start", start)
+        require_aware("end", end)
+        points: list[OpenInterestPoint] = []
+        gaps: list[ArchiveGap] = []
+        for day in _days(start, end):
+            url = f"{BASE_URL}/daily/metrics/{symbol}/{symbol}-metrics-{day:%Y-%m-%d}.zip"
+            body = self._transport(url)
+            if body is None:
+                gaps.append(ArchiveGap(day, f"daily metrics archive missing: {url}"))
+                continue
+            rows = _parse_csv_rows(body, METRICS_COLUMNS)
+            if not rows:
+                gaps.append(ArchiveGap(day, f"daily metrics archive empty: {url}"))
+                continue
+            last = max(rows, key=lambda r: _metrics_time(r["create_time"]))
+            points.append(OpenInterestPoint(symbol, _metrics_time(last["create_time"]), float(last["sum_open_interest"])))
+        self.last_gaps = tuple(gaps)
+        return points
 
 
 class _KlineArchiveCandles:
