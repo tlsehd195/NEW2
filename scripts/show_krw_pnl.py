@@ -3,7 +3,7 @@
 
     python3 scripts/show_krw_pnl.py --mode paper \
         --flows var/paper/krw_flows.jsonl --rates var/data/krw_usdt.csv \
-        [--rate-source upbit_KRW-USDT] [--data-root var/data] [--days 365] [--as-of 2026-10-03T00:00:00+00:00] [--json]
+        [--rate-source upbit_KRW-USDT] [--data-root var/data] [--days 365] [--as-of 2026-10-03T00:00:00+00:00] [--json] [--export-year 2027 --out-dir var/tax]
 
 --flows   JSONL of money movements (one per line, `type` = usdt_purchase |
           usdt_sale | usdt_transfer | krw_fee). Paper: write the simulated
@@ -11,6 +11,9 @@
           receipts and the exchanges' own statements.
 --rates   CSV `time,rate` (ISO UTC time, KRW per USDT), e.g. Upbit KRW-USDT
           closes. Every closed trade is valued at the rate at its exit.
+
+--export-year  also writes that year's tax-filing package (summary, details,
+          checklist) into --out-dir; see accounting/tax_export.py.
 
 Closed trades come from the outcome journal (same rows as
 show_performance.py), so paper and live run the same code. Read-only:
@@ -63,6 +66,8 @@ def main() -> int:
     ap.add_argument("--days", type=int, default=365)
     ap.add_argument("--as-of", type=datetime.fromisoformat, default=None)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--export-year", type=int, default=None)
+    ap.add_argument("--out-dir", type=Path, default=REPO / "var" / "tax")
     args = ap.parse_args()
 
     tax, exit_costs, staleness = load_krw_accounting()
@@ -79,8 +84,12 @@ def main() -> int:
         mark, mark_src = None, f"unavailable: {exc}"
     rep = build_report(events, as_of=as_of, mark_rate=mark, mark_rate_source=mark_src, tax=tax, exit_costs=exit_costs)
 
+    if args.export_year is not None:
+        from cointrader.accounting.tax_export import write_filing_package
+        for path in write_filing_package(rep, args.export_year, args.out_dir / rep.mode, tax):
+            print(f"wrote {path}", file=sys.stderr)
     if args.json:
-        print(json.dumps({**rep.__dict__, "as_of": rep.as_of.isoformat(), "years": [y.__dict__ for y in rep.years],
+        print(json.dumps({**rep.__dict__, "as_of": rep.as_of.isoformat(), "years": [y.__dict__ for y in rep.years], "lines": len(rep.lines),
                           "estimated_tax_krw": rep.estimated_tax_krw, "net_before_tax_krw": rep.net_before_tax_krw,
                           "net_if_cashed_out_krw": rep.net_if_cashed_out_krw}, ensure_ascii=False, indent=2))
         return 0

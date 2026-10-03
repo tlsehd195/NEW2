@@ -17,7 +17,7 @@ from cointrader.journal.store import LayeredStore
 from cointrader.notifications.notifier import Notifier, Severity
 from cointrader.paper.engine import PaperConfig, PaperTrader
 from cointrader.risk.engine import RiskEngine
-from cointrader.settings import REPO, load_markets, load_paper, load_risk
+from cointrader.settings import REPO, load_margin_policy, load_markets, load_paper, load_risk
 from cointrader.strategies.registry import StrategyRegistry
 
 
@@ -61,10 +61,16 @@ def build_trader(paper_cfg: dict, *, notifier: Optional[Notifier] = None, root: 
         reconcile_every=timedelta(seconds=paper_cfg["reconcile_every_seconds"]),
         large_trade_quantity=large,
     )
+    mp, mt, mp_verified = load_margin_policy()
     notifier = notifier or Notifier(mode="paper", min_severity=Severity[paper_cfg["notify_min_severity"]])
     trader = PaperTrader(config=config, strategies=strategies, symbols=paper_cfg["symbols"],
                          risk=RiskEngine(load_risk(), filters), filters=filters,
+                         margin_policy=mp, margin_tiers=mt,
                          store=LayeredStore(root / paper_cfg["data_root"]), notifier=notifier)
+    if not mp_verified:
+        trader.notifier.notify(Severity.WARNING, "margin tiers assumed",
+                               "configs/margin_policy.json tiers are an unverified snapshot (strict on purpose)",
+                               at=datetime.now(timezone.utc), key="margin_tiers_assumed")
     if not verified:
         trader.notifier.notify(Severity.WARNING, "market rules unverified",
                                "configs/markets.json is a placeholder; paper fills use it as-is",

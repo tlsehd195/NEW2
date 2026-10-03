@@ -136,3 +136,39 @@ def test_config_file_loads():
     tax, exits, stale = load_krw_accounting()
     assert tax.rate == 0.22 and tax.basic_deduction_krw == 2_500_000 and not tax.verified
     assert stale == timedelta(hours=1)
+
+
+def test_tax_filing_package_matches_report(tmp_path):
+    import csv
+
+    from cointrader.accounting.tax_export import write_filing_package
+    events = [buy(0, 10_000, 1400, fee_rate=0.0005), trade(1, gross=5_000, fees=10, rate=1400)]
+    rep = build_report(events, as_of=at(2), mark_rate=1400, mark_rate_source="t")
+    paths = write_filing_package(rep, 2027, tmp_path)
+    assert [p.name for p in paths] == ["summary_2027.csv", "details_2027.csv", "checklist_2027.md"]
+    rows = list(csv.reader(paths[0].open(encoding="utf-8-sig")))
+    net = next(r for r in rows if r[1] == "2027년 실현 순손익")
+    assert float(net[2]) == pytest.approx(rep.realized_net_krw, abs=1)
+    tax_row = next(r for r in rows if r[1].startswith("추정세액"))
+    assert float(tax_row[2]) == pytest.approx(rep.estimated_tax_krw, abs=1) and "세무사" in tax_row[3]
+    detail = list(csv.reader(paths[1].open(encoding="utf-8-sig")))[1:]
+    assert sum(float(r[3]) for r in detail) == pytest.approx(rep.realized_net_krw, abs=1)
+    assert "세무 조언 아님" in paths[2].read_text(encoding="utf-8")
+    with pytest.raises(ValueError):
+        write_filing_package(rep, 2030, tmp_path)
+
+
+def test_tax_filing_package_before_effective_year_says_zero(tmp_path):
+    import csv
+
+    from cointrader.accounting.tax_export import write_filing_package
+    ev = [UsdtPurchase(at=datetime(2026, 5, 1, tzinfo=timezone.utc), mode="paper", krw_gross=14_000_000,
+                       usdt=10_000, fee_krw=0),
+          FuturesTradeClose(at=datetime(2026, 5, 2, tzinfo=timezone.utc), mode="paper", gross_pnl_usdt=5000,
+                            fees_usdt=0, spread_usdt=0, slippage_usdt=0, funding_usdt=0, rate_krw=1400,
+                            rate_source="t")]
+    rep26 = build_report(ev, as_of=datetime(2026, 5, 3, tzinfo=timezone.utc))
+    p = write_filing_package(rep26, 2026, tmp_path)
+    rows = list(csv.reader(p[0].open(encoding="utf-8-sig")))
+    assert float(next(r for r in rows if r[1].startswith("추정세액"))[2]) == 0.0
+    assert "시행 전" in p[2].read_text(encoding="utf-8")

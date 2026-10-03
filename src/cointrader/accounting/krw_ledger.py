@@ -270,6 +270,17 @@ class YearRow:
 
 
 @dataclass(frozen=True)
+class LedgerLine:
+    """One booked KRW amount, for the tax-filing detail export."""
+
+    at: datetime
+    component: str  # one of COMPONENTS
+    krw: float
+    event: str  # event class name
+    ref: str  # exchange / trade id, if any
+
+
+@dataclass(frozen=True)
 class KrwPnlReport:
     mode: str
     as_of: datetime
@@ -287,6 +298,7 @@ class KrwPnlReport:
     years: tuple[YearRow, ...]
     tax_verified: bool
     trade_count: int
+    lines: tuple = ()
 
     @property
     def estimated_tax_krw(self) -> float:
@@ -373,7 +385,11 @@ def build_report(
     krw_paid = krw_received = 0.0
     trades = 0
 
+    lines: list[LedgerLine] = []
+    cur: dict = {}
+
     def book(at: datetime, name: str, krw: float) -> None:
+        lines.append(LedgerLine(at, name, krw, cur["event"], cur["ref"]))
         comp[name] += krw
         year = at.astimezone(KST).year
         by_year[year] = by_year.get(year, 0.0) + krw
@@ -383,6 +399,8 @@ def build_report(
         book(e.at, "fx_realized", qty * rate - cost)
 
     for e in ordered:
+        cur["event"] = type(e).__name__
+        cur["ref"] = getattr(e, "external_id", "") or getattr(e, "trade_id", "")
         if isinstance(e, UsdtPurchase):
             inv.add(e.usdt, e.krw_gross)
             krw_paid += e.krw_gross + e.fee_krw
@@ -446,7 +464,7 @@ def build_report(
         realized_net_krw=math.fsum(comp.values()), usdt_held=inv.usdt, usdt_cost_krw=inv.cost_krw,
         mark_rate=mark_rate, mark_rate_source=mark_rate_source, fx_unrealized=fx_unrealized,
         exit_cost_krw=exit_cost, exit_cost_reason=exit_reason, years=years,
-        tax_verified=tax.verified, trade_count=trades,
+        tax_verified=tax.verified, trade_count=trades, lines=tuple(lines),
     )
 
 

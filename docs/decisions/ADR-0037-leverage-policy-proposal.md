@@ -1,6 +1,6 @@
 # ADR-0037: 단타 레버리지 사용 방안 (제안)
 
-**Status:** Proposed (동동님 선택 대기, 상수 변경 없음)
+**Status:** Accepted: A안 (2026-10-03, 동동님 결정; B안은 나중에 논의, ADR-0038)
 **Date:** 2026-10-03
 **Deciders:** account owner (동동), Claude Code session
 
@@ -40,7 +40,7 @@ A를 고르면 `configs/risk.json` 값은 그대로이고 안전장치 코드만
 
 ## Decision
 
-동동님 선택 후 확정한다. 확정 전까지 상수·리스크 코드는 바꾸지 않는다.
+동동님이 2026-10-03에 A안을 선택했다. 연결 내용은 ADR-0038.
 
 ## Consequences (선택 전 준비분)
 
