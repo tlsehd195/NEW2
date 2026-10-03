@@ -1,0 +1,20 @@
+{
+  "_comment": "KRW net PnL report settings (ADR-0036). Tax values are an ESTIMATE of current 소득세법 (가상자산 소득, 시행 2027-01-01, 22%, 기본공제 250만원, 같은 해 손익통산·이월공제 없음); verified stays false until a tax accountant confirms futures-PnL treatment and the cost method. null exit costs = not configured: the report says 'unavailable' instead of assuming zero. Fill them from the exchanges' own fee pages (they change by network and over time).",
+  "tax": {
+    "effective_from_year": 2027,
+    "rate": 0.22,
+    "basic_deduction_krw": 2500000,
+    "verified": false,
+    "sources": [
+      "https://domolaw.co.kr/legal-guide/da1b8c7c-2164-46d0-985e-242b36d855fa",
+      "https://onchain-tax.compounding.co.kr/crypto-tax-2027",
+      "https://www.etoday.co.kr/news/view/2625337"
+    ]
+  },
+  "exit_costs": {
+    "overseas_withdraw_fee_usdt": null,
+    "domestic_sell_fee_rate": 0.0005,
+    "krw_withdraw_fee_krw": null
+  },
+  "rate_max_staleness_minutes": 60
+}
