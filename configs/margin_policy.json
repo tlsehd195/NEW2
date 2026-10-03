@@ -1,0 +1,19 @@
+{
+  "_comment": "ADR-0037 option A: isolated margin, exchange leverage 3x, liquidation must be >= 3 stop distances from entry. 'tiers' is an ASSUMED snapshot for paper (no API key to fetch Binance's real leverageBracket); maintenance rates are set deliberately higher than Binance's lowest tier so the liquidation check errs on the strict side. verified=false until compared with /fapi/v1/leverageBracket; live must use the real brackets, never this file.",
+  "margin_type": "ISOLATED",
+  "exchange_leverage": 3,
+  "min_liquidation_to_stop": 3.0,
+  "verified": false,
+  "tiers": {
+    "BTCUSDT": [
+      {"notional_floor": 0, "notional_cap": 50000, "maintenance_margin_rate": 0.005, "maintenance_amount": 0},
+      {"notional_floor": 50000, "notional_cap": 1000000, "maintenance_margin_rate": 0.01, "maintenance_amount": 250},
+      {"notional_floor": 1000000, "notional_cap": null, "maintenance_margin_rate": 0.025, "maintenance_amount": 15250}
+    ],
+    "ETHUSDT": [
+      {"notional_floor": 0, "notional_cap": 50000, "maintenance_margin_rate": 0.01, "maintenance_amount": 0},
+      {"notional_floor": 50000, "notional_cap": 500000, "maintenance_margin_rate": 0.02, "maintenance_amount": 500},
+      {"notional_floor": 500000, "notional_cap": null, "maintenance_margin_rate": 0.04, "maintenance_amount": 10500}
+    ]
+  }
+}

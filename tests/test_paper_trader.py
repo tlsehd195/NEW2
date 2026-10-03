@@ -347,3 +347,31 @@ def test_simulated_multi_day_swing_run_growth_is_linear(tmp_path, days):
     parts = LayeredStore(tmp_path / "data").partitions("decision")
     sizes = [p.stat().st_size for p in parts][1:-1]  # full days only
     assert sizes and max(sizes) < 2.0 * min(sizes)  # per-day growth stays flat, no runaway
+
+
+def _margin_trader(tmp_path, plan, leverage, tiers=True):
+    from cointrader.risk.leverage import MarginTier
+    from cointrader.risk.margin_policy import MarginPolicy
+    t = make_trader(tmp_path, plan)
+    t.margin_policy = MarginPolicy("ISOLATED", leverage, 3.0)
+    t.margin_tiers = {SYM: [MarginTier(0, None, 0.005, 0.0)]} if tiers else {}
+    return t
+
+
+def test_margin_policy_blocks_entry_when_liquidation_near_stop(tmp_path):
+    # 3x isolated: liquidation ~33% away, a 300 stop (0.5%) is fine.
+    ok = _margin_trader(tmp_path / "ok", {122: entry_long()}, 3)
+    r = Replay(ok); start(ok, r); r.minute(60_000); r.minute(60_000)
+    assert SYM in ok.open_trades
+    # 20x: liquidation ~4.5% away, only ~9 stop distances of 0.5%... use a wide 2% stop to trip the 3x rule.
+    bad = _margin_trader(tmp_path / "bad", {122: entry_long(stop=1_200.0)}, 20)
+    r = Replay(bad); start(bad, r); r.minute(60_000); r.minute(60_000)
+    assert SYM not in bad.open_trades
+    assert any(d["reason"] == "liquidation_too_close_to_stop" for d in rows(tmp_path / "bad", "decision"))
+
+
+def test_margin_policy_refuses_without_tiers(tmp_path):
+    t = _margin_trader(tmp_path, {122: entry_long()}, 3, tiers=False)
+    r = Replay(t); start(t, r); r.minute(60_000); r.minute(60_000)
+    assert SYM not in t.open_trades
+    assert any(d["reason"] == "margin_tiers_unknown" for d in rows(tmp_path, "decision"))

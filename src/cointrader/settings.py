@@ -64,3 +64,39 @@ def load_paper(path: Path = CONFIGS / "paper.json") -> dict:
     if d.get("environment") != "paper" or d.get("live_trading_enabled") is not False:
         raise ValueError("configs/paper.json must say environment=paper and live_trading_enabled=false")
     return d
+
+
+def load_krw_accounting(path: Path = CONFIGS / "krw_accounting.json"):
+    """-> (KrwTaxConfig, ExitCostConfig, rate max staleness). Strict keys."""
+    from cointrader.accounting.krw_ledger import ExitCostConfig, KrwTaxConfig
+
+    d = _load(path)
+    top = {"tax", "exit_costs", "rate_max_staleness_minutes"}
+    if set(d) != top:
+        raise ValueError(f"krw_accounting keys differ: missing {top - set(d)}, unknown {set(d) - top}")
+    t = dict(d["tax"])
+    if not t.pop("sources", None):
+        raise ValueError("krw_accounting.tax.sources must list where the tax values came from")
+    tax_keys = {"effective_from_year", "rate", "basic_deduction_krw", "verified"}
+    if set(t) != tax_keys:
+        raise ValueError(f"krw_accounting.tax keys differ: missing {tax_keys - set(t)}, unknown {set(t) - tax_keys}")
+    e = d["exit_costs"]
+    exit_keys = {"overseas_withdraw_fee_usdt", "domestic_sell_fee_rate", "krw_withdraw_fee_krw"}
+    if set(e) != exit_keys:
+        raise ValueError(f"krw_accounting.exit_costs keys differ: missing {exit_keys - set(e)}, unknown {set(e) - exit_keys}")
+    return (KrwTaxConfig(**t), ExitCostConfig(**e), timedelta(minutes=d["rate_max_staleness_minutes"]))
+
+
+def load_margin_policy(path: Path = CONFIGS / "margin_policy.json"):
+    """-> (MarginPolicy, {symbol: [MarginTier]}, verified). Strict keys."""
+    from cointrader.risk.leverage import MarginTier
+    from cointrader.risk.margin_policy import MarginPolicy
+
+    d = _load(path)
+    keys = {"margin_type", "exchange_leverage", "min_liquidation_to_stop", "verified", "tiers"}
+    if set(d) != keys:
+        raise ValueError(f"margin_policy keys differ: missing {keys - set(d)}, unknown {set(d) - keys}")
+    policy = MarginPolicy(d["margin_type"], d["exchange_leverage"], d["min_liquidation_to_stop"])
+    tiers = {s: [MarginTier(t["notional_floor"], t["notional_cap"], t["maintenance_margin_rate"],
+                            t["maintenance_amount"]) for t in rows] for s, rows in d["tiers"].items()}
+    return policy, tiers, bool(d["verified"])

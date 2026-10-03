@@ -319,3 +319,25 @@ def test_parsers_and_order_params():
     p = order_params(intent(purpose="stop", side="SELL", order_type="STOP_MARKET", stop_price=95.5, qty=0.001))
     assert p["reduceOnly"] == "true" and p["stopPrice"] == "95.5" and p["quantity"] == "0.001"
     assert p["newClientOrderId"].startswith("ct_")
+
+
+def test_live_preflight_checks_margin_settings_for_entries_only(monkeypatch):
+    import cointrader.execution.live_broker as lb
+    from cointrader.risk.margin_policy import MarginPolicy
+    from types import SimpleNamespace
+    monkeypatch.setattr(lb, "evaluate_safety_gate", lambda ctx: SimpleNamespace(passed=True, failed_conditions=()))
+    sym = intent(mode="live").symbol
+    cfg = lambda m, lev: json.dumps([{"symbol": sym, "marginType": m, "leverage": lev}]).encode()  # noqa: E731
+    policy = MarginPolicy("ISOLATED", 3, 3.0)
+
+    def broker(*responses):
+        t = RecordingTransport(list(responses))
+        return LiveBroker(BinanceFuturesClient(Credentials("k", "s"), transport=t), lambda: gate_ctx(), policy), t
+
+    b, t = broker((200, cfg("ISOLATED", 3)))
+    assert b.preflight(intent(mode="live")) is None
+    b, t = broker((200, cfg("CROSSED", 20)))
+    msg = b.preflight(intent(mode="live"))
+    assert "margin settings differ" in msg and "CROSSED" in msg
+    b, t = broker((200, cfg("CROSSED", 20)))
+    assert b.preflight(intent("exit", side="SELL", mode="live")) is None and t.calls == []

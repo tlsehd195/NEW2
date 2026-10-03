@@ -36,8 +36,10 @@ class LiveOrderRefused(RuntimeError):
 class LiveBroker:
     mode = "live"
 
-    def __init__(self, client: BinanceFuturesClient, gate_context: Callable[[], SafetyGateContext]) -> None:
+    def __init__(self, client: BinanceFuturesClient, gate_context: Callable[[], SafetyGateContext],
+                 margin_policy=None) -> None:
         self._client = client
+        self._margin_policy = margin_policy  # risk.margin_policy.MarginPolicy | None (ADR-0037)
         self._gate_context = gate_context
         self.last_gate: Optional[SafetyGateResult] = None
 
@@ -46,6 +48,16 @@ class LiveBroker:
         self.last_gate = result
         if not result.passed:
             return "safety gate failed: " + ", ".join(result.failed_conditions)
+        if self._margin_policy is not None and not intent.reduce_only:
+            # Exits are never blocked by a settings mismatch; only new exposure is.
+            from cointrader.risk.margin_policy import margin_settings_mismatches
+            try:
+                bad = margin_settings_mismatches(self._client.symbol_config(intent.symbol), [intent.symbol],
+                                                 self._margin_policy)
+            except BinanceApiError as exc:
+                return f"margin settings unreadable: {exc}"
+            if bad:
+                return "margin settings differ from policy: " + "; ".join(bad)
         return None
 
     def submit(self, intent: OrderIntent) -> OrderStatus:
