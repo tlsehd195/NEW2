@@ -41,3 +41,14 @@ A를 고르면 `configs/risk.json` 값은 그대로이고 안전장치 코드만
 ## Decision
 
 동동님 선택 후 확정한다. 확정 전까지 상수·리스크 코드는 바꾸지 않는다.
+
+## Consequences (선택 전 준비분)
+
+A·B 공통 안전장치의 계산 부분만 먼저 넣었다. 진입 경로에는 아직 연결하지 않았다(설정값·리스크 동작 변화 없음).
+
+- `risk/margin_policy.py`: `MarginPolicy`(격리, 거래소 배율 3, 청산가 ≥ 손절 거리 3배),
+  `liquidation_vs_stop_reason`(마진 등급표 없거나 입력 이상이면 거절), `margin_settings_mismatches`.
+- `BinanceFuturesClient.symbol_config`: `/fapi/v1/symbolConfig` 읽기 전용 조회(증거금 방식·배율 확인용).
+  거래소 설정을 바꾸는 호출은 넣지 않았다.
+- 남은 일(선택 후): 페이퍼·라이브 진입 경로 연결. 페이퍼는 API 키 없이 마진 등급표를 받을 수 없어서, 등급표
+  스냅샷을 설정 파일로 둘지 정해야 한다.
