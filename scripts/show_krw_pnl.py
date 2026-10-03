@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 """KRW net PnL after every leg of KRW -> USDT -> Binance -> KRW (ADR-0036).
 
-    python3 scripts/show_krw_pnl.py --mode paper \
-        --flows var/paper/krw_flows.jsonl --rates var/data/krw_usdt.csv \
-        [--rate-source upbit_KRW-USDT] [--data-root var/data] [--days 365] [--as-of 2026-10-03T00:00:00+00:00] [--json] [--export-year 2027 --out-dir var/tax]
+    python3 scripts/show_krw_pnl.py --mode paper [--flows ...] [--rates ...] [--data-root var/data] [--days 365] [--as-of 2026-10-03T00:00:00+00:00] [--json] [--export-year 2027 --out-dir var/tax]
 
---flows   JSONL of money movements (one per line, `type` = usdt_purchase |
+--flows   (paper default var/paper/krw_flows.jsonl, written by the paper runner; required otherwise) JSONL of money movements (one per line, `type` = usdt_purchase |
           usdt_sale | usdt_transfer | krw_fee). Paper: write the simulated
           initial purchase there with mode "paper". Live: the bridge's
           receipts and the exchanges' own statements.
---rates   CSV `time,rate` (ISO UTC time, KRW per USDT), e.g. Upbit KRW-USDT
-          closes. Every closed trade is valued at the rate at its exit.
+--rates   (default var/data/krw_usdt.csv, written by scripts/collect_krw_rates.py
+          and the paper runner) CSV `time,rate`: Upbit KRW-USDT 15m closes.
+          Every closed trade is valued at the rate at its exit.
 
 --export-year  also writes that year's tax-filing package (summary, details,
           checklist) into --out-dir; see accounting/tax_export.py.
@@ -23,32 +22,22 @@ this never moves money or places orders.
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
-from cointrader.accounting.krw_ledger import (  # noqa: E402
-    KrwRateSeries, build_report, event_from_dict, trade_events_from_outcomes,
-)
-from cointrader.journal.store import LayeredStore  # noqa: E402
-from cointrader.settings import load_krw_accounting, load_paper  # noqa: E402
+from cointrader.accounting.krw_report import build_krw_report  # noqa: E402
+from cointrader.settings import load_paper  # noqa: E402
 
 LABELS = {
     "trading_gross": "선물 매매손익(총)", "trading_fees": "선물 거래 수수료", "spread_slippage": "스프레드·슬리피지",
     "funding": "펀딩비", "domestic_fees": "국내 거래소 수수료", "network_fees": "출금·네트워크 수수료",
     "krw_fees": "원화 수수료", "fx_realized": "환차손익(실현)",
 }
-
-
-def load_rates(path: Path, source: str, staleness: timedelta) -> KrwRateSeries:
-    with path.open(encoding="utf-8") as f:
-        pts = tuple((datetime.fromisoformat(r["time"]), float(r["rate"])) for r in csv.DictReader(f))
-    return KrwRateSeries(pts, source, staleness)
 
 
 def won(x) -> str:
@@ -59,9 +48,8 @@ def main() -> int:
     paper = load_paper()
     ap = argparse.ArgumentParser()
     ap.add_argument("--mode", default="paper", choices=("paper", "backtest", "live"))
-    ap.add_argument("--flows", type=Path, required=True)
-    ap.add_argument("--rates", type=Path, required=True)
-    ap.add_argument("--rate-source", default="upbit_KRW-USDT")
+    ap.add_argument("--flows", type=Path, default=None)
+    ap.add_argument("--rates", type=Path, default=REPO / paper["data_root"] / "krw_usdt.csv")
     ap.add_argument("--data-root", type=Path, default=REPO / paper["data_root"])
     ap.add_argument("--days", type=int, default=365)
     ap.add_argument("--as-of", type=datetime.fromisoformat, default=None)
@@ -70,19 +58,12 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=REPO / "var" / "tax")
     args = ap.parse_args()
 
-    tax, exit_costs, staleness = load_krw_accounting()
-    rates = load_rates(args.rates, args.rate_source, staleness)
-    flows = [event_from_dict(json.loads(line)) for line in args.flows.read_text(encoding="utf-8").splitlines()
-             if line.strip()]
-    since = (datetime.now(timezone.utc) - timedelta(days=args.days)).date()
-    rows = [r for r in LayeredStore(args.data_root).read("outcome", start=since) if r["mode"] == args.mode]
-    events = flows + trade_events_from_outcomes(rows, rates)
-    as_of = args.as_of or max([e.at for e in events] + [t for t, _ in rates.points[-1:]])
-    try:
-        mark, mark_src = rates.at(as_of), rates.source
-    except ValueError as exc:
-        mark, mark_src = None, f"unavailable: {exc}"
-    rep = build_report(events, as_of=as_of, mark_rate=mark, mark_rate_source=mark_src, tax=tax, exit_costs=exit_costs)
+    if args.flows is None:
+        if args.mode != "paper":
+            ap.error("--flows is required for live/backtest: record real purchases and transfers, never the paper file")
+        args.flows = REPO / paper["state_dir"] / "krw_flows.jsonl"
+    rep, tax = build_krw_report(mode=args.mode, flows_path=args.flows, rates_path=args.rates,
+                                data_root=args.data_root, days=args.days, as_of=args.as_of)
 
     if args.export_year is not None:
         from cointrader.accounting.tax_export import write_filing_package

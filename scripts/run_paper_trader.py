@@ -45,6 +45,44 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _start_krw_rates(cfg: dict) -> None:
+    """Background Upbit KRW-USDT collection + the simulated paper purchase that funds the account
+    (ADR-0040). Never blocks or stops trading: failures are printed and retried next round."""
+    import threading
+
+    from cointrader.accounting.krw_rates import collect, ensure_paper_start, load_series
+    from cointrader.data.upbit_rest import UpbitRestCandles
+    from cointrader.settings import load_krw_accounting
+
+    csv_path = REPO / cfg["data_root"] / "krw_usdt.csv"
+    flows = REPO / cfg["state_dir"] / "krw_flows.jsonl"
+    _, _, staleness = load_krw_accounting()
+    client = UpbitRestCandles()
+
+    def loop() -> None:
+        while True:
+            try:
+                collect(client, csv_path, now=_now())
+                ensure_paper_start(flows, load_series(csv_path, staleness), usdt=cfg["initial_balance"],
+                                   now=_now(), fee_rate=0.0005)
+            except Exception as exc:  # noqa: BLE001
+                print(f"krw rate collection failed: {exc}", file=sys.stderr, flush=True)
+            time.sleep(900)
+
+    threading.Thread(target=loop, name="krw-rates", daemon=True).start()
+
+
+def _print_krw(cfg: dict) -> None:
+    from cointrader.accounting.krw_report import build_krw_report, one_line
+    try:
+        rep, _ = build_krw_report(mode="paper", flows_path=REPO / cfg["state_dir"] / "krw_flows.jsonl",
+                                  rates_path=REPO / cfg["data_root"] / "krw_usdt.csv",
+                                  data_root=REPO / cfg["data_root"])
+        print(one_line(rep), flush=True)
+    except Exception as exc:  # noqa: BLE001
+        print(f"KRW report unavailable: {exc}", flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--replay", type=Path, help="JSONL of raw exchange messages instead of the live stream")
@@ -59,6 +97,8 @@ def main() -> int:
     signal.signal(signal.SIGTERM, stop)
     cfg = load_default_paper_config()
     history = None if args.replay else BinanceFuturesCandles()
+    if not args.replay:
+        _start_krw_rates(cfg)
     while True:
         trader = build_trader(cfg)
         if not args.no_bootstrap and history is not None:
@@ -68,6 +108,7 @@ def main() -> int:
             n = run(trader, source, history=history, now=_now, max_events=args.max_events)
             print(f"processed {n} events", flush=True)
             print(dump_status(trader))
+            _print_krw(cfg)
             return 0
         except FeedUnavailable as exc:
             print(f"feed unavailable: {exc}; restarting in {args.restart_pause:.0f}s", file=sys.stderr, flush=True)
@@ -76,6 +117,7 @@ def main() -> int:
             time.sleep(args.restart_pause)
         except KeyboardInterrupt:
             print(dump_status(trader))
+            _print_krw(cfg)
             return 0
 
 

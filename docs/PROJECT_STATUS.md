@@ -5,7 +5,15 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-03 (ETH·XRP 15분봉 신호 진단, ADR-0039)**
+**마지막 갱신: 2026-10-03 (원/USDT 환율 수집·모의투자 연결, ADR-0040)**
+
+## 2026-10-03: 원/USDT 환율 수집과 모의투자 연결 (ADR-0040)
+
+`accounting/krw_rates.py`, `scripts/collect_krw_rates.py`: 업비트 KRW-USDT 15분봉 종가(마감 시각 기준)를 REST로 모아 원화 장부가
+읽는 CSV에 쌓는다(비정상 환율·출처 불일치는 거부). `run_paper_trader.py`가 15분마다 수집하고 모의 계좌 초기 USDT 매수를
+한 번 기록하며, 종료 때 원화 기준 요약을 출력한다. 웹소켓 형식 확인은 첫 실제 모의투자에서 하도록
+`docs/runbooks/first-paper-run-ws-check.md`와 `scripts/check_ws_quality.py`를 만들었다. **이 환경에서는 업비트·바이낸스 접속이 막혀(403)
+실접속 검증을 못 했고 고정 응답으로만 테스트했다.** 사용자 몫: 출금 수수료 입력, 접속되는 곳에서 첫 모의투자 실행.
 
 ## 2026-10-03: ETH·XRP 15분봉 신호 진단 (ADR-0039, 수익은 읽지 않음)
 
