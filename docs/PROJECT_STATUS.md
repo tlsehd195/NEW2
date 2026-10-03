@@ -5,7 +5,15 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-02 (BTC 15분봉 신호 진단 결과, ADR-0033)**
+**마지막 갱신: 2026-10-03 (오픈소스 6개 검토·확률 보정 지표, ADR-0034)**
+
+## 2026-10-03: 오픈소스 6개 검토와 확률 보정 지표 (ADR-0034, 코드는 관찰 도구뿐)
+
+jev-trader 3종, QuantDinger, ccxt, freqtrade를 읽기 전용으로 검토했고 악성 징후(키 하드코딩, 난독화, 텔레메트리,
+출금 코드)는 없었다. "jev"는 TypeSafe의 유료 API 모델이라 재현 불가로 채택하지 않았다. 사용자가 "전부"를 골랐으나 6개 중
+4개(룩어헤드 검사, 리스크 거부권·킬 스위치, 페이퍼/라이브 공통 경로, Sortino/Calmar)는 이미 있어 중복 구현하지 않았다.
+새로 추가: `validation/calibration.py`(Brier·log loss·ECE·신뢰도 구간, 표본 100개 미만이면 숫자 대신 이유). ccxt는
+`binance_client`가 있고 stdlib-only 규칙과 충돌해 만들지 않았다. 검증 순서·잠금·예산은 건드리지 않았다.
 
 ## 2026-10-02: BTC 15분봉 신호 진단 결과 (ADR-0033, 수익은 읽지 않음)
 
