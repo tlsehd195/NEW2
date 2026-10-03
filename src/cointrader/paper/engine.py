@@ -143,7 +143,11 @@ class PaperTrader:
         store: LayeredStore,
         notifier: Optional[Notifier] = None,
         broker: Optional[PaperBroker] = None,
+        margin_policy=None,  # risk.margin_policy.MarginPolicy | None (ADR-0037)
+        margin_tiers: Optional[dict] = None,  # symbol -> [MarginTier]
     ) -> None:
+        self.margin_policy = margin_policy
+        self.margin_tiers = margin_tiers or {}
         self.cfg = config
         self.strategies = strategies
         self.symbols = tuple(symbols)
@@ -480,6 +484,15 @@ class PaperTrader:
                      "kill_switch": kill_reason if killed else "off", "inputs": decision.inputs}
         if not decision.approved:
             return "blocked", ";".join(decision.reasons), risk_info, None, quality_info
+        if self.margin_policy is not None:
+            from cointrader.risk.margin_policy import liquidation_vs_stop_reason
+            liq = liquidation_vs_stop_reason(
+                direction=signal.entry, entry_price=book.mid if book else float("nan"),
+                stop_price=decision.stop_price if decision.stop_price else float("nan"),
+                quantity=decision.quantity, tiers=self.margin_tiers.get(symbol), policy=self.margin_policy)
+            if liq:
+                risk_info = {**risk_info, "approved": False, "reasons": [liq]}
+                return "blocked", liq, risk_info, None, quality_info
         if not self.ready:
             return "blocked", "startup_reconciliation_not_passed", risk_info, None, quality_info
         side = "BUY" if signal.entry > 0 else "SELL"
