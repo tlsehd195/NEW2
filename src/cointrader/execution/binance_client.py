@@ -237,6 +237,10 @@ class BinanceFuturesClient:
         return parse_leverage_brackets(self._request("GET", "/fapi/v1/leverageBracket", {"symbol": symbol}, signed=True),
                                        symbol)
 
+    def symbol_config(self, symbol: Optional[str] = None) -> list[dict]:
+        """Per-symbol margin type and leverage (read-only; ADR-0037)."""
+        return self._request("GET", "/fapi/v1/symbolConfig", {"symbol": symbol} if symbol else {}, signed=True)
+
     def commission_rate(self, symbol: str) -> tuple[float, float]:
         d = self._request("GET", "/fapi/v1/commissionRate", {"symbol": symbol}, signed=True)
         return float(d["makerCommissionRate"]), float(d["takerCommissionRate"])
