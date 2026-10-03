@@ -172,3 +172,14 @@ def test_tax_filing_package_before_effective_year_says_zero(tmp_path):
     rows = list(csv.reader(p[0].open(encoding="utf-8-sig")))
     assert float(next(r for r in rows if r[1].startswith("추정세액"))[2]) == 0.0
     assert "시행 전" in p[2].read_text(encoding="utf-8")
+
+
+def test_configured_exit_costs_turn_cash_out_net_into_a_number():
+    from cointrader.settings import load_krw_accounting
+    tax, exits, _ = load_krw_accounting()
+    assert exits.missing() == [] and exits.overseas_withdraw_fee_usdt == 1.0 and exits.krw_withdraw_fee_krw == 1000
+    rep = build_report([buy(0, 1000, 1400, fee_rate=0)], as_of=at(1), mark_rate=1400, mark_rate_source="t",
+                       exit_costs=exits)
+    # 1 USDT network fee + 0.05% sell fee on the remaining 999 USDT + 1,000 KRW bank withdrawal
+    assert rep.exit_cost_krw == pytest.approx(1400 + 999 * 1400 * 0.0005 + 1000)
+    assert rep.net_if_cashed_out_krw == pytest.approx(-rep.exit_cost_krw)
