@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from cointrader.data.models import Candle, Timeframe
 from cointrader.journal.store import LayeredStore
-from cointrader.paper.runner import ReplayFileSource, bootstrap, build_trader, live_stream_url, run
+from cointrader.paper.runner import ReplayFileSource, bootstrap, build_trader, live_stream_urls, run
 from cointrader.settings import load_paper
 
 T0 = datetime(2026, 6, 1, tzinfo=timezone.utc)
@@ -57,7 +57,9 @@ def test_replay_run_end_to_end(tmp_path):
     cfg.update({"symbols": [SYM], "strategies": ["scalp_vwap_reversion_30_2_v1", "scalp_short_mean_reversion_20_3_v1"],
                 "state_dir": "state", "data_root": "data", "kill_switch_path": "state/kill.jsonl"})
     trader = build_trader(cfg, root=tmp_path)
-    assert "fstream.binance.com" in live_stream_url(trader) and "btcusdt@kline_1m" in live_stream_url(trader)
+    urls = live_stream_urls(trader)
+    assert len(urls) == 2 and all("fstream.binance.com" in u for u in urls)
+    assert "btcusdt@bookTicker" in urls[0] and "btcusdt@kline_1m" in urls[1]
     assert bootstrap(trader, History(), T0) > 0
 
     msgs = _messages(30)

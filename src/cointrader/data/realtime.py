@@ -30,6 +30,8 @@ What this layer guarantees to everything downstream:
 
 from __future__ import annotations
 
+import queue
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -78,12 +80,13 @@ class WebSocketMessageSource:
 
     def messages(self) -> Iterator[str]:
         ws = self._ws_module
-        if self._conn is None:
+        conn = self._conn  # bound once: a late reader of a closed connection must never read its replacement
+        if conn is None:
             raise ConnectionError("not connected")
         while True:
-            msg = self._conn.recv()
+            msg = conn.recv()
             if msg.opcode == ws.OP_PING:
-                self._conn.send_pong(msg.payload)
+                conn.send_pong(msg.payload)
                 continue
             if msg.opcode == ws.OP_PONG:
                 continue
@@ -93,6 +96,59 @@ class WebSocketMessageSource:
         if self._conn is not None:
             self._conn.close()
             self._conn = None
+
+
+class MultiMessageSource:
+    """Merges several `MessageSource`s (one per Binance route, ADR-0045) into one. Every connection must keep
+    delivering: an error or `read_timeout` seconds without any message from the merged stream is raised to the
+    feed, which reconnects all of them."""
+
+    def __init__(self, sources: list, *, read_timeout: float = 30.0) -> None:
+        if not sources:
+            raise ValueError("at least one source is required")
+        self._sources = sources
+        self._timeout = read_timeout
+        self._queue: queue.Queue = queue.Queue()
+
+    def connect(self) -> None:
+        self._queue = queue.Queue()
+        try:
+            for s in self._sources:
+                s.connect()
+        except Exception:
+            self.close()
+            raise
+        for s in self._sources:
+            threading.Thread(target=self._pump, args=(s, self._queue), name="ws-pump", daemon=True).start()
+
+    def _pump(self, source, q: queue.Queue) -> None:
+        try:
+            for text in source.messages():
+                q.put(("msg", text))
+        except Exception as exc:  # noqa: BLE001 - handed to the consumer, which re-raises it
+            q.put(("err", exc))
+        else:
+            q.put(("err", ConnectionError("websocket source ended")))
+
+    def messages(self) -> Iterator[str]:
+        q = self._queue
+        while True:
+            try:
+                kind, value = q.get(timeout=self._timeout)
+            except queue.Empty:
+                raise TimeoutError(f"no message for {self._timeout:.0f}s on any connection") from None
+            if kind == "err":
+                if isinstance(value, (ConnectionError, TimeoutError)):
+                    raise value
+                raise ConnectionError(f"{type(value).__name__}: {value}") from value
+            yield value
+
+    def close(self) -> None:
+        for s in self._sources:
+            try:
+                s.close()
+            except OSError:
+                pass
 
 
 @dataclass(frozen=True)

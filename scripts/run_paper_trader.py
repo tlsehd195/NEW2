@@ -29,14 +29,14 @@ sys.path.insert(0, str(REPO / "src"))
 
 from cointrader.data.binance_futures import BinanceFuturesCandles  # noqa: E402
 from cointrader.data.feed import FeedUnavailable  # noqa: E402
-from cointrader.data.realtime import WebSocketMessageSource  # noqa: E402
+from cointrader.data.realtime import MultiMessageSource, WebSocketMessageSource  # noqa: E402
 from cointrader.paper.runner import (  # noqa: E402
     ReplayFileSource,
     bootstrap,
     build_learning,
     build_trader,
     dump_status,
-    live_stream_url,
+    live_stream_urls,
     load_default_paper_config,
     run,
 )
@@ -145,7 +145,7 @@ def main() -> int:
         holder["trader"] = trader
         if not args.no_bootstrap and history is not None:
             print(f"bootstrapped {bootstrap(trader, history, _now())} candles", flush=True)
-        source = ReplayFileSource(args.replay) if args.replay else WebSocketMessageSource(live_stream_url(trader))
+        source = ReplayFileSource(args.replay) if args.replay else MultiMessageSource([WebSocketMessageSource(u) for u in live_stream_urls(trader)])
         try:
             n = run(trader, source, history=history, now=_now, max_events=args.max_events,
                     learning=build_learning(trader))

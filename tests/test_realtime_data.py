@@ -11,14 +11,16 @@ from cointrader.data.binance_ws import (
     combined_stream_url,
     kline_stream,
     parse_message,
+    routed_stream_urls,
     standard_streams,
+    stream_path,
 )
 from cointrader.data.feed import FeedEvent, FeedUnavailable
 from cointrader.data.market_events import BookTicker, DataQualityEvent, DepthDelta, MarkPriceUpdate, TradeTick
 from cointrader.data.models import Candle, Timeframe
 from cointrader.data.orderbook import DepthSnapshot, LocalOrderBook
 from cointrader.data.quality_gate import QualityLimits, compare_sources, evaluate_data_quality
-from cointrader.data.realtime import FeedHealthMonitor, FeedLimits, ResilientEventFeed
+from cointrader.data.realtime import FeedHealthMonitor, FeedLimits, MultiMessageSource, ResilientEventFeed
 from cointrader.live.config import HealthStatus
 from tests.helpers import make_candles
 
@@ -120,6 +122,81 @@ def test_stream_names_and_url():
     assert url.startswith("wss://fstream.binance.com/stream?streams=btcusdt@aggTrade/")
     with pytest.raises(ValueError):
         combined_stream_url(["a", "a"])
+
+
+def test_streams_are_split_by_binance_route():
+    """Binance routes USDⓈ-M streams by tier (ADR-0045): an unrouted URL only gets the public tier, which
+    left a paper run with order-book data but no klines and no decisions."""
+    names = standard_streams("BTCUSDT", [Timeframe.MINUTE_15]) + standard_streams("ETHUSDT", [Timeframe.MINUTE_15])
+    public, market = routed_stream_urls(names)
+    assert public.startswith("wss://fstream.binance.com/public/stream?streams=")
+    assert market.startswith("wss://fstream.binance.com/market/stream?streams=")
+    assert "btcusdt@bookTicker" in public and "ethusdt@depth@100ms" in public
+    assert all(k not in public for k in ("aggTrade", "markPrice", "kline"))
+    for k in ("btcusdt@aggTrade", "btcusdt@markPrice@1s", "btcusdt@kline_15m", "ethusdt@kline_15m"):
+        assert k in market
+    assert "bookTicker" not in market and "depth" not in market
+    assert [stream_path(n) for n in names if "kline" in n] == ["market", "market"]
+    assert len(routed_stream_urls(["btcusdt@aggTrade"])) == 1  # a tier without streams gets no connection
+    with pytest.raises(ValueError):
+        stream_path("btcusdt@somethingNew")
+
+
+class ListSource:
+    def __init__(self, items=(), error=None, block=False) -> None:
+        self.items, self.error, self.block = list(items), error, block
+        self.connected = self.closed = False
+
+    def connect(self) -> None:
+        self.connected = True
+
+    def messages(self):
+        yield from self.items
+        if self.error is not None:
+            raise self.error
+        if self.block:
+            import time
+            while not self.closed:
+                time.sleep(0.01)
+            raise ConnectionError("closed")
+
+    def close(self) -> None:
+        self.closed = True
+
+
+def test_multi_source_merges_connections_and_reports_a_drop():
+    a = ListSource(["a1", "a2"], block=True)
+    b = ListSource(["b1"], error=ConnectionError("dropped"))
+    m = MultiMessageSource([a, b], read_timeout=2.0)
+    m.connect()
+    got = []
+    with pytest.raises(ConnectionError, match="dropped"):
+        for text in m.messages():
+            got.append(text)
+    m.close()
+    assert "b1" in got and set(got) <= {"a1", "a2", "b1"}
+    assert a.closed and b.closed
+
+
+def test_multi_source_times_out_when_every_connection_is_silent():
+    a, b = ListSource(block=True), ListSource(block=True)
+    m = MultiMessageSource([a, b], read_timeout=0.1)
+    m.connect()
+    with pytest.raises(TimeoutError):
+        next(m.messages())
+    m.close()
+
+
+def test_multi_source_connect_failure_closes_the_ones_already_open():
+    class Refuses(ListSource):
+        def connect(self) -> None:
+            raise ConnectionError("refused")
+
+    a = ListSource()
+    m = MultiMessageSource([a, Refuses()])
+    with pytest.raises(ConnectionError):
+        m.connect()
+    assert a.connected and a.closed
 
 
 def test_parse_agg_trade_maps_aggressor_and_keeps_both_clocks():

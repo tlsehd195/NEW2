@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Iterator, Optional
 
-from cointrader.data.binance_ws import combined_stream_url, standard_streams
+from cointrader.data.binance_ws import routed_stream_urls, standard_streams
 from cointrader.data.feed import CandleHistory, FeedUnavailable
 from cointrader.data.models import Timeframe
 from cointrader.data.realtime import FeedLimits, ResilientEventFeed
@@ -151,11 +151,12 @@ def build_learning(trader: PaperTrader) -> DailyLearningCycle:
                               lag=lag_for(champions, LEARNING_TIMEFRAME), notifier=trader.notifier)
 
 
-def live_stream_url(trader: PaperTrader) -> str:
+def live_stream_urls(trader: PaperTrader) -> list[str]:
+    """One combined-stream URL per Binance tier (public order book, market data) -- ADR-0045."""
     streams = []
     for sym in trader.symbols:
         streams += standard_streams(sym, timeframes_of(trader))
-    return combined_stream_url(streams)
+    return routed_stream_urls(streams)
 
 
 def load_default_paper_config() -> dict:
