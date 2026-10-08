@@ -9,7 +9,8 @@
     "outcome":    {"compress_after_days": null, "delete_after_days": null},
     "quality":    {"compress_after_days": 30, "delete_after_days": null},
     "safety":     {"compress_after_days": null, "delete_after_days": null},
-    "audit":      {"compress_after_days": 30, "delete_after_days": null}
+    "audit":      {"compress_after_days": 30, "delete_after_days": null},
+    "learning":   {"compress_after_days": null, "delete_after_days": null}
   },
   "warn_total_bytes": 5000000000,
   "critical_total_bytes": 20000000000

@@ -148,7 +148,8 @@ def test_accumulated_data_never_changes_live_strategies():
     """Journal, dataset and maintenance code may read strategies but never
     write configs or the strategy registry (ADR-0015)."""
     offenders = []
-    for path in _files(SRC / "cointrader/journal") + [SRC / "cointrader/research/dataset.py"]:
+    for path in (_files(SRC / "cointrader/journal") + _files(SRC / "cointrader/learning")
+                 + [SRC / "cointrader/research/dataset.py"]):
         text = path.read_text(encoding="utf-8")
         tree = ast.parse(text)
         docstrings = {id(n.body[0].value) for n in ast.walk(tree)
@@ -164,4 +165,23 @@ def test_accumulated_data_never_changes_live_strategies():
                     offenders.append(f"{_rel(path)} imports the strategy registry")
             if isinstance(node, ast.Constant) and isinstance(node.value, str) and "configs/" in node.value:
                 offenders.append(f"{_rel(path)}:{node.lineno} names a configs/ path")
+    assert offenders == []
+
+
+def test_learning_cycle_cannot_reach_trading():
+    """ADR-0044: a retrained (challenger) model is evaluated in shadow only. The learning package may
+    not import the trader, execution, live or registry code, nor touch a `strategies` attribute, so it
+    has no way to swap what the trader runs; promotion stays on the validation path (CLAUDE.md rule 1)."""
+    banned = ("cointrader.paper", "cointrader.execution", "cointrader.live", "cointrader.strategies.registry",
+              "cointrader.evolution", "cointrader.research.lifecycle")
+    offenders = []
+    for path in _files(SRC / "cointrader/learning"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and (node.module or "").startswith(banned):
+                offenders.append(f"{_rel(path)} imports {node.module}")
+            if isinstance(node, ast.Import) and any(a.name.startswith(banned) for a in node.names):
+                offenders.append(f"{_rel(path)} imports {[a.name for a in node.names]}")
+            if isinstance(node, ast.Attribute) and node.attr == "strategies":
+                offenders.append(f"{_rel(path)}:{node.lineno} touches .strategies")
     assert offenders == []
