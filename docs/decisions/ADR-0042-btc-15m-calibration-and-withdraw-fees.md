@@ -1,4 +1,4 @@
-# ADR-0042: BTC 15m vote calibration on real data, and withdraw fees
+# ADR-0042: BTC 15m vote calibration on real data
 
 **Status:** Accepted (measurement recorded; no constant changed)
 **Date:** 2026-10-03
@@ -9,8 +9,7 @@
 ADR-0035 built `scripts/calibrate_vote.py` but did not run it on real data
 because the sandbox could not reach the Binance archive. 동동 enabled network
 access for data servers and asked for the run; data.binance.vision now
-answers 200. ADR-0036/0040 also left the two withdraw fees `null`; 동동
-supplied them.
+answers 200.
 
 ## Decision
 
@@ -41,16 +40,11 @@ supplied them.
    hypotheses, budget and TEST windows are untouched. Any change suggested by
    it (e.g. long-side off, different confidence) needs a new preregistered id
    and 동동's approval.
-4. `configs/krw_accounting.json` exit costs set from 동동's figures:
-   `overseas_withdraw_fee_usdt = 1.0` (Binance USDT via TRC20, fixed per
-   withdrawal) and `krw_withdraw_fee_krw = 1000` (Upbit KRW, fixed per
-   withdrawal, VAT incl.). Upbit KRW/coin deposits are free, which the ledger
-   already assumes. These change over time and by network; re-check the
-   exchanges' fee pages before relying on them.
+4. The withdraw fees 동동 sent in the same message were already set on main
+   by another thread (ADR-0036 update, PR #26); this ADR does not change them.
 
 ## Consequences
 
-- The KRW report now shows a recovery cost instead of "unavailable".
 - The calibration result is a warning for pre-registration: on BTC 2023-04 to
   2024-06 the 60% long signal is not a 60% signal. Raw JSON is in
   `reports/` locally (git-ignored); the table above is the record.

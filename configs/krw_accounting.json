@@ -1,5 +1,5 @@
 {
-  "_comment": "KRW net PnL report settings (ADR-0036). Tax values are an ESTIMATE of current 소득세법 (가상자산 소득, 시행 2027-01-01, 22%, 기본공제 250만원, 같은 해 손익통산·이월공제 없음); verified stays false until a tax accountant confirms futures-PnL treatment and the cost method. Exit costs (ADR-0042, from 동동 2026-10-03): Binance USDT withdraw via TRC20 1 USDT fixed, Upbit KRW withdraw 1,000 KRW fixed incl. VAT; deposits free. null exit costs = not configured: the report says 'unavailable' instead of assuming zero. Fill them from the exchanges' own fee pages (they change by network and over time).",
+  "_comment": "KRW net PnL report settings (ADR-0036). Tax values are an ESTIMATE of current 소득세법 (가상자산 소득, 시행 2027-01-01, 22%, 기본공제 250만원, 같은 해 손익통산·이월공제 없음); verified stays false until a tax accountant confirms futures-PnL treatment and the cost method. exit_costs: null = not configured (report says 'unavailable', never assumes zero). Values are user-provided, see exit_costs_source; they change by network and over time.",
   "tax": {
     "effective_from_year": 2027,
     "rate": 0.22,
@@ -16,5 +16,6 @@
     "domestic_sell_fee_rate": 0.0005,
     "krw_withdraw_fee_krw": 1000
   },
-  "rate_max_staleness_minutes": 60
+  "rate_max_staleness_minutes": 60,
+  "exit_costs_source": "User-provided 2026-10-03: Upbit KRW withdrawal 1,000 KRW per withdrawal (VAT included); Binance USDT withdrawal 1 USDT assuming the TRC20 network (fee differs by network and changes over time; re-check on the exchange before relying on it). Upbit deposits are free; Binance withdrawal fee was NOT independently verified by this session."
 }

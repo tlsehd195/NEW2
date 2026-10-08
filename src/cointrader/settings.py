@@ -71,7 +71,7 @@ def load_krw_accounting(path: Path = CONFIGS / "krw_accounting.json"):
     from cointrader.accounting.krw_ledger import ExitCostConfig, KrwTaxConfig
 
     d = _load(path)
-    top = {"tax", "exit_costs", "rate_max_staleness_minutes"}
+    top = {"tax", "exit_costs", "exit_costs_source", "rate_max_staleness_minutes"}
     if set(d) != top:
         raise ValueError(f"krw_accounting keys differ: missing {top - set(d)}, unknown {set(d) - top}")
     t = dict(d["tax"])
@@ -80,6 +80,8 @@ def load_krw_accounting(path: Path = CONFIGS / "krw_accounting.json"):
     tax_keys = {"effective_from_year", "rate", "basic_deduction_krw", "verified"}
     if set(t) != tax_keys:
         raise ValueError(f"krw_accounting.tax keys differ: missing {tax_keys - set(t)}, unknown {set(t) - tax_keys}")
+    if not d["exit_costs_source"]:
+        raise ValueError("krw_accounting.exit_costs_source must say where the exit costs came from")
     e = d["exit_costs"]
     exit_keys = {"overseas_withdraw_fee_usdt", "domestic_sell_fee_rate", "krw_withdraw_fee_krw"}
     if set(e) != exit_keys:
