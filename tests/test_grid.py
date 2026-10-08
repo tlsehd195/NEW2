@@ -223,13 +223,13 @@ def _loaders(bars, seen):
 
 def test_grid_validation_end_to_end_locks_test(tmp_path, monkeypatch):
     locked = tmp_path / "locked.json"
-    locked.write_text("[]\n")
+    locked.write_text("[]\n", encoding="utf-8")
     bars = _series(460, datetime(2023, 12, 1, tzinfo=timezone.utc))
     seen = []
     mod = _load_script()
     monkeypatch.setattr(sys, "argv", _args(tmp_path, locked))
     assert mod.main(loader=_loaders(bars, seen)) == 0
-    out = json.loads((tmp_path / "out.json").read_text())
+    out = json.loads((tmp_path / "out.json").read_text(encoding="utf-8"))
     assert out["fold_count"] >= 8
     assert out["test_window_locked"]["name"] == "TEST-9201"
     c0 = out["candidates"][0]
@@ -247,7 +247,7 @@ def test_grid_validation_end_to_end_locks_test(tmp_path, monkeypatch):
 
 def test_test_range_is_locked_before_the_test_runs(tmp_path, monkeypatch):
     locked = tmp_path / "locked.json"
-    locked.write_text("[]\n")
+    locked.write_text("[]\n", encoding="utf-8")
     bars = _series(460, datetime(2023, 12, 1, tzinfo=timezone.utc))
     mod = _load_script()
     import cointrader.validation.grid_study as gs

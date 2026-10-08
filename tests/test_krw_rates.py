@@ -81,7 +81,7 @@ def test_series_and_paper_start_once(tmp_path):
     flows = tmp_path / "flows.jsonl"
     assert ensure_paper_start(flows, s, usdt=10_000, now=NOW, fee_rate=0.0005)
     assert not ensure_paper_start(flows, s, usdt=10_000, now=NOW, fee_rate=0.0005)  # only once
-    d = json.loads(flows.read_text())
+    d = json.loads(flows.read_text(encoding="utf-8"))
     assert d["type"] == "usdt_purchase" and d["mode"] == "paper" and d["krw_gross"] == pytest.approx(10_000 * 1400)
     assert d["fee_krw"] == pytest.approx(d["krw_gross"] * 0.0005)
     with pytest.raises(ValueError):

@@ -225,12 +225,12 @@ def test_combined_cap_blocks_a_new_kind_while_other_kinds_fill_the_window():
 def test_register_checked_writes_log_and_rationale(tmp_path):
     path = tmp_path / "prereg.jsonl"
     register_checked(PreregistrationLog(path), path, hyp("H-1", ["swing_q"]), [], rationale=RATIONALE)
-    assert json.loads(path.read_text().splitlines()[0])["hypothesis_id"] == "H-1"
-    assert "Regime" in (tmp_path / "hypothesis_rationale.jsonl").read_text()
+    assert json.loads(path.read_text(encoding="utf-8").splitlines()[0])["hypothesis_id"] == "H-1"
+    assert "Regime" in (tmp_path / "hypothesis_rationale.jsonl").read_text(encoding="utf-8")
     # Re-running the same registration (e.g. after a data-pipeline crash) adds no second row.
     register_checked(PreregistrationLog(path), path, hyp("H-1", ["swing_q"]), [], rationale=RATIONALE)
-    assert len(path.read_text().splitlines()) == 1
-    assert len((tmp_path / "hypothesis_rationale.jsonl").read_text().splitlines()) == 1
+    assert len(path.read_text(encoding="utf-8").splitlines()) == 1
+    assert len((tmp_path / "hypothesis_rationale.jsonl").read_text(encoding="utf-8").splitlines()) == 1
 
 
 def test_criteria_from_hypothesis():

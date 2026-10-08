@@ -198,9 +198,9 @@ def test_state_mismatch_blocks_all_new_orders_and_never_auto_fixes(tmp_path):
     r.minute(60_000)
     r.minute(60_000)
     t.save_state()
-    state = json.loads(t.state_path.read_text())
+    state = json.loads(t.state_path.read_text(encoding="utf-8"))
     state["open_trades"] = {}  # local book says flat, broker says long
-    t.state_path.write_text(json.dumps(state))
+    t.state_path.write_text(json.dumps(state), encoding="utf-8")
 
     t2 = make_trader(tmp_path, {125: entry_long()})
     r2 = Replay(t2)
@@ -307,7 +307,7 @@ def _random_walk_run(tmp_path, *, minutes: int, strategies, candle_every: int = 
 
 def _check_invariants(tmp_path, t, expected_decisions):
     assert t.counters["decisions"] == expected_decisions
-    orders = [json.loads(line) for line in (tmp_path / "state" / "orders.jsonl").read_text().splitlines()] \
+    orders = [json.loads(line) for line in (tmp_path / "state" / "orders.jsonl").read_text(encoding="utf-8").splitlines()] \
         if (tmp_path / "state" / "orders.jsonl").exists() else []
     submits = [o for o in orders if o["state"] == "PENDING_SUBMIT"]
     assert len({o["client_order_id"] for o in submits}) == len(submits)  # no order submitted twice

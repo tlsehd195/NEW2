@@ -62,7 +62,7 @@ def test_replay_run_end_to_end(tmp_path):
 
     msgs = _messages(30)
     path = tmp_path / "replay.jsonl"
-    path.write_text("\n".join(json.dumps(d) for _, d in msgs) + "\n")
+    path.write_text("\n".join(json.dumps(d) for _, d in msgs) + "\n", encoding="utf-8")
     current = {"t": T0}
     times = iter(t for t, _ in msgs)
 
@@ -101,7 +101,7 @@ def test_repo_configs_default_to_paper_and_load_strictly(tmp_path):
     with pytest.raises(ValueError):
         risk_from_dict({"risk_per_trade": 0.01})
     bad = tmp_path / "paper.json"
-    bad.write_text(json.dumps({**cfg, "environment": "live"}))
+    bad.write_text(json.dumps({**cfg, "environment": "live"}), encoding="utf-8")
     with pytest.raises(ValueError):
         load_paper(bad)
 

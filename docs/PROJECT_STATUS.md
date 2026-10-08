@@ -5,7 +5,14 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-08 (학습 사이클 2부: 그림자 챌린저 재학습)**
+**마지막 갱신: 2026-10-08 (윈도우 테스트 인코딩 수정)**
+
+## 2026-10-08: 윈도우에서 테스트 1개 실패 수정 (버그 수정, ADR 없음)
+
+한국어 윈도우는 `encoding` 없이 파일을 읽으면 cp949로 읽어서, 한글이 든 UTF-8 파일(원화 손익 스냅숏 등)에서
+`test_refresh_writes_atomically_and_failure_keeps_old_file`가 실패했다. 리눅스 CI는 UTF-8이라 통과했다. 테스트의
+`read_text`/`write_text` 38곳에 `encoding="utf-8"`을 넣고, `src`·`scripts`·`tests`에서 encoding 없는 텍스트 입출력을
+막는 AST 테스트 `tests/test_text_encoding.py`를 추가했다. `src`·`scripts`는 이미 모두 지정돼 있었다.
 
 ## 2026-10-08: 학습 사이클 2부 — 매일 재학습하는 그림자 챌린저 (ADR-0044)
 

@@ -245,7 +245,7 @@ def _load_script():
 
 def _universe_file(tmp_path, symbols):
     p = tmp_path / "universes.json"
-    p.write_text(json.dumps({"SYN": {"rule": "synthetic", "symbols": symbols}}))
+    p.write_text(json.dumps({"SYN": {"rule": "synthetic", "symbols": symbols}}), encoding="utf-8")
     return p
 
 
@@ -274,18 +274,18 @@ def test_xsec_validation_end_to_end_locks_basket_and_every_coin(tmp_path, monkey
     coins["C8USDT"] = [c for c in coins["C8USDT"] if c.open_time >= T0 + 365 * DAY]
     universes = _universe_file(tmp_path, sorted(coins))
     locked = tmp_path / "locked.json"
-    locked.write_text("[]")
+    locked.write_text("[]", encoding="utf-8")
     monkeypatch.setattr(sys, "argv", _args(tmp_path, universes, locked))
     assert mod.main(loader=_loaders(coins, _funding(coins, days=900))) == 0
-    report = json.loads((tmp_path / "report.json").read_text())
-    windows = json.loads(locked.read_text())
+    report = json.loads((tmp_path / "report.json").read_text(encoding="utf-8"))
+    windows = json.loads(locked.read_text(encoding="utf-8"))
     assert [w["name"] for w in windows] == ["TEST-9101"] + [f"TEST-9101:{s}" for s in sorted(coins)]
     assert windows[0]["market"] == "XS:SYN" and {w["start"] for w in windows} == {report["test_window_locked"]["start"]}
     assert report["label"].startswith("BACKTEST") and report["fold_count"] >= 16
     assert all(sum(c["fold_rebalances"]) > 0 for c in report["candidates"])
-    prereg = [json.loads(l) for l in (tmp_path / "prereg.jsonl").read_text().splitlines()]
+    prereg = [json.loads(l) for l in (tmp_path / "prereg.jsonl").read_text(encoding="utf-8").splitlines()]
     assert prereg[0]["statement"].endswith("universe: " + ",".join(sorted(coins)))
-    rows = [json.loads(l) for l in (tmp_path / "ledger.jsonl").read_text().splitlines() if l.strip()]
+    rows = [json.loads(l) for l in (tmp_path / "ledger.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
     assert rows and all(r["to_status"] not in ("APPROVED", "DEPLOYED") for r in rows)
     # the same run again hits the lock before anything is registered or loaded
     with pytest.raises(LockedWindowViolation):
@@ -299,17 +299,17 @@ def test_test_range_is_locked_before_the_test_runs(tmp_path, monkeypatch):
     coins = _coins(n_coins=9, days=900)
     universes = _universe_file(tmp_path, sorted(coins))
     locked = tmp_path / "locked.json"
-    locked.write_text("[]")
+    locked.write_text("[]", encoding="utf-8")
     real = study.equal_weight_buy_and_hold
 
     def boom(*a, **k):  # first thing the TEST phase does
-        assert json.loads(locked.read_text()), "TEST ran before its range was locked"
+        assert json.loads(locked.read_text(encoding="utf-8")), "TEST ran before its range was locked"
         raise RuntimeError("crash inside TEST")
     monkeypatch.setattr(study, "equal_weight_buy_and_hold", boom)
     monkeypatch.setattr(sys, "argv", _args(tmp_path, universes, locked, hid="H-9103"))
     with pytest.raises(RuntimeError):
         mod.main(loader=_loaders(coins, _funding(coins, days=900)))
-    assert len(json.loads(locked.read_text())) == 1 + len(coins)
+    assert len(json.loads(locked.read_text(encoding="utf-8"))) == 1 + len(coins)
     monkeypatch.setattr(study, "equal_weight_buy_and_hold", real)
 
 
@@ -319,7 +319,7 @@ def test_a_lock_on_any_single_coin_blocks_the_basket(tmp_path, monkeypatch):
     universes = _universe_file(tmp_path, sorted(coins))
     locked = tmp_path / "locked.json"
     locked.write_text(json.dumps([{"name": "TEST-1", "market": "C3USDT", "start": "2021-03-01T00:00:00+00:00",
-                                   "end": "2021-04-01T00:00:00+00:00", "observed_by": ["x"], "note": "t"}]))
+                                   "end": "2021-04-01T00:00:00+00:00", "observed_by": ["x"], "note": "t"}]), encoding="utf-8")
     monkeypatch.setattr(sys, "argv", _args(tmp_path, universes, locked, hid="H-9102"))
     with pytest.raises(LockedWindowViolation):
         mod.main(loader=_loaders(coins, _funding(coins, days=900)))
