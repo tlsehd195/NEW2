@@ -30,3 +30,16 @@ def test_correlation_matrix_sees_negative_copy():
     rows = [[x, -2.0 * x, (x * 7919) % 13] for x in range(1, 40)]
     m = mod.correlation_matrix(rows)
     assert math.isclose(m[0][1], -1.0, rel_tol=1e-9)
+
+
+def test_taker_flow_is_signed_imbalance_over_the_window():
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+
+    mod = _mod()
+    t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    cs = [SimpleNamespace(open_time=t0 + timedelta(minutes=15 * i), volume=10.0) for i in range(20)]
+    flow = mod.taker_flow(cs, {c.open_time: 7.5 for c in cs}, bars=4)
+    assert flow[2] is None and math.isclose(flow[10], 0.5)
+    flow = mod.taker_flow(cs, {c.open_time: 2.5 for c in cs} | {cs[9].open_time: None}, bars=4)
+    assert math.isclose(flow[8], -0.5) and flow[10] is None
