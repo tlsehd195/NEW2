@@ -1,10 +1,14 @@
-# NEW2 — 코인 스윙/스켈핑 트레이딩
+# NEW2 — 코인 15분봉 단타(데이트레이딩)
 
 암호화폐 트레이딩 연구·검증·매매 시스템입니다.
 [NEW-](https://github.com/tlsehd195/NEW-) 프로젝트에서 검증된 설계 원칙(과최적화 검정,
 잠긴 TEST 구간, 사람만 해제하는 킬 스위치, 사람 승인 없는 실거래 불가)을 이어받았고,
-**스윙(1시간봉~일봉)부터** 시작합니다. 통계적 우위가 확인되기 전에는 더 짧은 시간
-단위로 내려가지 않습니다. 결정 배경: [ADR-0001](docs/decisions/ADR-0001-swing-first-bootstrap.md).
+**15분봉 하나만 쓰는 롱·숏 단타**를 목표로 합니다. 한 번 거래에 약 3% 이상을 노리고
+몇 시간 보유합니다(최대 12시간). 스캘핑, 일봉 스윙, 여러 시간단위를 섞는 방식, 5분봉은
+쓰지 않습니다. 결정 배경: [ADR-0030](docs/decisions/ADR-0030-daytrade-multitimeframe-proposal.md),
+[ADR-0031](docs/decisions/ADR-0031-daytrade-kind-and-combined-cap.md),
+[ADR-0032](docs/decisions/ADR-0032-daytrade-15m-vote.md). 예전 스윙 후보·가설·잠금은 기록으로만
+남아 있습니다.
 
 원화는 업비트(국내 신고 거래소)에 보관하고, 매매는 바이낸스 선물에서 합니다
 ([ADR-0002](docs/decisions/ADR-0002-binance-futures-leverage.md)). 둘 사이의 자금
@@ -17,7 +21,7 @@
 | --- | --- |
 | `src/cointrader/data/` | 캔들·오더북 모델, 업비트 REST, 스트림 우선 피드(재연결 + REST 공백 메우기), 레이트리밋, 품질 검사 |
 | `src/cointrader/backtest/` | 오더북 깊이 체결 시뮬레이션, 캔들용 보수적 비용 모델, 미래참조 불가 백테스트(현물), 격리마진 레버리지·청산·펀딩비 백테스트(선물) |
-| `src/cointrader/strategies/` | 기준 전략, 스윙 4종·스캘핑 4종 후보, 레지스트리 — 전부 CANDIDATE, 우위 주장 아님 |
+| `src/cointrader/strategies/` | 15분봉 단타 지표 투표 후보 4종(`daytrade_indicator_vote_*`, 롱·숏, 12시간 시간 손절), 레지스트리 — 전부 CANDIDATE, 우위 주장 아님. 예전 스윙·스캘핑 후보는 기록용 |
 | `src/cointrader/validation/` | 워크포워드, PBO/DSR(NEW-에서 복사), 잠긴 TEST 구간, 가설 사전등록, 검증 스터디 |
 | `src/cointrader/risk/` | 변동성 역비례 사이징, 비중 상한, 레버리지 사이징·청산가 계산(바이낸스 공식 문서 근거, ADR-0004), fail-closed |
 | `src/cointrader/live/` | 킬 스위치, 라이브 승인, 안전 게이트 (보호 파일) |
@@ -38,17 +42,14 @@ python3 -m pip install -e ".[dev]"
 python3 -m pytest -q
 ```
 
-첫 검증 스터디(업비트 공개 API 사용, 키 불필요):
+15분봉 단타 후보는 가설 사전등록 후 `scripts/run_validation.py`로 검증합니다. 등록 예산은
+모든 종류 합산 30일 3건이며(ADR-0031), 등록은 사용자 승인이 필요합니다. 잠금 밖 구간에서
+신호 빈도와 확률 보정을 미리 볼 수 있습니다(수익은 읽지 않음):
 
 ```bash
-python3 scripts/run_swing_study.py --hypothesis-id H-0001 \
-  --statement "추세추종 기준 전략이 비용 차감 후 KRW-BTC 1시간봉 보유 대비 우위" \
-  --market KRW-BTC --start 2021-01-01 --end 2026-09-01 \
-  --registered-by 동동 --out reports/H-0001.json
+python3 scripts/diagnose_vote_frequency.py --help
+python3 scripts/calibrate_vote.py --help
 ```
-
-실행 후 `research/preregistration.jsonl`을 커밋하고, 리포트에 나온 TEST 구간을
-`configs/locked_windows.json`에 추가해 잠급니다.
 
 자금이동은 실제로 실행하기 전에 항상 사람이 터미널에서 직접 승인합니다(`funding/bridge.py`
 는 `.claude/hooks/protect-safety-files.sh`로 보호되고, AST 테스트가 자동 코드 경로에서
@@ -67,8 +68,8 @@ python3 scripts/run_fund_transfer.py --krw-amount 1000000 \
 ## 거래 시스템 (ADR-0015) — 기본 모드는 PAPER
 
 ```bash
-python3 scripts/run_backtest.py --strategy swing_trend_ema_atr_20_50_v1 --symbol BTCUSDT \
-  --start 2022-01-01 --end 2023-01-01            # 탐색 백테스트 (BACKTEST 라벨)
+python3 scripts/run_backtest.py --strategy daytrade_indicator_vote_h16_c0.6_v1 --symbol BTCUSDT \
+  --start 2023-04-20 --end 2024-06-18            # 15분봉 탐색 백테스트 (BACKTEST 라벨)
 python3 scripts/run_validation.py --help          # 사전등록 → 워크포워드 → PBO/DSR → TEST 1회 → 즉시 락
 python3 scripts/run_paper_trader.py               # 상시 페이퍼 트레이딩 (실주문 불가)
 python3 scripts/show_status.py                    # 상태 / 킬 스위치 / 재조정 / 저장 용량
@@ -85,7 +86,7 @@ python3 scripts/run_maintenance.py                # 압축·보존 (보호 계�
 
 - 라이브 연결: 사람 승인을 실행 중인 프로세스에 싣는 경로와 LiveBroker 생성(의도적으로
   사람 결정으로 남김, ADR-0015)
-- 실데이터로 돌려본 새 전략 후보 백테스트/검증 결과 (전부 CANDIDATE)
+- 15분봉 단타 후보의 검증 결과 (전부 CANDIDATE, 가설 미등록. BTC 확률 보정은 기저율보다 못했음, ADR-0042)
 - 학습 사이클 무인 스케줄러 (기록 → 학습 → 평가/승격 순환)
 - 자금이동의 실제 거래소 연동(API 키, 업비트 트래블룰 화이트리스트 확인)
 - 바이낸스 마진 등급표(MMR·Maintenance Amount)·실제 펀딩비 시계열 자동 수집 — 지금은
