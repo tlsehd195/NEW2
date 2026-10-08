@@ -72,11 +72,30 @@ def effective_count(eigs: list[float]) -> dict:
             "eigenvalues": eigs}
 
 
-def analyse(candles: list, first_index: int, scale: float, stride: int) -> dict:
-    names = list(DEFAULT_PANEL)
+FLOW_BARS = 16  # same look-back as the vote's horizon
+
+
+def taker_flow(candles: list, taker_buy: dict, bars: int = FLOW_BARS) -> list:
+    """Per bar: (2 * taker-buy volume / volume - 1) over the last `bars` bars, in [-1, 1]; None if unknown."""
+    out = []
+    for i in range(len(candles)):
+        win = candles[max(0, i - bars + 1): i + 1]
+        vol = math.fsum(c.volume for c in win)
+        buy = [taker_buy.get(c.open_time) for c in win]
+        out.append(None if i < bars - 1 or vol <= 0 or any(b is None for b in buy)
+                   else 2.0 * math.fsum(buy) / vol - 1.0)
+    return out
+
+
+def analyse(candles: list, first_index: int, scale: float, stride: int, flow: list | None = None) -> dict:
+    names = list(DEFAULT_PANEL) + (["taker_flow"] if flow is not None else [])
     series = []
     for t in range(max(first_index, MIN_BARS), len(candles), stride):
         sc = raw_scores(candles[: t + 1], DEFAULT_PANEL, scale=scale)
+        if sc is not None and flow is not None:
+            if flow[t] is None:
+                continue
+            sc = {**sc, "taker_flow": flow[t]}
         if sc is not None:
             series.append(sc)
     if len(series) < 100:
@@ -98,6 +117,8 @@ def main() -> int:
     ap.add_argument("--start", required=True)
     ap.add_argument("--end", required=True, help="exclusive; must not touch a locked window")
     ap.add_argument("--stride", type=int, default=4, help="bars between samples (default 4 = hourly)")
+    ap.add_argument("--flow", action="store_true",
+                    help="add taker-buy imbalance (order flow, candidate B) as a 7th column")
     ap.add_argument("--out", type=Path)
     args = ap.parse_args()
 
@@ -109,15 +130,35 @@ def main() -> int:
     scale = DayTradeVote().score_scale
     warm_start = start - (MIN_BARS + 1) * tf.delta
     assert_not_locked(load_locked_windows(REPO / "configs" / "locked_windows.json"), args.symbol, warm_start, end)
-    candles, notes = load_candles(args.symbol, tf, warm_start, end)
+    flow_src = None
+    if args.flow:
+        from cointrader.data import binance_vision as bv  # noqa: E402
+        taker_buy: dict = {}
+        received = datetime.now(timezone.utc)
+
+        def capture(url: str):
+            body = bv._urllib_transport(url)
+            if body is not None and "/klines/" in url:
+                for row in bv._parse_csv_rows(body, bv.KLINE_COLUMNS):
+                    c = bv._kline_row_to_candle(args.symbol, tf, row, received, source=bv.SOURCE)
+                    taker_buy[c.open_time] = float(row["taker_buy_volume"])
+            return body
+
+        fetcher = bv.BinanceVisionFuturesCandles(transport=capture)
+        candles = fetcher.fetch(args.symbol, tf, warm_start, end)
+        notes = [f"archive gap: {g}" for g in fetcher.last_gaps]
+        flow_src = taker_flow(candles, taker_buy)
+    else:
+        candles, notes = load_candles(args.symbol, tf, warm_start, end)
     first = next(i for i, c in enumerate(candles) if c.open_time >= start)
     mid = (first + len(candles)) // 2
     out = {"label": "OVERLAP MEASUREMENT (indicator scores only; no returns read; not a validation result)",
            "symbol": args.symbol, "timeframe": "15m", "range": [start.isoformat(), end.isoformat()],
            "source": "binance_vision_archive", "candles": len(candles), "data_notes": notes[:10],
-           "all": analyse(candles, first, scale, args.stride),
-           "first_half": analyse(candles[: mid + 1], first, scale, args.stride),
-           "second_half": analyse(candles, mid, scale, args.stride)}
+           "all": analyse(candles, first, scale, args.stride, flow_src),
+           "first_half": analyse(candles[: mid + 1], first, scale, args.stride,
+                                 None if flow_src is None else flow_src[: mid + 1]),
+           "second_half": analyse(candles, mid, scale, args.stride, flow_src)}
     text = json.dumps(out, ensure_ascii=False, indent=2)
     if args.out:
         args.out.parent.mkdir(parents=True, exist_ok=True)
