@@ -31,7 +31,7 @@ def test_run_validation_end_to_end_locks_test_and_stops_at_oos(tmp_path, monkeyp
     monkeypatch.setattr(mod, "load_futures_terms",
                         lambda s, a, b: (FuturesTerms(assume_no_funding=True), ["test: no funding"]))
     locked = tmp_path / "locked.json"
-    locked.write_text("[]")
+    locked.write_text("[]", encoding="utf-8")
     out = tmp_path / "report.json"
     monkeypatch.setattr(sys, "argv", [
         "run_validation.py", "--hypothesis-id", "H-9001", "--family", "swing", "--symbol", "ETHUSDT",
@@ -41,12 +41,12 @@ def test_run_validation_end_to_end_locks_test_and_stops_at_oos(tmp_path, monkeyp
         "--registered-by", "test", "--log", str(tmp_path / "prereg.jsonl"), "--locked-path", str(locked),
         "--ledger", str(tmp_path / "ledger.jsonl"), "--out", str(out)])
     assert mod.main() == 0
-    report = json.loads(out.read_text())
-    windows = json.loads(locked.read_text())
+    report = json.loads(out.read_text(encoding="utf-8"))
+    windows = json.loads(locked.read_text(encoding="utf-8"))
     assert len(windows) == 1 and windows[0]["market"] == "ETHUSDT" and windows[0]["name"] == "TEST-9001"
     assert report["test_window_locked"]["start"] == windows[0]["start"]
     assert report["label"].startswith("BACKTEST")
-    rows = [json.loads(l) for l in (tmp_path / "ledger.jsonl").read_text().splitlines() if l.strip()] \
+    rows = [json.loads(l) for l in (tmp_path / "ledger.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()] \
         if (tmp_path / "ledger.jsonl").exists() else []
     assert all(r["to_status"] not in ("APPROVED", "DEPLOYED") for r in rows)
     # re-running the same hypothesis now hits the lock
@@ -72,7 +72,7 @@ def test_run_validation_daily_long_holds_with_jittered_funding(tmp_path, monkeyp
     monkeypatch.setattr(mod, "load_candles", lambda s, tf, a, b: ([c for c in candles if a <= c.open_time < b], []))
     monkeypatch.setattr(mod, "load_futures_terms", lambda s, a, b: (FuturesTerms(funding=funding), []))
     locked = tmp_path / "locked.json"
-    locked.write_text("[]")
+    locked.write_text("[]", encoding="utf-8")
     out = tmp_path / "report.json"
     monkeypatch.setattr(sys, "argv", [
         "run_validation.py", "--hypothesis-id", "H-9002", "--family", "swing", "--symbol", "ETHUSDT",
@@ -83,7 +83,7 @@ def test_run_validation_daily_long_holds_with_jittered_funding(tmp_path, monkeyp
         "--registered-by", "test", "--log", str(tmp_path / "prereg.jsonl"), "--locked-path", str(locked),
         "--ledger", str(tmp_path / "ledger.jsonl"), "--out", str(out)])
     assert mod.main() == 0
-    report = json.loads(out.read_text())
+    report = json.loads(out.read_text(encoding="utf-8"))
     assert report["fold_count"] >= 16
     trades = [c["test_summary"]["trade_count"] for c in report["candidates"]]
     assert sum(trades) > 0
@@ -105,7 +105,7 @@ def test_warmup_bars_inside_a_locked_window_are_refused(tmp_path, monkeypatch):
     monkeypatch.setattr(mod, "load_futures_terms", lambda s, a, b: (FuturesTerms(assume_no_funding=True), []))
     locked = tmp_path / "locked.json"
     locked.write_text(json.dumps([{"name": "TEST-1", "market": "ETHUSDT", "start": "2020-03-01T00:00:00+00:00",
-                                   "end": "2020-04-01T00:00:00+00:00", "observed_by": ["x"], "note": "t"}]))
+                                   "end": "2020-04-01T00:00:00+00:00", "observed_by": ["x"], "note": "t"}]), encoding="utf-8")
     monkeypatch.setattr(sys, "argv", [
         "run_validation.py", "--hypothesis-id", "H-9003", "--family", "swing", "--symbol", "ETHUSDT",
         "--timeframe", "1d", "--start", "2020-08-01", "--end", "2023-12-07",

@@ -115,7 +115,7 @@ class TestKillSwitch:
 
     def test_corrupt_log_reads_as_engaged(self, tmp_path):
         path = tmp_path / "ks.jsonl"
-        path.write_text("{not json\n")
+        path.write_text("{not json\n", encoding="utf-8")
         assert KillSwitchLog(path).is_engaged()
 
 

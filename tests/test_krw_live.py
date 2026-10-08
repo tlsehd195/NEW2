@@ -77,16 +77,16 @@ def test_refresh_writes_atomically_and_failure_keeps_old_file(tmp_path):
         refresh_snapshot(**kw)
     assert not out.exists()
     flows.write_text(json.dumps({"type": "usdt_purchase", "at": NOW.isoformat(), "mode": "paper",
-                                 "krw_gross": 14_000_000.0, "usdt": 10_000.0, "fee_krw": 7_000.0}) + "\n")
+                                 "krw_gross": 14_000_000.0, "usdt": 10_000.0, "fee_krw": 7_000.0}) + "\n", encoding="utf-8")
     first = refresh_snapshot(**kw)
-    assert json.loads(out.read_text())["pnl_krw"]["total"] == pytest.approx(first["pnl_krw"]["total"])
+    assert json.loads(out.read_text(encoding="utf-8"))["pnl_krw"]["total"] == pytest.approx(first["pnl_krw"]["total"])
     assert not list(tmp_path.glob("*.tmp"))
     # transport dies: the previous file is untouched, the error propagates
     bad = {**kw, "ticker": UpbitTicker(transport=lambda u: (_ for _ in ()).throw(OSError("x")), now=lambda: NOW)}
-    before = out.read_text()
+    before = out.read_text(encoding="utf-8")
     with pytest.raises(OSError):
         refresh_snapshot(**bad)
-    assert out.read_text() == before
+    assert out.read_text(encoding="utf-8") == before
     # a live-mode refresh does not pick up the paper start purchase
     with pytest.raises(ValueError, match="no live start purchase"):
         refresh_snapshot(**kw, mode="live")
@@ -96,7 +96,7 @@ def test_write_snapshot_replaces_existing(tmp_path):
     p = tmp_path / "s.json"
     write_snapshot(p, {"a": 1})
     write_snapshot(p, {"a": 2})
-    assert json.loads(p.read_text()) == {"a": 2}
+    assert json.loads(p.read_text(encoding="utf-8")) == {"a": 2}
 
 
 def test_watch_script_once_reads_file(tmp_path, capsys, monkeypatch):
@@ -106,7 +106,7 @@ def test_watch_script_once_reads_file(tmp_path, capsys, monkeypatch):
     f = tmp_path / "live.json"
     s = snap()
     s["as_of"] = datetime.now(timezone.utc).isoformat()
-    f.write_text(json.dumps(s))
+    f.write_text(json.dumps(s), encoding="utf-8")
     spec = importlib.util.spec_from_file_location(
         "watch_krw_pnl", Path(__file__).resolve().parents[1] / "scripts" / "watch_krw_pnl.py")
     mod = importlib.util.module_from_spec(spec)

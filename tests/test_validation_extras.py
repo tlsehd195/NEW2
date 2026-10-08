@@ -56,7 +56,7 @@ def test_prior_trials_counts_registered_minus_current(tmp_path):
     import json
     path = tmp_path / "p.jsonl"
     rows = [{"hypothesis_id": f"H-{i}", "candidates": ["x", "y", "z"]} for i in (1, 2)]
-    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     log = PreregistrationLog(path)
     assert log.total_registered_candidates() == 6
     assert prior_trials(log, ["x", "y", "z"]) == 3
