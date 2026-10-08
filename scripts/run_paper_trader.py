@@ -72,6 +72,41 @@ def _start_krw_rates(cfg: dict) -> None:
     threading.Thread(target=loop, name="krw-rates", daemon=True).start()
 
 
+def _start_krw_live(cfg: dict, holder: dict, every: float, print_every: float = 60.0) -> None:
+    """Background live KRW valuation (ADR-0041): every `every` seconds writes var/paper/krw_live.json from
+    the Upbit ticker and the paper account's current equity, and prints one line each minute. Read-only:
+    never touches trading; a failed round is reported (once per distinct message) and retried."""
+    import threading
+
+    from cointrader.accounting.krw_live import UpbitTicker, one_line, refresh_snapshot
+    from cointrader.settings import load_krw_accounting
+
+    tax, exits, _ = load_krw_accounting()
+    ticker = UpbitTicker(now=_now)
+    flows = REPO / cfg["state_dir"] / "krw_flows.jsonl"
+    out = REPO / cfg["state_dir"] / "krw_live.json"
+
+    def loop() -> None:
+        last_print, last_err = 0.0, ""
+        while True:
+            try:
+                trader = holder.get("trader")
+                if trader is not None:
+                    snap = refresh_snapshot(ticker=ticker, equity_usdt_fn=lambda: trader.broker.account().equity,
+                                            flows_path=flows, out_path=out, tax=tax, exit_costs=exits)
+                    last_err = ""
+                    if time.monotonic() - last_print >= print_every:
+                        print(one_line(snap), flush=True)
+                        last_print = time.monotonic()
+            except Exception as exc:  # noqa: BLE001
+                if str(exc) != last_err:
+                    print(f"krw live valuation unavailable: {exc}", file=sys.stderr, flush=True)
+                    last_err = str(exc)
+            time.sleep(every)
+
+    threading.Thread(target=loop, name="krw-live", daemon=True).start()
+
+
 def _print_krw(cfg: dict) -> None:
     from cointrader.accounting.krw_report import build_krw_report, one_line
     try:
@@ -88,6 +123,8 @@ def main() -> int:
     ap.add_argument("--replay", type=Path, help="JSONL of raw exchange messages instead of the live stream")
     ap.add_argument("--no-bootstrap", action="store_true", help="skip the REST warmup history download")
     ap.add_argument("--max-events", type=int)
+    ap.add_argument("--krw-live-seconds", type=float, default=10.0,
+                    help="refresh interval of var/paper/krw_live.json (0 = off)")
     ap.add_argument("--restart-pause", type=float, default=60.0, help="seconds before reconnecting after an outage")
     args = ap.parse_args()
 
@@ -97,10 +134,14 @@ def main() -> int:
     signal.signal(signal.SIGTERM, stop)
     cfg = load_default_paper_config()
     history = None if args.replay else BinanceFuturesCandles()
+    holder: dict = {}
     if not args.replay:
         _start_krw_rates(cfg)
+        if args.krw_live_seconds > 0:
+            _start_krw_live(cfg, holder, args.krw_live_seconds)
     while True:
         trader = build_trader(cfg)
+        holder["trader"] = trader
         if not args.no_bootstrap and history is not None:
             print(f"bootstrapped {bootstrap(trader, history, _now())} candles", flush=True)
         source = ReplayFileSource(args.replay) if args.replay else WebSocketMessageSource(live_stream_url(trader))
