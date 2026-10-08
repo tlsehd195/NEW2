@@ -12,15 +12,16 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from cointrader.journal.store import LayeredStore  # noqa: E402
-from cointrader.learning.cycle import DailyLearningCycle  # noqa: E402
+from cointrader.learning.cycle import DailyLearningCycle, challenger_step, drift_step, lag_for  # noqa: E402
 from cointrader.settings import load_paper  # noqa: E402
+from cointrader.strategies.registry import StrategyRegistry  # noqa: E402
 
 
 def main() -> int:
@@ -29,12 +30,22 @@ def main() -> int:
     ap.add_argument("--force", action="store_true", help="run even if the day is already marked done")
     args = ap.parse_args()
     cfg = load_paper()
-    cycle = DailyLearningCycle(LayeredStore(REPO / cfg["data_root"]), cfg["symbols"], timeframe="15m")
+    registry = StrategyRegistry.load()
+    built = {sid: registry.build(sid) for sid in cfg["strategies"]}
+    champions = {sid: s.horizon for sid, s in built.items()
+                 if s.timeframe == "15m" and isinstance(getattr(s, "horizon", None), int)}
+    lag = lag_for(champions)
+    now = datetime.now(timezone.utc)
+    if datetime.combine(args.day, time(0), tzinfo=timezone.utc) + timedelta(days=1) + lag > now:
+        print(f"{args.day} is not finished yet (needs {lag} after its end for the targets)")
+        return 2
+    cycle = DailyLearningCycle(LayeredStore(REPO / cfg["data_root"]), cfg["symbols"], timeframe="15m",
+                               steps=[drift_step] + ([challenger_step(champions)] if champions else []), lag=lag)
     if args.day.isoformat() in cycle.done and not args.force:
         print(f"{args.day} already done (use --force to add another run)")
         return 0
-    for rec in cycle.run_day(args.day, now=datetime.now(timezone.utc)):
-        print(json.dumps({k: rec[k] for k in ("event", "symbol", "day", "status") if k in rec}, ensure_ascii=False))
+    for rec in cycle.run_day(args.day, now=now):
+        print(json.dumps({k: rec[k] for k in ("event", "symbol", "day", "status", "result", "horizon") if k in rec}, ensure_ascii=False))
     return 0
 
 

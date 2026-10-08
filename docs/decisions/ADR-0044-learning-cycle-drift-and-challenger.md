@@ -1,6 +1,6 @@
 # ADR-0044: Daily learning cycle: drift check and shadow challenger retraining
 
-**Status:** Accepted (part 1: drift + journal data; part 2: shadow challenger — see "Part 2")
+**Status:** Accepted (part 1: drift + journal data; part 2: shadow challenger)
 **Date:** 2026-10-08
 **Deciders:** account owner (동동, "재학습 기능 만들어"), Claude Code session
 
@@ -49,3 +49,31 @@ While building this, the paper trader turned out to keep only 600 bars while the
 - 9 features x 2 tests per day: some alarms will be chance. A flag means "look", not "re-validate now".
 - Nothing here is a validation result. A challenger that looks better in shadow still has to go
   through pre-registration -> locked window -> walk-forward -> PBO/DSR -> one TEST.
+
+## Part 2: shadow challenger retraining (same day, second PR)
+
+5. **Daily retrain-and-compare** (`learning/challenger.py`), added as a second cycle step. For each
+   finished UTC day D and each running 15m strategy with a forecast horizon h (the champion; today the
+   two day-trade votes, h = 16 and 48 bars), ridge and bagged-tree models (`ml/`) are refit on the newest
+   2,000 journal samples whose target closed by D 00:00, then predict every bar that closed in D. The
+   champion side is what the paper trader actually journaled for those bars (entry and `p_long`). Both
+   get the same metrics against the realized h-bar return: IC, direction hit rate, entry count, entry
+   hit rate and mean return net of a 0.2% round trip. The runner passes only strategy ids and horizons
+   into the learning package. Records say `SHADOW_ONLY_UNVALIDATED` and how promotion would have to go.
+6. **Timing:** the cycle waits until the longest horizon after midnight is realized plus 30 minutes
+   (12h30m with h = 48), so drift results also arrive then. A failed cycle retries after an hour, not
+   on every feed event.
+7. **Fixed constants, chosen before any result:** 2,000 training bars (~21 days), at least 300
+   samples (else `UNKNOWN`), confidence 0.6 and entry edge = round-trip cost (both MLStrategy's
+   defaults), 0.2% round trip (upper end of the 0.12-0.20% perps estimate). Bars where a journal hole
+   makes the horizon or feature window the wrong length are skipped and counted.
+8. **Tree split search made O(n log n)** (`ml/tree_model._best_split`): the quadratic scan took ~70 s
+   per fit on 2,000 samples, which would have stalled the paper process. Same thresholds, leaf rule
+   and tie-breaking; 200 random cases (with ties) picked identical splits to the old code. Running sums
+   replace `math.fsum`, so SSEs can differ in the last bits. No validated result depended on it.
+9. **Report:** `scripts/show_learning_report.py` prints drift days and per-model averages over the
+   last N days, headed "그림자 평가(검증 아님)".
+
+Not done (deliberately): no automatic promotion, no model files written for trading, no challenger in
+the registry, no use of the 2026-10-29 registration budget. If shadow numbers keep favouring a
+challenger, the next step is a human decision to pre-register it.

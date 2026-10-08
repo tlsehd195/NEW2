@@ -47,19 +47,31 @@ def _sse(ys: Sequence[float]) -> float:
 
 
 def _best_split(samples, feature_ids, min_leaf):
-    parent = _sse([s.target for s in samples])
+    """Best (feature, threshold) by SSE reduction. One sorted pass per feature with running sums
+    (O(n log n)); same candidate thresholds (midpoints between distinct values), same leaf-size rule
+    and same first-best tie-breaking as the original quadratic scan (ADR-0044)."""
+    n = len(samples)
+    ys = [s.target for s in samples]
+    total, total_sq = math.fsum(ys), math.fsum(y * y for y in ys)
+    parent = _sse(ys)
     best, best_gain = None, 0.0
     for f in feature_ids:
-        values = sorted({s.features[f] for s in samples})
-        for a, b in zip(values, values[1:]):
-            thr = (a + b) / 2.0
-            left = [s.target for s in samples if s.features[f] <= thr]
-            right = [s.target for s in samples if s.features[f] > thr]
-            if len(left) < min_leaf or len(right) < min_leaf:
+        xs = [s.features[f] for s in samples]
+        order = sorted(range(n), key=xs.__getitem__)
+        left_sum = left_sq = 0.0
+        for k in range(n - 1):
+            y = ys[order[k]]
+            left_sum += y
+            left_sq += y * y
+            a, b = xs[order[k]], xs[order[k + 1]]
+            nl = k + 1
+            nr = n - nl
+            if a == b or nl < min_leaf or nr < min_leaf:
                 continue
-            gain = parent - _sse(left) - _sse(right)
+            right_sum = total - left_sum
+            gain = parent - (left_sq - left_sum * left_sum / nl) - ((total_sq - left_sq) - right_sum * right_sum / nr)
             if gain > best_gain:
-                best, best_gain = (f, thr), gain
+                best, best_gain = (f, (a + b) / 2.0), gain
     return best
 
 

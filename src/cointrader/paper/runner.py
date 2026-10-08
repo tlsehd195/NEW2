@@ -14,7 +14,7 @@ from cointrader.data.feed import CandleHistory, FeedUnavailable
 from cointrader.data.models import Timeframe
 from cointrader.data.realtime import FeedLimits, ResilientEventFeed
 from cointrader.journal.store import LayeredStore
-from cointrader.learning.cycle import DailyLearningCycle
+from cointrader.learning.cycle import DailyLearningCycle, challenger_step, drift_step, lag_for
 from cointrader.notifications.notifier import Notifier, Severity
 from cointrader.paper.engine import PaperConfig, PaperTrader
 from cointrader.risk.engine import RiskEngine
@@ -130,10 +130,11 @@ def run(trader: PaperTrader, source, *, history: Optional[CandleHistory], now: C
 
 def _run_learning(trader: PaperTrader, learning: DailyLearningCycle) -> None:
     """The daily learning cycle (ADR-0044) is observation only, so its failure must never stop trading:
-    it is recorded and reported, and the day is retried at the next event."""
+    it is recorded and reported, and the day is retried an hour later."""
     try:
         learning.maybe_run(trader._now)
     except Exception as exc:  # noqa: BLE001
+        learning.next_try = trader._now + timedelta(hours=1)
         trader.store.append("audit", {"event": "learning_cycle_failed", "detail": f"{type(exc).__name__}: {exc}"},
                             at=trader._now)
         trader.notifier.notify(Severity.WARNING, "learning cycle failed", f"{type(exc).__name__}: {exc}",
@@ -141,7 +142,13 @@ def _run_learning(trader: PaperTrader, learning: DailyLearningCycle) -> None:
 
 
 def build_learning(trader: PaperTrader) -> DailyLearningCycle:
-    return DailyLearningCycle(trader.store, trader.symbols, timeframe=LEARNING_TIMEFRAME, notifier=trader.notifier)
+    """Drift check plus a shadow challenger against every running strategy that has a forecast horizon.
+    Only strategy ids and horizons leave the trader; the learning package never sees a strategy object."""
+    champions = {sid: s.horizon for sid, (s, _) in trader.strategies.items()
+                 if s.timeframe == LEARNING_TIMEFRAME and isinstance(getattr(s, "horizon", None), int)}
+    steps = [drift_step] + ([challenger_step(champions)] if champions else [])
+    return DailyLearningCycle(trader.store, trader.symbols, timeframe=LEARNING_TIMEFRAME, steps=steps,
+                              lag=lag_for(champions, LEARNING_TIMEFRAME), notifier=trader.notifier)
 
 
 def live_stream_url(trader: PaperTrader) -> str:
