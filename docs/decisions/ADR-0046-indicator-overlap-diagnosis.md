@@ -1,11 +1,40 @@
 # ADR-0046: 투표 지표 6개의 겹침 진단 (측정만)
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-09
 **Deciders:** account owner, Claude Code session
 
 ## Context
 
+15분봉 투표(`DayTradeVote`)는 지표 6개(ema_trend, donchian_pos, roc, rsi, bollinger_b,
+obv_slope)의 확률을 로그오즈 평균으로 합친다. 합치는 방식은 지표들이 서로 다른 정보를
+준다는 가정에 기댄다. 논문 조사(`research/broader-papers-2026-10-08.md`) 후보 A: 실제로
+얼마나 겹치는지부터 재 본다. 사용자가 "A만"으로 선택했다.
+
 ## Decision
 
+`scripts/diagnose_indicator_overlap.py`를 추가한다. 지표 점수끼리만 상관을 보고 수익률·결과는
+읽지 않으므로 임계값에 결과가 새지 않고 사전등록 예산(30일 3건)도 쓰지 않는다. 락 구간은
+`assert_not_locked`로 피한다. 상관행렬 고유값으로 "독립 지표 개수"(참여비율, 엔트로피 지수;
+6=완전 독립, 1=전부 같음)를 낸다. 투표 상수는 바꾸지 않는다(측정만).
+
+## 결과 (4봉 간격 표본)
+
+| 심볼 | 구간 | 참여비율 | 엔트로피 | 평균 \|상관\| |
+|---|---|---|---|---|
+| BTCUSDT | 2023-04-20..2024-06-18 | 1.72 | 2.35 | - |
+| ETHUSDT | 2024-12-10..2025-12-01 | 1.66 | 2.25 | 0.65 |
+
+- 전반·후반 나눠도 같다(ETH 1.67 / 1.65). 가장 큰 고유값이 6 중 약 4.5.
+- 가격 기반 5개(ema_trend, donchian_pos, roc, rsi, bollinger_b)는 사실상 한 요인이다
+  (예: donchian_pos~bollinger_b +0.93, ema_trend~rsi +0.90). obv_slope만 비교적 독립.
+
 ## Consequences
+
+- 6개 투표는 독립 정보 약 2개분이다. "6개 중 4개 동의"는 6개 독립 확인이 아니다.
+- 지표를 늘려도 가격 파생이면 개수만 늘 뿐 정보는 안 늘 가능성이 크다. 다른 종류의 정보
+  (주문흐름 등, 후보 B)가 더 낫다. 어느 쪽도 지금 결정하지 않는다. 새 전략 등록은
+  2026-10-29 이후 사용자 승인으로.
+- 부수 발견: `donchian_pos`는 `lo, hi = don`으로 풀지만 `donchian()`은 (high, low)를 돌려줘
+  부호가 뒤집혀 있다. Platt 보정이 기울기 부호를 자유롭게 학습하므로 동작은 같다. 코드는
+  그대로 두고 사용자 결정을 기다린다.
