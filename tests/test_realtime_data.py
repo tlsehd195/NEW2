@@ -311,6 +311,19 @@ def test_feed_dedupes_detects_gaps_and_backfills_klines():
     assert any(isinstance(i, FeedEvent) and i.kind == "backfilled" for i in items)
 
 
+def test_feed_accepts_a_closed_kline_seen_slightly_early_by_a_slow_local_clock():
+    """A local clock 1s behind the exchange saw every closed bar as "received before it closed"."""
+    close = T0 + timedelta(minutes=1)
+    clock = Clock(T0)
+    source = ScriptedSource([[
+        (close - timedelta(seconds=1), kline(T0, closed=True)),  # within the 5s skew allowance
+        (close + timedelta(minutes=1) - timedelta(seconds=30), kline(T0 + timedelta(minutes=1), closed=True)),  # not
+    ]], clock)
+    items = list(ResilientEventFeed(source, history=FakeHistory([]), now=clock, sleep=lambda s: None, limits=SLOW).run())
+    assert [c.open_time for c in items if isinstance(c, Candle)] == [T0]
+    assert [i.kind for i in items if isinstance(i, DataQualityEvent)] == ["unclosed_candle"]
+
+
 def test_feed_reports_incomplete_backfill_as_quality_event():
     clock = Clock(T0)
     source = ScriptedSource([[
