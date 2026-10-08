@@ -5,10 +5,8 @@
   "initial_balance": 10000.0,
   "symbols": ["BTCUSDT", "ETHUSDT"],
   "strategies": [
-    "swing_trend_ema_atr_20_50_v1",
-    "swing_regime_hybrid_v1",
-    "scalp_vwap_reversion_30_2_v1",
-    "scalp_short_mean_reversion_20_3_v1"
+    "daytrade_indicator_vote_h16_c0.6_v1",
+    "daytrade_indicator_vote_h48_c0.6_v1"
   ],
   "state_dir": "var/paper",
   "data_root": "var/data",
