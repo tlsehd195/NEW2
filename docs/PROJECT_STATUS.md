@@ -5,7 +5,11 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-09 (모의투자 대시보드)**
+**마지막 갱신: 2026-10-09 (대시보드 bklit 차트)**
+
+## 2026-10-09: 대시보드를 bklit UI(React) 차트로 (ADR-0049)
+
+화면을 `dashboard-ui/`(React + bklit 캔들·라인차트)로 다시 만들었다. 빌드 결과 `scripts/dashboard_static/`를 커밋하므로 사용자 PC는 여전히 파이썬만 있으면 된다. 화면 수정 시 `npm run build` 결과를 함께 커밋할 것. 데이터·매매 코드는 그대로.
 
 ## 2026-10-09: 읽기 전용 모의투자 대시보드 (ADR-0048)
 

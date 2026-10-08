@@ -90,3 +90,17 @@ def test_dashboard_reads_only_the_journal():
     # only the journal reader, the same pure indicator math the strategy uses, and the strategy's default numbers
     assert {m for m in mods if m.startswith("cointrader")} == {"cointrader.journal.store", "cointrader.features",
                                                               "cointrader.strategies.daytrade"}
+
+
+def test_dashboard_page_is_built_and_served_only_from_its_folder():
+    import importlib.util
+    from pathlib import Path
+
+    spec = importlib.util.spec_from_file_location("run_dashboard", Path("scripts/run_dashboard.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    index = mod.static_file("/")
+    assert index is not None and "<div id=\"root\">" in index.read_text(encoding="utf-8")  # committed build of dashboard-ui/
+    assert mod.static_file("/../run_dashboard.py") is None
+    assert mod.static_file("/assets/../../run_dashboard.py") is None
+    assert mod.static_file("/nope.js") is None
