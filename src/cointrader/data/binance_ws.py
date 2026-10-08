@@ -9,7 +9,8 @@ directly is Binance's own official connector
 
 - base URL `wss://fstream.binance.com`, raw streams under `/ws/<name>`,
   combined streams under `/stream?streams=<a>/<b>` (payload wrapped as
-  `{"stream": ..., "data": ...}`),
+  `{"stream": ..., "data": ...}`). Since 2026-03 the path is prefixed by a routed tier,
+  `/public` (bookTicker, depth) or `/market` (aggTrade, markPrice, kline); see `stream_path` and ADR-0045,
 - stream names `<symbol>@aggTrade`, `<symbol>@bookTicker`,
   `<symbol>@depth@<speed>ms`, `<symbol>@kline_<interval>`,
   `<symbol>@markPrice@<speed>s` (symbol lower-cased).
@@ -39,6 +40,10 @@ from cointrader.data.market_events import (
 from cointrader.data.models import Candle, Timeframe
 
 BASE_URL = "wss://fstream.binance.com"
+# Since 2026-03 Binance routes USDⓈ-M streams by tier (ADR-0045): a connection without a routed path only
+# receives the Public tier, so aggTrade / markPrice / kline silently never arrive on the old single URL.
+PUBLIC_PATH = "public"  # high-frequency order book: bookTicker, depth
+MARKET_PATH = "market"  # regular market data: aggTrade, markPrice, kline
 SOURCE = "binance_futures_ws"
 
 _INTERVALS = {
@@ -79,6 +84,24 @@ def combined_stream_url(streams: Iterable[str], base_url: str = BASE_URL) -> str
     if len(set(names)) != len(names):
         raise ValueError("duplicate stream names")
     return f"{base_url}/stream?streams={'/'.join(names)}"
+
+
+def stream_path(stream: str) -> str:
+    """Routed path a stream name must be subscribed on. Unknown names raise instead of guessing a tier."""
+    kind = stream.split("@", 2)[1] if "@" in stream else ""
+    if kind in ("bookTicker", "depth"):
+        return PUBLIC_PATH
+    if kind in ("aggTrade", "markPrice") or kind.startswith("kline_"):
+        return MARKET_PATH
+    raise ValueError(f"no known Binance route for stream {stream!r}")
+
+
+def routed_stream_urls(streams: Iterable[str], base_url: str = BASE_URL) -> list[str]:
+    """One combined-stream URL per tier that has streams (public first, then market)."""
+    by_path: dict[str, list[str]] = {}
+    for name in streams:
+        by_path.setdefault(stream_path(name), []).append(name)
+    return [combined_stream_url(by_path[p], f"{base_url}/{p}") for p in (PUBLIC_PATH, MARKET_PATH) if p in by_path]
 
 
 def standard_streams(symbol: str, timeframes: Iterable[Timeframe]) -> list[str]:

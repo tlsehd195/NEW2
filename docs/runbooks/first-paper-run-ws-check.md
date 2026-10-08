@@ -29,7 +29,7 @@ python3 scripts/check_ws_quality.py --hours 2
 ## 3. 눈으로 대조
 
 실제 메시지 한 줄과 `binance_ws.py` 상단의 필드 목록, 그리고 공식 문서를 비교한다.
-- 연결 주소: `wss://fstream.binance.com/stream?streams=...` (결합 스트림, 응답이 `{"stream":..., "data":...}`로 감싸짐)
+- 연결 주소: 연결 2개. `wss://fstream.binance.com/public/stream?streams=...`(호가: bookTicker·depth)와 `.../market/stream?streams=...`(aggTrade·markPrice·kline). 결합 스트림이라 응답이 `{"stream":..., "data":...}`로 감싸짐 (ADR-0045)
 - 문서: https://developers.binance.com/docs/derivatives/usds-margined-futures/websocket-market-streams
 
 ## 4. 결과 기록
