@@ -61,6 +61,11 @@ def test_score_scale_defaults_to_daily_behaviour_and_unsaturates_small_moves():
         raw_scores(h, DEFAULT_PANEL, scale=0.0)
 
 
+def test_donchian_pos_is_positive_near_the_top_of_the_range():
+    assert raw_scores(bars(200), DEFAULT_PANEL)["donchian_pos"] > 0.5
+    assert raw_scores(bars(200, drift=-0.0001), DEFAULT_PANEL)["donchian_pos"] < -0.5
+
+
 def test_knob_validation():
     for kw in ({"score_scale": 0.0}, {"vol_short": 1}, {"vol_short": 50, "vol_long": 40}, {"bars_per_day": 0},
                {"max_hold_bars": 0}, {"max_entries_per_day": 0}, {"quality_window_bars": 0}):

@@ -129,7 +129,7 @@ def raw_scores(history: Sequence[Candle], panel: Optional[Sequence[str]] = None,
     if any(v is None for v in parts.values()) or macd is None or bb is None or don is None or not atr or atr <= 0:
         return None
     px = closes[-1]
-    lo, hi = don
+    hi, lo = don
     out = {
         "ema_trend": _squash(parts["ema_trend"], 0.03 * scale),
         "roc": _squash(parts["roc"], 0.05 * scale),
