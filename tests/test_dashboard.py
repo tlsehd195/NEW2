@@ -50,6 +50,24 @@ def test_snapshot_collects_chart_position_and_history(tmp_path):
     assert snap["account"]["balance"] == 9990.0
     assert snap["fills"][0]["side"] == "BUY" and snap["decisions"][0]["action"] == "enter_long"
     assert snap["closed_trades"][0]["net_pnl"] == -1.5
+    assert len(snap["overlays"]["ema20"]) == 3 and snap["overlays"]["ema20"][0] is None  # too few bars for a 20-bar line
+    assert snap["rules"]["enter_confidence"] == 0.6
+    assert snap["votes"][0]["p_long"] is None  # a decision without vote features shows no numbers, not a crash
+
+
+def test_snapshot_shows_each_indicators_probability_from_the_latest_decision(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    for i, p_long in enumerate((0.40, 0.62)):  # the later bar wins
+        store.append("decision", {"decision_id": f"v{i}", "symbol": "ETHUSDT", "strategy_id": "s16", "strategy_version": "1",
+                                  "action": "hold", "reason": "vote_no_entry", "mode": "paper",
+                                  "bar_open_time": (NOW - timedelta(minutes=30 - 15 * i)).isoformat(),
+                                  "signal": {"features": {"p_long": p_long, "agree_long": 4, "agree_short": 2, "vol_ratio": 1.1,
+                                                          "p_rsi": 0.7, "p_obv_slope": 0.4}}}, at=NOW)
+    votes = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["votes"]
+    vote = next(v for v in votes if v["strategy"] == "s16")
+    assert vote["strategy"] == "s16" and vote["p_long"] == 0.62 and vote["agree_long"] == 4
+    assert vote["per_indicator"] == {"rsi": 0.7, "obv_slope": 0.4}
 
 
 def test_snapshot_without_state_or_position(tmp_path):
@@ -68,4 +86,6 @@ def test_dashboard_reads_only_the_journal():
     tree = ast.parse(Path("src/cointrader/monitoring/dashboard.py").read_text(encoding="utf-8"))
     mods = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
     mods |= {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
-    assert {m for m in mods if m.startswith("cointrader")} == {"cointrader.journal.store"}
+    # only the journal reader, the same pure indicator math the strategy uses, and the strategy's default numbers
+    assert {m for m in mods if m.startswith("cointrader")} == {"cointrader.journal.store", "cointrader.features",
+                                                              "cointrader.strategies.daytrade"}
