@@ -104,3 +104,17 @@ def test_repo_configs_default_to_paper_and_load_strictly(tmp_path):
     bad.write_text(json.dumps({**cfg, "environment": "live"}))
     with pytest.raises(ValueError):
         load_paper(bad)
+
+
+def test_default_paper_strategies_get_their_full_warmup(tmp_path):
+    """The 15m day-trade votes need ~1,190 closed bars. A 600-bar buffer kept every decision at
+    "warmup" forever, so the buffer and the REST bootstrap must cover the longest warm-up."""
+    cfg = dict(load_paper())
+    cfg.update({"state_dir": "state", "data_root": "data", "kill_switch_path": "state/kill.jsonl"})
+    trader = build_trader(cfg, root=tmp_path)
+    need = max(s.warmup for s, _ in trader.strategies.values())
+    assert need > 600 and trader.cfg.max_candles >= need
+    now = T0 + timedelta(days=20)
+    bootstrap(trader, History(), now)
+    for sym in trader.symbols:
+        assert len(trader._bars(sym, "15m")) >= need

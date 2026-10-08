@@ -70,7 +70,7 @@ class PaperConfig:
     state_dir: Path
     kill_switch_path: Path
     initial_balance: float = 10_000.0
-    max_candles: int = 600  # per (symbol, timeframe); strategies need <= ~210
+    max_candles: int = 600  # per (symbol, timeframe); build_trader raises it to the longest strategy warm-up
     quality_window: int = 50
     save_every: timedelta = timedelta(minutes=1)
     reconcile_every: timedelta = timedelta(minutes=5)
