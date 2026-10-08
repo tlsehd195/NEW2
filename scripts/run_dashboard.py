@@ -27,39 +27,53 @@ PAGE = r"""<!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>모의투자 대시보드</title>
 <style>
-:root{--bg:#0f1218;--panel:#171c25;--line:#262d3a;--text:#e6e9ef;--mute:#8b94a5;--up:#26a69a;--down:#ef5350;--acc:#4c8dff}
-@media (prefers-color-scheme: light){:root{--bg:#f4f6fa;--panel:#fff;--line:#dde2ea;--text:#1b2230;--mute:#667085}}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,"Malgun Gothic",sans-serif}
-main{max-width:1100px;margin:0 auto;padding:16px}
-h1{font-size:16px;margin:0 0 4px}.sub{color:var(--mute);margin-bottom:12px}
-.tabs{display:flex;gap:8px;margin-bottom:12px}
-.tabs button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer}
-.tabs button.on{border-color:var(--acc);color:var(--acc)}
-#wrap{position:relative;height:720px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+:root{--bg:#09090b;--panel:#0e0e11;--line:#1f1f23;--grid:#26262b;--text:#fafafa;--mute:#8a8a93;--up:#10c48a;--down:#f2364a;--acc:#5b8cff;--inv-bg:#fafafa;--inv-fg:#09090b;--dot:#1c1c20}
+@media (prefers-color-scheme: light){:root{--bg:#fafafa;--panel:#fff;--line:#e4e4e7;--grid:#e9e9ec;--text:#09090b;--mute:#71717a;--up:#059669;--down:#e11d48;--acc:#2563eb;--inv-bg:#09090b;--inv-fg:#fafafa;--dot:#e4e4e7}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg) radial-gradient(var(--dot) 1px,transparent 1px) 0 0/22px 22px;color:var(--text);font:14px/1.55 "Inter",system-ui,"Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased}
+main{max-width:1180px;margin:0 auto;padding:32px 20px 48px}
+.mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--mute)}
+h1{font-size:34px;line-height:1.1;letter-spacing:-.03em;font-weight:800;margin:0 0 8px}
+.badge{display:inline-block;vertical-align:middle;margin-left:10px;padding:3px 8px;border:1px solid var(--line);background:var(--panel);font-size:11px;font-weight:500;letter-spacing:0;color:var(--mute)}
+.sub{color:var(--mute);margin-bottom:14px}
+.tabs{display:flex;gap:4px;margin:22px 0 14px;flex-wrap:wrap}
+.tabs button{background:transparent;color:var(--mute);border:0;padding:7px 12px;cursor:pointer;font:500 14px system-ui,sans-serif}
+.tabs button:hover{color:var(--text)}
+.tabs button.on{background:var(--inv-bg);color:var(--inv-fg)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-bottom:10px;font-size:12px}
+.legend label{color:var(--text);cursor:pointer}
+.frame{position:relative;background:var(--panel);border:1px solid var(--line)}
+.frame::before,.frame::after{content:"";position:absolute;width:7px;height:7px;border:1px solid var(--mute);background:var(--bg);border-radius:50%}
+.frame::before{left:-4px;top:-4px}.frame::after{right:-4px;bottom:-4px}
+#wrap{height:720px}
 #chart{width:100%;height:100%;display:block}
-#tip{position:absolute;left:10px;top:6px;font-size:12px;color:var(--mute);pointer-events:none}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px}
-.card h2{font-size:13px;margin:0 0 8px;color:var(--mute);font-weight:600}
-.big{font-size:22px;font-weight:700}.up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute)}
-.row{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+#tip{position:absolute;left:12px;top:8px;font:11px ui-monospace,Menlo,Consolas,monospace;color:var(--mute);pointer-events:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
+.card{padding:16px 18px}
+.card h2{margin:0 0 12px;font-weight:500}
+.card h2::after{content:"_"}
+.big{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute)}
+.row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums}
+.row:last-child{border-bottom:0}
 .row span:first-child{white-space:nowrap}.row span:last-child{text-align:right;overflow-wrap:anywhere}
-ul{margin:0;padding:0;list-style:none}li{padding:2px 0;border-bottom:1px solid var(--line);font-size:13px}li:last-child{border:0}
+ul{margin:0;padding:0;list-style:none}li{padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;font-variant-numeric:tabular-nums}li:last-child{border:0}
 #err{color:var(--down);margin:8px 0;min-height:1em}
+@media (max-width:600px){main{padding:20px 16px}h1{font-size:26px}#wrap{height:560px}}
 </style></head><body><main>
-<h1>모의투자 대시보드 <span class="mute">(읽기 전용 · 실제 돈 아님)</span></h1>
-<div class="sub" id="asof">불러오는 중…</div>
+<h1>모의투자 대시보드<span class="badge">읽기 전용 · 실제 돈 아님</span></h1>
+<div class="mono" id="asof">불러오는 중…</div>
 <div class="tabs" id="tabs"></div>
-<div class="sub"><label><input type="checkbox" id="ov" checked onchange="draw()"> 지표선 표시</label> <span style="color:#e0a030">━ EMA20</span> <span style="color:#9b7fe8">┅ 볼린저(20,2)</span> <span style="color:#3aa0c0">┈ 돈치안(20)</span> <span class="mute">· 아래 패널: RSI, ROC, OBV</span></div>
-<div id="wrap"><canvas id="chart"></canvas><div id="tip"></div></div><div id="err"></div>
+<div class="legend"><label><input type="checkbox" id="ov" checked onchange="draw()"> 지표선 표시</label> <span style="color:#e0a030">━ EMA20</span> <span style="color:#9b7fe8">┅ 볼린저(20,2)</span> <span style="color:#3aa0c0">┈ 돈치안(20)</span> <span class="mute">· 아래 패널: RSI, ROC, OBV</span></div>
+<div id="wrap" class="frame"><canvas id="chart"></canvas><div id="tip"></div></div><div id="err"></div>
 <div class="grid">
-<div class="card"><h2>현재가</h2><div class="big" id="price">-</div><div class="mute" id="ptime"></div></div>
-<div class="card"><h2>포지션</h2><div id="pos">-</div></div>
-<div class="card"><h2>계좌</h2><div id="acct">-</div></div>
-<div class="card" id="votes" style="grid-column:1/-1"><h2>지표별 판단 (닫힌 15분봉마다 갱신)</h2><div id="votebody"></div></div>
-<div class="card"><h2>지표 현재값</h2><div id="ivals"></div></div>
-<div class="card"><h2>최근 판단</h2><ul id="dec"></ul></div>
-<div class="card"><h2>청산된 거래</h2><ul id="trades"></ul></div>
+<div class="card frame"><h2 class="mono">현재가</h2><div class="big" id="price">-</div><div class="mute" id="ptime"></div></div>
+<div class="card frame"><h2 class="mono">포지션</h2><div id="pos">-</div></div>
+<div class="card frame"><h2 class="mono">계좌</h2><div id="acct">-</div></div>
+<div class="card frame" id="votes" style="grid-column:1/-1"><h2 class="mono">지표별 판단 (닫힌 15분봉마다 갱신)</h2><div id="votebody"></div></div>
+<div class="card frame"><h2 class="mono">지표 현재값</h2><div id="ivals"></div></div>
+<div class="card frame"><h2 class="mono">최근 판단</h2><ul id="dec"></ul></div>
+<div class="card frame"><h2 class="mono">청산된 거래</h2><ul id="trades"></ul></div>
 </div></main>
 <script>
 const SYMBOLS = __SYMBOLS__;
@@ -87,10 +101,10 @@ function draw() {
   let lo = Math.min(...ext), hi = Math.max(...ext);
   const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
   const X = i => L + (i + 0.5) * pw / c.length, Y = p => T + (hi - p) / (hi - lo) * ph, bw = Math.max(1, pw / c.length * 0.7);
-  g.font = "11px system-ui"; g.textBaseline = "middle";
+  g.font = "11px ui-monospace, Menlo, Consolas, monospace"; g.textBaseline = "middle";
   for (let k = 0; k <= 5; k++) {
     const p = lo + (hi - lo) * k / 5, y = Y(p);
-    g.strokeStyle = css("--line"); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke();
+    g.strokeStyle = css("--grid"); g.setLineDash([3, 4]); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
     g.fillStyle = css("--mute"); g.textAlign = "left"; g.fillText(fmt(p), L + pw + 6, y);
   }
   g.textAlign = "center"; g.textBaseline = "top"; g.fillStyle = css("--mute");
@@ -111,11 +125,12 @@ function draw() {
     if (buy) { g.moveTo(x, y - s); g.lineTo(x - s, y + s); g.lineTo(x + s, y + s); } else { g.moveTo(x, y + s); g.lineTo(x - s, y - s); g.lineTo(x + s, y - s); }
     g.fill();
   });
-  g.textAlign = "left"; g.textBaseline = "middle";
+  g.textAlign = "left"; g.textBaseline = "middle"; g.font = "11px system-ui, sans-serif";
   marks.forEach(([p, name, col, dash]) => {
     const y = Y(p); g.strokeStyle = col; g.setLineDash(dash); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
     g.fillStyle = col; g.fillRect(L + pw, y - 8, R - 2, 16); g.fillStyle = "#fff"; g.fillText(name + " " + fmt(p), L + pw + 4, y);
   });
+  g.font = "11px ui-monospace, Menlo, Consolas, monospace";
   // sub-panels: RSI, ROC and OBV, the other indicators the vote reads
   const subs = [["rsi14", "RSI(14)", "#e0a030", [30, 50, 70], [0, 100], v => v.toFixed(1)],
                 ["roc14", "ROC(14)", "#d06090", [0], null, v => (v * 100).toFixed(2) + "%"],
@@ -132,6 +147,7 @@ function draw() {
     g.strokeStyle = col; g.lineWidth = 1.4; path(vals, SY); g.lineWidth = 1;
   });
   if (hover >= 0 && hover < c.length) {
+    g.strokeStyle = css("--mute"); g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(hover), T); g.lineTo(X(hover), H - B); g.stroke(); g.setLineDash([]);
     const x = c[hover]; tip.textContent = new Date(x.time * 1000).toLocaleString("ko-KR", {hour12: false}) + "  시 " + fmt(x.open) + "  고 " + fmt(x.high) + "  저 " + fmt(x.low) + "  종 " + fmt(x.close);
   } else tip.textContent = "";
 }
@@ -168,8 +184,8 @@ async function load() {
       box.append(el("div", v.strategy.replace("daytrade_indicator_vote_", "") + " · " + new Date(v.bar_time).toLocaleString("ko-KR", {month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false}) + " 봉 · 결정: " + act + " (" + v.reason + ")", "mute"));
       Object.entries(v.per_indicator).forEach(([k, pr]) => {
         const row = el("div", "", "row"); row.style.alignItems = "center";
-        const bar = document.createElement("div"); bar.style.cssText = "flex:1;height:10px;margin:0 10px;background:var(--line);position:relative;border-radius:5px";
-        const fillw = document.createElement("div"); fillw.style.cssText = "position:absolute;top:0;bottom:0;border-radius:5px;background:" + (pr >= 0.5 ? "var(--up)" : "var(--down)") + ";left:" + Math.min(pr, 0.5) * 100 + "%;width:" + Math.abs(pr - 0.5) * 100 + "%";
+        const bar = document.createElement("div"); bar.style.cssText = "flex:1;height:10px;margin:0 10px;background:var(--line);position:relative;border-radius:1px";
+        const fillw = document.createElement("div"); fillw.style.cssText = "position:absolute;top:0;bottom:0;border-radius:1px;background:" + (pr >= 0.5 ? "var(--up)" : "var(--down)") + ";left:" + Math.min(pr, 0.5) * 100 + "%;width:" + Math.abs(pr - 0.5) * 100 + "%";
         const mid = document.createElement("div"); mid.style.cssText = "position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--mute)";
         bar.append(fillw, mid);
         const nm = el("span", NAMES[k] || k); nm.style.width = "110px"; row.append(nm, bar, el("span", pct(pr) + "  " + (pr > 0.5 ? "롱" : pr < 0.5 ? "숏" : "중립"), pr > 0.5 ? "up" : "down"));
