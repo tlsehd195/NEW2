@@ -40,6 +40,8 @@ class ReplayFileSource:
     def close(self) -> None:
         self._lines = None
 
+WARMUP_MARGIN = 20  # extra bars so one missed stream bar does not drop a strategy back to warm-up
+
 
 def build_trader(paper_cfg: dict, *, notifier: Optional[Notifier] = None, root: Path = REPO) -> PaperTrader:
     filters, large, verified = load_markets()
@@ -54,8 +56,12 @@ def build_trader(paper_cfg: dict, *, notifier: Optional[Notifier] = None, root: 
     for sym in paper_cfg["symbols"]:
         if sym not in filters:
             raise ValueError(f"{sym} missing from configs/markets.json")
+    # Keep (and bootstrap) enough closed bars for the longest strategy warm-up; a shorter buffer
+    # would leave every decision at "warmup" forever (the 15m day-trade votes need ~1,190 bars).
+    need = max([getattr(s, "warmup", 0) for s, _ in strategies.values()] + [0])
     config = PaperConfig(
         state_dir=root / paper_cfg["state_dir"], kill_switch_path=root / paper_cfg["kill_switch_path"],
+        max_candles=max(PaperConfig.max_candles, need + WARMUP_MARGIN),
         initial_balance=paper_cfg["initial_balance"], record_raw=paper_cfg["record_raw"],
         save_every=timedelta(seconds=paper_cfg["save_every_seconds"]),
         reconcile_every=timedelta(seconds=paper_cfg["reconcile_every_seconds"]),
@@ -82,7 +88,9 @@ def timeframes_of(trader: PaperTrader) -> list[Timeframe]:
     return sorted({Timeframe(s.timeframe) for s, _ in trader.strategies.values()}, key=lambda t: t.delta)
 
 
-def bootstrap(trader: PaperTrader, history: CandleHistory, now: datetime, bars: int = 260) -> int:
+def bootstrap(trader: PaperTrader, history: CandleHistory, now: datetime, bars: Optional[int] = None) -> int:
+    """Fetch closed bars over REST before the stream starts; by default as many as the trader keeps."""
+    bars = bars or trader.cfg.max_candles
     n = 0
     for sym in trader.symbols:
         for tf in timeframes_of(trader):
