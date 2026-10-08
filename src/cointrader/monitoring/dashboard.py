@@ -17,7 +17,7 @@ from cointrader.features import indicators as ind
 from cointrader.journal.store import LayeredStore
 from cointrader.strategies.daytrade import DayTradeVote
 
-EXTRA_BARS = 40  # history before the first drawn bar, so the indicator lines start at the left edge
+EXTRA_BARS = 60  # history before the first drawn bar, so the indicator lines start at the left edge
 
 def _epoch(text: str) -> int:
     return int(datetime.fromisoformat(text).timestamp())
@@ -49,7 +49,7 @@ def _overlays(full: list[dict], bars: int) -> tuple[dict, dict]:
     indicator functions as the strategy (features/indicators.py), so the numbers match what it sees."""
     closes = [c["close"] for c in full]
     highlow = [SimpleNamespace(high=c["high"], low=c["low"]) for c in full]
-    keys = ("ema20", "bb_upper", "bb_lower", "don_high", "don_low", "rsi14")
+    keys = ("ema20", "bb_upper", "bb_lower", "don_high", "don_low", "rsi14", "roc14")
     out: dict[str, list] = {k: [] for k in keys}
     for i in range(max(0, len(full) - bars), len(full)):
         cs = closes[: i + 1]
@@ -60,6 +60,14 @@ def _overlays(full: list[dict], bars: int) -> tuple[dict, dict]:
         out["don_high"].append(don[0] if don else None)
         out["don_low"].append(don[1] if don else None)
         out["rsi14"].append(ind.rsi(cs, 14))
+        out["roc14"].append(ind.roc(cs, 14))
+    # On-balance volume: running total of volume, signed by the close-to-close direction (level is arbitrary).
+    obv, acc = [], 0.0
+    for i, c in enumerate(full):
+        if i:
+            acc += (c["close"] > full[i - 1]["close"]) * c["volume"] - (c["close"] < full[i - 1]["close"]) * c["volume"]
+        obv.append(acc)
+    out["obv"] = obv[len(full) - bars:] if bars else []
     latest: dict = {}
     if full:
         bb, don = ind.bollinger(closes, 20), ind.donchian(highlow, 20)
@@ -100,7 +108,7 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
             continue
         if r.get("kind") == "candle" and r.get("timeframe") == "15m":
             candles[r["open_time"]] = {"time": _epoch(r["open_time"]), "open": r["o"], "high": r["h"],
-                                       "low": r["l"], "close": r["c"]}
+                                       "low": r["l"], "close": r["c"], "volume": r["v"]}
         elif r.get("kind") == "book_stats_1m" and r.get("mid_price"):
             last_book = r
     full = [candles[k] for k in sorted(candles)][-(bars + EXTRA_BARS):]

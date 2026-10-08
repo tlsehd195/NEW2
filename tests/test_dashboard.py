@@ -51,6 +51,7 @@ def test_snapshot_collects_chart_position_and_history(tmp_path):
     assert snap["fills"][0]["side"] == "BUY" and snap["decisions"][0]["action"] == "enter_long"
     assert snap["closed_trades"][0]["net_pnl"] == -1.5
     assert len(snap["overlays"]["ema20"]) == 3 and snap["overlays"]["ema20"][0] is None  # too few bars for a 20-bar line
+    assert len(snap["overlays"]["obv"]) == 3 and snap["overlays"]["obv"][-1] > snap["overlays"]["obv"][0]  # rising bars
     assert snap["rules"]["enter_confidence"] == 0.6
     assert snap["votes"][0]["p_long"] is None  # a decision without vote features shows no numbers, not a crash
 

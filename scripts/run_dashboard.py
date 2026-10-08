@@ -35,7 +35,7 @@ h1{font-size:16px;margin:0 0 4px}.sub{color:var(--mute);margin-bottom:12px}
 .tabs{display:flex;gap:8px;margin-bottom:12px}
 .tabs button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 14px;cursor:pointer}
 .tabs button.on{border-color:var(--acc);color:var(--acc)}
-#wrap{position:relative;height:540px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+#wrap{position:relative;height:720px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
 #chart{width:100%;height:100%;display:block}
 #tip{position:absolute;left:10px;top:6px;font-size:12px;color:var(--mute);pointer-events:none}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px}
@@ -50,7 +50,7 @@ ul{margin:0;padding:0;list-style:none}li{padding:2px 0;border-bottom:1px solid v
 <h1>모의투자 대시보드 <span class="mute">(읽기 전용 · 실제 돈 아님)</span></h1>
 <div class="sub" id="asof">불러오는 중…</div>
 <div class="tabs" id="tabs"></div>
-<div class="sub"><label><input type="checkbox" id="ov" checked onchange="draw()"> 지표선 표시</label> <span style="color:#e0a030">━ EMA20</span> <span style="color:#9b7fe8">┅ 볼린저(20,2)</span> <span style="color:#3aa0c0">┈ 돈치안(20)</span></div>
+<div class="sub"><label><input type="checkbox" id="ov" checked onchange="draw()"> 지표선 표시</label> <span style="color:#e0a030">━ EMA20</span> <span style="color:#9b7fe8">┅ 볼린저(20,2)</span> <span style="color:#3aa0c0">┈ 돈치안(20)</span> <span class="mute">· 아래 패널: RSI, ROC, OBV</span></div>
 <div id="wrap"><canvas id="chart"></canvas><div id="tip"></div></div><div id="err"></div>
 <div class="grid">
 <div class="card"><h2>현재가</h2><div class="big" id="price">-</div><div class="mute" id="ptime"></div></div>
@@ -77,7 +77,7 @@ function draw() {
   const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
   if (!view || !view.candles.length) { g.fillStyle = css("--mute"); g.fillText("봉 데이터를 기다리는 중…", 20, 30); return; }
   const c = view.candles, o = view.overlays, R = 84, B = 24, T = 24, L = 8, pw = W - L - R;
-  const ph = Math.round((H - T - B) * 0.74), rTop = T + ph + 18, rh = H - B - rTop;
+  const sub = 3, gap = 16, ph = Math.round((H - T - B) * 0.52), rh = Math.floor((H - T - B - ph - sub * gap) / sub);
   const marks = [];
   if (view.position && view.position.entry_price) marks.push([view.position.entry_price, "진입", css("--acc"), []]);
   if (view.position && view.position.stop_price) marks.push([view.position.stop_price, "손절", css("--down"), [5, 4]]);
@@ -116,12 +116,21 @@ function draw() {
     const y = Y(p); g.strokeStyle = col; g.setLineDash(dash); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
     g.fillStyle = col; g.fillRect(L + pw, y - 8, R - 2, 16); g.fillStyle = "#fff"; g.fillText(name + " " + fmt(p), L + pw + 4, y);
   });
-  // RSI panel (0-100, with the 30 / 70 lines)
-  const RY = v => rTop + (100 - v) / 100 * rh;
-  g.strokeStyle = css("--line"); g.strokeRect(L, rTop, pw, rh);
-  [30, 50, 70].forEach(v => { g.setLineDash(v === 50 ? [2, 4] : []); g.beginPath(); g.moveTo(L, RY(v)); g.lineTo(L + pw, RY(v)); g.stroke(); g.setLineDash([]); g.fillStyle = css("--mute"); g.fillText(String(v), L + pw + 6, RY(v)); });
-  g.fillStyle = css("--mute"); g.fillText("RSI(14) " + (o.rsi14[o.rsi14.length - 1] == null ? "" : o.rsi14[o.rsi14.length - 1].toFixed(1)), L + 6, rTop + 9);
-  g.strokeStyle = "#e0a030"; g.lineWidth = 1.4; path(o.rsi14, RY); g.lineWidth = 1;
+  // sub-panels: RSI, ROC and OBV, the other indicators the vote reads
+  const subs = [["rsi14", "RSI(14)", "#e0a030", [30, 50, 70], [0, 100], v => v.toFixed(1)],
+                ["roc14", "ROC(14)", "#d06090", [0], null, v => (v * 100).toFixed(2) + "%"],
+                ["obv", "OBV (거래량 누적 흐름)", "#60b060", [], null, v => fmt(v)]];
+  subs.forEach(([key, name, col, guides, fixed, show], n) => {
+    const top = T + ph + gap + n * (rh + gap), vals = o[key], real = vals.filter(v => v != null);
+    let a = fixed ? fixed[0] : Math.min(...real, ...guides), z = fixed ? fixed[1] : Math.max(...real, ...guides);
+    if (!fixed) { const m = (z - a) * 0.08 || 1; a -= m; z += m; }
+    const SY = v => top + (z - v) / (z - a) * rh;
+    g.strokeStyle = css("--line"); g.strokeRect(L, top, pw, rh);
+    guides.forEach(v => { g.setLineDash(v === 50 ? [2, 4] : []); g.beginPath(); g.moveTo(L, SY(v)); g.lineTo(L + pw, SY(v)); g.stroke(); g.setLineDash([]); g.fillStyle = css("--mute"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(String(key === "roc14" ? v : v), L + pw + 6, SY(v)); });
+    const last = vals[vals.length - 1];
+    g.fillStyle = css("--mute"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(name + "  " + (last == null ? "" : show(last)), L + 6, top + 9);
+    g.strokeStyle = col; g.lineWidth = 1.4; path(vals, SY); g.lineWidth = 1;
+  });
   if (hover >= 0 && hover < c.length) {
     const x = c[hover]; tip.textContent = new Date(x.time * 1000).toLocaleString("ko-KR", {hour12: false}) + "  시 " + fmt(x.open) + "  고 " + fmt(x.high) + "  저 " + fmt(x.low) + "  종 " + fmt(x.close);
   } else tip.textContent = "";
