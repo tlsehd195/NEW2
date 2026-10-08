@@ -21,6 +21,10 @@
 - `MultiMessageSource`가 연결들을 하나의 메시지 흐름으로 합친다. 한 연결이라도 끊기면 오류로 올려 전부 다시 연결하고,
   어느 연결에서도 `read_timeout`(30초) 동안 메시지가 없으면 TimeoutError.
 - 늦게 끝난 읽기 스레드가 새 연결의 메시지를 가로채지 않도록 `WebSocketMessageSource.messages`는 시작할 때 연결을 한 번만 잡는다.
+- **같은 날 후속(2026-10-08):** 경로를 나눈 뒤 15분봉이 들어오기 시작했지만, 피드가 "마감 전에 받았다"(`received_at < close_time`)며
+  모든 봉을 `unclosed_candle`로 버렸다(2시간 동안 BTC·ETH 각 4개 전부). 거래소가 이미 닫힘(`k.x`)으로 표시한 봉인데, 사용자 PC 시계가
+  거래소보다 조금 느려서 생긴 일이다. 이제 다른 시각 검사와 같은 시계 오차 허용(`FeedLimits.max_clock_skew`, 5초)을 적용한다. 5초 넘게
+  이른 봉은 여전히 버린다.
 
 ## Consequences
 

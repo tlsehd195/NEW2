@@ -269,7 +269,10 @@ class ResilientEventFeed:
             if last is not None and item.open_time <= last:
                 self.stats["duplicates"] += 1
                 return
-            if item.received_at < item.close_time:
+            # The exchange already flagged this kline closed (`k.x`); this only catches a bar that is clearly
+            # early. Allow the same clock skew the other timestamps get: a local clock a second behind the
+            # exchange made every real 15m bar look "unclosed" and the paper trader never decided (ADR-0045).
+            if item.received_at + self._limits.max_clock_skew < item.close_time:
                 yield DataQualityEvent("unclosed_candle", item.market, item.received_at,
                                        f"kline {item.open_time.isoformat()} received before it closed", "feed")
                 return
