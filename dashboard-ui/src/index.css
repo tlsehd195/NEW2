@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* bklit chart tokens (see bklit.com/docs/theming) plus the page's own. Dark is the default. */
+:root {
+  --bg: #09090b;
+  --panel: #0e0e11;
+  --line: #1f1f23;
+  --text: #fafafa;
+  --mute: #8a8a93;
+  --up: #10c48a;
+  --down: #f2364a;
+  --acc: #5b8cff;
+  --inv-bg: #fafafa;
+  --inv-fg: #09090b;
+  --dot: #1c1c20;
+
+  --foreground: var(--text);
+  --muted-foreground: var(--mute);
+  --border: var(--line);
+  --color-emerald-500: var(--up);
+  --color-red-500: var(--down);
+  --chart-background: var(--panel);
+  --chart-foreground: var(--text);
+  --chart-foreground-muted: var(--mute);
+  --chart-label: var(--mute);
+  --chart-line-primary: #e4e4e7;
+  --chart-line-secondary: #71717a;
+  --chart-crosshair: #a1a1aa;
+  --chart-grid: #26262b;
+  --chart-indicator-color: #e4e4e7;
+  --chart-indicator-secondary-color: #71717a;
+  --chart-marker-background: var(--panel);
+  --chart-marker-border: var(--line);
+  --chart-marker-foreground: var(--text);
+  --chart-marker-badge-background: var(--inv-bg);
+  --chart-marker-badge-foreground: var(--inv-fg);
+  --chart-tooltip-background: rgba(18, 18, 22, 0.92);
+  --chart-tooltip-foreground: var(--text);
+  --chart-tooltip-muted: var(--mute);
+  --chart-segment-background: rgba(255, 255, 255, 0.04);
+  --chart-segment-line: #3f3f46;
+  --chart-brush-border: var(--line);
+  --chart-1: #e0a030;
+  --chart-2: #9b7fe8;
+  --chart-3: #3aa0c0;
+  --chart-4: #d06090;
+  --chart-5: #60b060;
+  --shimmering-color: var(--mute);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #fafafa;
+    --panel: #ffffff;
+    --line: #e4e4e7;
+    --text: #09090b;
+    --mute: #71717a;
+    --up: #059669;
+    --down: #e11d48;
+    --acc: #2563eb;
+    --inv-bg: #09090b;
+    --inv-fg: #fafafa;
+    --dot: #e4e4e7;
+    --chart-line-primary: #27272a;
+    --chart-crosshair: #52525b;
+    --chart-grid: #e9e9ec;
+    --chart-indicator-color: #27272a;
+    --chart-tooltip-background: rgba(255, 255, 255, 0.95);
+    --chart-segment-background: rgba(0, 0, 0, 0.03);
+    --chart-segment-line: #d4d4d8;
+  }
+}
+
+@theme inline {
+  --color-chart-tooltip-background: var(--chart-tooltip-background);
+  --color-chart-tooltip-foreground: var(--chart-tooltip-foreground);
+  --color-chart-tooltip-muted: var(--chart-tooltip-muted);
+  --color-chart-label: var(--chart-label);
+}
+
+body {
+  margin: 0;
+  background: var(--bg) radial-gradient(var(--dot) 1px, transparent 1px) 0 0 / 22px 22px;
+  color: var(--text);
+  font: 14px/1.55 "Inter", system-ui, "Malgun Gothic", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 1180px; margin: 0 auto; padding: 32px 20px 48px; }
+.mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; text-transform: uppercase; letter-spacing: .14em; font-size: 11px; color: var(--mute); }
+h1 { font-size: 34px; line-height: 1.1; letter-spacing: -.03em; font-weight: 800; margin: 0 0 8px; }
+.badge { display: inline-block; vertical-align: middle; margin-left: 10px; padding: 3px 8px; border: 1px solid var(--line); background: var(--panel); font-size: 11px; font-weight: 500; letter-spacing: 0; color: var(--mute); }
+.tabs { display: flex; gap: 4px; margin: 22px 0 14px; flex-wrap: wrap; }
+.tabs button { background: transparent; color: var(--mute); border: 0; padding: 7px 12px; cursor: pointer; font: 500 14px system-ui, sans-serif; }
+.tabs button:hover { color: var(--text); }
+.tabs button.on { background: var(--inv-bg); color: var(--inv-fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; margin-bottom: 10px; font-size: 12px; }
+.legend label { color: var(--text); cursor: pointer; }
+.frame { position: relative; background: var(--panel); border: 1px solid var(--line); }
+.frame::before, .frame::after { content: ""; position: absolute; width: 7px; height: 7px; border: 1px solid var(--mute); background: var(--bg); border-radius: 50%; z-index: 1; }
+.frame::before { left: -4px; top: -4px; }
+.frame::after { right: -4px; bottom: -4px; }
+.panel-title { position: absolute; left: 14px; top: 10px; z-index: 2; pointer-events: none; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 14px; }
+.card { padding: 16px 18px; }
+.card h2 { margin: 0 0 12px; font-weight: 500; }
+.card h2::after { content: "_"; }
+.big { font-size: 30px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.up { color: var(--up); } .down { color: var(--down); } .muted { color: var(--mute); }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+.row:last-child { border-bottom: 0; }
+.row > span:first-child { white-space: nowrap; }
+.row > span:last-child { text-align: right; overflow-wrap: anywhere; }
+.list { margin: 0; padding: 0; list-style: none; }
+.list li { padding: 6px 0; border-bottom: 1px dashed var(--line); font-size: 13px; font-variant-numeric: tabular-nums; }
+.list li:last-child { border: 0; }
+.err { color: var(--down); margin: 8px 0; min-height: 1em; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+@media (max-width: 600px) { main { padding: 20px 16px; } h1 { font-size: 26px; } }

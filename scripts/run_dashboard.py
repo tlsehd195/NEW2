@@ -6,6 +6,9 @@
 Shows the 15m chart with fills, entry price and stop line, the current position and its open PnL, the
 balance, and recent decisions and closed trades. It only reads `var/` files the paper trader writes; it
 has no buttons and cannot place or cancel anything. Binds to this computer only (127.0.0.1).
+
+The page is a React app built with bklit UI charts (source in `dashboard-ui/`). Its build output is
+committed in `scripts/dashboard_static/`, so running this needs only Python, not Node.
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from typing import Optional
 from urllib.parse import parse_qs, urlparse
 
 REPO = Path(__file__).resolve().parents[1]
@@ -23,191 +27,18 @@ sys.path.insert(0, str(REPO / "src"))
 from cointrader.monitoring.dashboard import read_snapshot  # noqa: E402
 from cointrader.settings import load_paper  # noqa: E402
 
-PAGE = r"""<!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>모의투자 대시보드</title>
-<style>
-:root{--bg:#09090b;--panel:#0e0e11;--line:#1f1f23;--grid:#26262b;--text:#fafafa;--mute:#8a8a93;--up:#10c48a;--down:#f2364a;--acc:#5b8cff;--inv-bg:#fafafa;--inv-fg:#09090b;--dot:#1c1c20}
-@media (prefers-color-scheme: light){:root{--bg:#fafafa;--panel:#fff;--line:#e4e4e7;--grid:#e9e9ec;--text:#09090b;--mute:#71717a;--up:#059669;--down:#e11d48;--acc:#2563eb;--inv-bg:#09090b;--inv-fg:#fafafa;--dot:#e4e4e7}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg) radial-gradient(var(--dot) 1px,transparent 1px) 0 0/22px 22px;color:var(--text);font:14px/1.55 "Inter",system-ui,"Malgun Gothic",sans-serif;-webkit-font-smoothing:antialiased}
-main{max-width:1180px;margin:0 auto;padding:32px 20px 48px}
-.mono{font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;text-transform:uppercase;letter-spacing:.14em;font-size:11px;color:var(--mute)}
-h1{font-size:34px;line-height:1.1;letter-spacing:-.03em;font-weight:800;margin:0 0 8px}
-.badge{display:inline-block;vertical-align:middle;margin-left:10px;padding:3px 8px;border:1px solid var(--line);background:var(--panel);font-size:11px;font-weight:500;letter-spacing:0;color:var(--mute)}
-.sub{color:var(--mute);margin-bottom:14px}
-.tabs{display:flex;gap:4px;margin:22px 0 14px;flex-wrap:wrap}
-.tabs button{background:transparent;color:var(--mute);border:0;padding:7px 12px;cursor:pointer;font:500 14px system-ui,sans-serif}
-.tabs button:hover{color:var(--text)}
-.tabs button.on{background:var(--inv-bg);color:var(--inv-fg)}
-.legend{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;margin-bottom:10px;font-size:12px}
-.legend label{color:var(--text);cursor:pointer}
-.frame{position:relative;background:var(--panel);border:1px solid var(--line)}
-.frame::before,.frame::after{content:"";position:absolute;width:7px;height:7px;border:1px solid var(--mute);background:var(--bg);border-radius:50%}
-.frame::before{left:-4px;top:-4px}.frame::after{right:-4px;bottom:-4px}
-#wrap{height:720px}
-#chart{width:100%;height:100%;display:block}
-#tip{position:absolute;left:12px;top:8px;font:11px ui-monospace,Menlo,Consolas,monospace;color:var(--mute);pointer-events:none}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
-.card{padding:16px 18px}
-.card h2{margin:0 0 12px;font-weight:500}
-.card h2::after{content:"_"}
-.big{font-size:30px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute)}
-.row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums}
-.row:last-child{border-bottom:0}
-.row span:first-child{white-space:nowrap}.row span:last-child{text-align:right;overflow-wrap:anywhere}
-ul{margin:0;padding:0;list-style:none}li{padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px;font-variant-numeric:tabular-nums}li:last-child{border:0}
-#err{color:var(--down);margin:8px 0;min-height:1em}
-@media (max-width:600px){main{padding:20px 16px}h1{font-size:26px}#wrap{height:560px}}
-</style></head><body><main>
-<h1>모의투자 대시보드<span class="badge">읽기 전용 · 실제 돈 아님</span></h1>
-<div class="mono" id="asof">불러오는 중…</div>
-<div class="tabs" id="tabs"></div>
-<div class="legend"><label><input type="checkbox" id="ov" checked onchange="draw()"> 지표선 표시</label> <span style="color:#e0a030">━ EMA20</span> <span style="color:#9b7fe8">┅ 볼린저(20,2)</span> <span style="color:#3aa0c0">┈ 돈치안(20)</span> <span class="mute">· 아래 패널: RSI, ROC, OBV</span></div>
-<div id="wrap" class="frame"><canvas id="chart"></canvas><div id="tip"></div></div><div id="err"></div>
-<div class="grid">
-<div class="card frame"><h2 class="mono">현재가</h2><div class="big" id="price">-</div><div class="mute" id="ptime"></div></div>
-<div class="card frame"><h2 class="mono">포지션</h2><div id="pos">-</div></div>
-<div class="card frame"><h2 class="mono">계좌</h2><div id="acct">-</div></div>
-<div class="card frame" id="votes" style="grid-column:1/-1"><h2 class="mono">지표별 판단 (닫힌 15분봉마다 갱신)</h2><div id="votebody"></div></div>
-<div class="card frame"><h2 class="mono">지표 현재값</h2><div id="ivals"></div></div>
-<div class="card frame"><h2 class="mono">최근 판단</h2><ul id="dec"></ul></div>
-<div class="card frame"><h2 class="mono">청산된 거래</h2><ul id="trades"></ul></div>
-</div></main>
-<script>
-const SYMBOLS = __SYMBOLS__;
-let sym = SYMBOLS.includes(location.hash.slice(1)) ? location.hash.slice(1) : SYMBOLS[0];
-const fmt = n => n == null ? "-" : Number(n).toLocaleString("ko-KR", {maximumFractionDigits: 2});
-const sgn = n => n == null ? "" : (n >= 0 ? "up" : "down");
-const kst = t => new Date(t * 1000).toLocaleString("ko-KR", {hour12: false});
-const cv = document.getElementById("chart"), tip = document.getElementById("tip");
-let view = null, hover = -1;
-const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-function draw() {
-  const wrap = document.getElementById("wrap"), dpr = window.devicePixelRatio || 1;
-  const W = wrap.clientWidth, H = wrap.clientHeight;
-  cv.width = W * dpr; cv.height = H * dpr;
-  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
-  if (!view || !view.candles.length) { g.fillStyle = css("--mute"); g.fillText("봉 데이터를 기다리는 중…", 20, 30); return; }
-  const c = view.candles, o = view.overlays, R = 84, B = 24, T = 24, L = 8, pw = W - L - R;
-  const sub = 3, gap = 16, ph = Math.round((H - T - B) * 0.52), rh = Math.floor((H - T - B - ph - sub * gap) / sub);
-  const marks = [];
-  if (view.position && view.position.entry_price) marks.push([view.position.entry_price, "진입", css("--acc"), []]);
-  if (view.position && view.position.stop_price) marks.push([view.position.stop_price, "손절", css("--down"), [5, 4]]);
-  if (view.last_price) marks.push([view.last_price, "현재", css("--mute"), [2, 3]]);
-  const lineSets = [["ema20", "#e0a030", []], ["bb_upper", "#9b7fe8", [3, 3]], ["bb_lower", "#9b7fe8", [3, 3]], ["don_high", "#3aa0c0", [1, 3]], ["don_low", "#3aa0c0", [1, 3]]];
-  const ext = [...c.map(x => x.low), ...c.map(x => x.high), ...marks.map(m => m[0])];
-  let lo = Math.min(...ext), hi = Math.max(...ext);
-  const pad = (hi - lo) * 0.06 || 1; lo -= pad; hi += pad;
-  const X = i => L + (i + 0.5) * pw / c.length, Y = p => T + (hi - p) / (hi - lo) * ph, bw = Math.max(1, pw / c.length * 0.7);
-  g.font = "11px ui-monospace, Menlo, Consolas, monospace"; g.textBaseline = "middle";
-  for (let k = 0; k <= 5; k++) {
-    const p = lo + (hi - lo) * k / 5, y = Y(p);
-    g.strokeStyle = css("--grid"); g.setLineDash([3, 4]); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
-    g.fillStyle = css("--mute"); g.textAlign = "left"; g.fillText(fmt(p), L + pw + 6, y);
-  }
-  g.textAlign = "center"; g.textBaseline = "top"; g.fillStyle = css("--mute");
-  const every = Math.max(1, Math.round(c.length / 7));
-  for (let i = 0; i < c.length; i += every) g.fillText(new Date(c[i].time * 1000).toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit", hour12: false}), X(i), H - B + 6);
-  const path = (vals, Yf) => { g.beginPath(); let on = false; vals.forEach((v, i) => { if (v == null) { on = false; return; } if (on) g.lineTo(X(i), Yf(v)); else { g.moveTo(X(i), Yf(v)); on = true; } }); g.stroke(); };
-  lineSets.forEach(([k, col, dash]) => { if (!document.getElementById("ov").checked) return; g.strokeStyle = col; g.setLineDash(dash); g.lineWidth = 1.2; path(o[k], Y); g.setLineDash([]); g.lineWidth = 1; });
-  c.forEach((x, i) => {
-    g.strokeStyle = g.fillStyle = x.close >= x.open ? css("--up") : css("--down");
-    g.beginPath(); g.moveTo(X(i), Y(x.high)); g.lineTo(X(i), Y(x.low)); g.stroke();
-    const y1 = Y(Math.max(x.open, x.close)), y2 = Y(Math.min(x.open, x.close));
-    g.fillRect(X(i) - bw / 2, y1, bw, Math.max(1, y2 - y1));
-  });
-  view.fills.forEach(f => {
-    const i = c.findIndex(x => x.time <= f.time && f.time < x.time + 900); if (i < 0) return;
-    const buy = f.side.toLowerCase() === "buy", x = X(i), y = buy ? Y(c[i].low) + 10 : Y(c[i].high) - 10, s = 6;
-    g.fillStyle = buy ? css("--up") : css("--down"); g.beginPath();
-    if (buy) { g.moveTo(x, y - s); g.lineTo(x - s, y + s); g.lineTo(x + s, y + s); } else { g.moveTo(x, y + s); g.lineTo(x - s, y - s); g.lineTo(x + s, y - s); }
-    g.fill();
-  });
-  g.textAlign = "left"; g.textBaseline = "middle"; g.font = "11px system-ui, sans-serif";
-  marks.forEach(([p, name, col, dash]) => {
-    const y = Y(p); g.strokeStyle = col; g.setLineDash(dash); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
-    g.fillStyle = col; g.fillRect(L + pw, y - 8, R - 2, 16); g.fillStyle = "#fff"; g.fillText(name + " " + fmt(p), L + pw + 4, y);
-  });
-  g.font = "11px ui-monospace, Menlo, Consolas, monospace";
-  // sub-panels: RSI, ROC and OBV, the other indicators the vote reads
-  const subs = [["rsi14", "RSI(14)", "#e0a030", [30, 50, 70], [0, 100], v => v.toFixed(1)],
-                ["roc14", "ROC(14)", "#d06090", [0], null, v => (v * 100).toFixed(2) + "%"],
-                ["obv", "OBV (거래량 누적 흐름)", "#60b060", [], null, v => fmt(v)]];
-  subs.forEach(([key, name, col, guides, fixed, show], n) => {
-    const top = T + ph + gap + n * (rh + gap), vals = o[key], real = vals.filter(v => v != null);
-    let a = fixed ? fixed[0] : Math.min(...real, ...guides), z = fixed ? fixed[1] : Math.max(...real, ...guides);
-    if (!fixed) { const m = (z - a) * 0.08 || 1; a -= m; z += m; }
-    const SY = v => top + (z - v) / (z - a) * rh;
-    g.strokeStyle = css("--line"); g.strokeRect(L, top, pw, rh);
-    guides.forEach(v => { g.setLineDash(v === 50 ? [2, 4] : []); g.beginPath(); g.moveTo(L, SY(v)); g.lineTo(L + pw, SY(v)); g.stroke(); g.setLineDash([]); g.fillStyle = css("--mute"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(String(key === "roc14" ? v : v), L + pw + 6, SY(v)); });
-    const last = vals[vals.length - 1];
-    g.fillStyle = css("--mute"); g.textAlign = "left"; g.textBaseline = "middle"; g.fillText(name + "  " + (last == null ? "" : show(last)), L + 6, top + 9);
-    g.strokeStyle = col; g.lineWidth = 1.4; path(vals, SY); g.lineWidth = 1;
-  });
-  if (hover >= 0 && hover < c.length) {
-    g.strokeStyle = css("--mute"); g.setLineDash([2, 3]); g.beginPath(); g.moveTo(X(hover), T); g.lineTo(X(hover), H - B); g.stroke(); g.setLineDash([]);
-    const x = c[hover]; tip.textContent = new Date(x.time * 1000).toLocaleString("ko-KR", {hour12: false}) + "  시 " + fmt(x.open) + "  고 " + fmt(x.high) + "  저 " + fmt(x.low) + "  종 " + fmt(x.close);
-  } else tip.textContent = "";
-}
-cv.addEventListener("mousemove", e => { if (!view) return; const r = cv.getBoundingClientRect(); hover = Math.floor((e.clientX - r.left - 8) / ((r.width - 92) / view.candles.length)); draw(); });
-cv.addEventListener("mouseleave", () => { hover = -1; draw(); });
-window.addEventListener("resize", draw);
-function el(tag, text, cls) { const e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; return e; }
-function fill(id, nodes) { const box = document.getElementById(id); box.replaceChildren(...nodes); }
-function kv(k, v, cls) { const r = el("div", "", "row"); r.append(el("span", k, "mute"), el("span", v, cls)); return r; }
-const tabs = document.getElementById("tabs");
-SYMBOLS.forEach(s => { const b = el("button", s); b.onclick = () => { sym = s; location.hash = s; load(); }; tabs.append(b); });
-async function load() {
-  try {
-    const d = await (await fetch("/api/snapshot?symbol=" + sym)).json();
-    document.getElementById("err").textContent = "";
-    [...tabs.children].forEach(b => b.classList.toggle("on", b.textContent === sym));
-    view = d; draw();
-    const p = d.position;
-    document.getElementById("price").textContent = fmt(d.last_price);
-    document.getElementById("ptime").textContent = d.last_price_time ? "호가 기준 " + d.last_price_time.slice(11, 16) + " UTC" : "";
-    fill("pos", p ? [kv("방향", p.direction === "long" ? "롱" : "숏"), kv("상태", p.state), kv("수량", fmt(p.quantity)),
-      kv("진입가", fmt(p.entry_price)), kv("손절가", fmt(p.stop_price)),
-      kv("평가손익(USDT)", (p.unrealized_pnl >= 0 ? "+" : "") + fmt(p.unrealized_pnl), sgn(p.unrealized_pnl)), kv("전략", p.strategy)]
-      : [el("div", "포지션 없음", "mute")]);
-    const a = d.account;
-    fill("acct", a ? [kv("잔고(USDT)", fmt(a.balance)), kv("열린 포지션", a.open_positions + "개"), kv("저장 시각", a.saved_at.slice(11, 19) + " UTC")]
-      : [el("div", "저장된 상태 없음", "mute")]);
-    const NAMES = {ema_trend: "EMA 추세", donchian_pos: "돈치안 위치", roc: "ROC 모멘텀", rsi: "RSI", bollinger_b: "볼린저 %B", obv_slope: "OBV 기울기"};
-    const pct = x => x == null ? "-" : (x * 100).toFixed(1) + "%";
-    const rules = d.rules || {};
-    fill("votebody", d.votes.length ? d.votes.map(v => {
-      const box = el("div", ""); box.style.marginBottom = "14px";
-      const act = v.action === "enter_long" ? "롱 진입" : v.action === "enter_short" ? "숏 진입" : v.action === "exit" ? "청산" : v.action === "hold" ? "대기" : v.action;
-      box.append(el("div", v.strategy.replace("daytrade_indicator_vote_", "") + " · " + new Date(v.bar_time).toLocaleString("ko-KR", {month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false}) + " 봉 · 결정: " + act + " (" + v.reason + ")", "mute"));
-      Object.entries(v.per_indicator).forEach(([k, pr]) => {
-        const row = el("div", "", "row"); row.style.alignItems = "center";
-        const bar = document.createElement("div"); bar.style.cssText = "flex:1;height:10px;margin:0 10px;background:var(--line);position:relative;border-radius:1px";
-        const fillw = document.createElement("div"); fillw.style.cssText = "position:absolute;top:0;bottom:0;border-radius:1px;background:" + (pr >= 0.5 ? "var(--up)" : "var(--down)") + ";left:" + Math.min(pr, 0.5) * 100 + "%;width:" + Math.abs(pr - 0.5) * 100 + "%";
-        const mid = document.createElement("div"); mid.style.cssText = "position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--mute)";
-        bar.append(fillw, mid);
-        const nm = el("span", NAMES[k] || k); nm.style.width = "110px"; row.append(nm, bar, el("span", pct(pr) + "  " + (pr > 0.5 ? "롱" : pr < 0.5 ? "숏" : "중립"), pr > 0.5 ? "up" : "down"));
-        box.append(row);
-      });
-      const tot = Object.keys(v.per_indicator).length, need = Math.ceil((rules.min_agree || 0.6) * tot - 1e-9);
-      box.append(kv("합성 롱 확률", pct(v.p_long) + "  (진입 ≥" + pct(rules.enter_confidence) + ", 청산 <" + pct(rules.exit_confidence) + ")", v.p_long >= (rules.enter_confidence || 1) ? "up" : ""));
-      box.append(kv("동의 수", "롱 " + v.agree_long + " / 숏 " + v.agree_short + " (필요 " + need + "/" + tot + ")"));
-      box.append(kv("변동성 비율", (v.vol_ratio == null ? "-" : v.vol_ratio.toFixed(2)) + "  (허용 " + rules.vol_gate_lo + "~" + rules.vol_gate_hi + ")"));
-      return box;
-    }) : [el("div", "아직 판단 기록이 없어요", "mute")]);
-    const L2 = d.latest || {};
-    fill("ivals", [kv("RSI(14)", L2.rsi14 == null ? "-" : L2.rsi14.toFixed(1)), kv("EMA20 대비", L2.ema20_gap == null ? "-" : (L2.ema20_gap * 100).toFixed(2) + "%", sgn(L2.ema20_gap)),
-      kv("볼린저 z", L2.bollinger_z == null ? "-" : L2.bollinger_z.toFixed(2), sgn(L2.bollinger_z)), kv("돈치안 위치", L2.donchian_pos == null ? "-" : (L2.donchian_pos * 100).toFixed(0) + "% (0=하단 100=상단)"),
-      kv("ROC(14)", L2.roc14 == null ? "-" : (L2.roc14 * 100).toFixed(2) + "%", sgn(L2.roc14))]);
-    fill("dec", d.decisions.slice().reverse().map(x => el("li", new Date(x.time).toLocaleString("ko-KR", {hour12: false}) + "  " + x.action + "  " + x.reason)));
-    fill("trades", d.closed_trades.length ? d.closed_trades.slice().reverse().map(x => el("li", (x.net_pnl >= 0 ? "+" : "") + fmt(x.net_pnl) + " USDT  " + (x.exit_reason || ""), sgn(x.net_pnl))) : [el("li", "아직 없음", "mute")]);
-    document.getElementById("asof").textContent = "갱신 " + new Date().toLocaleTimeString("ko-KR", {hour12: false}) + " · 5초마다 자동 갱신 · 차트는 닫힌 15분봉";
-  } catch (e) { document.getElementById("err").textContent = "불러오지 못했어요: " + e; }
-}
-load(); setInterval(load, 5000);
-</script></body></html>"""
+STATIC = Path(__file__).resolve().parent / "dashboard_static"  # built from dashboard-ui/ (npm run build)
+TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+         ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".woff2": "font/woff2"}
+
+
+def static_file(url_path: str) -> Optional[Path]:
+    """The built page file for a URL path, or None. Never resolves outside the static folder."""
+    rel = "index.html" if url_path in ("", "/") else url_path.lstrip("/")
+    path = (STATIC / rel).resolve()
+    if STATIC.resolve() not in path.parents or not path.is_file():
+        return None
+    return path
 
 
 def main() -> int:
@@ -218,7 +49,6 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=8765)
     args = ap.parse_args()
     symbols = list(cfg["symbols"])
-    page = PAGE.replace("__SYMBOLS__", json.dumps(symbols)).encode("utf-8")
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
@@ -231,8 +61,8 @@ def main() -> int:
 
         def do_GET(self) -> None:  # noqa: N802
             url = urlparse(self.path)
-            if url.path == "/":
-                self._send(200, page, "text/html; charset=utf-8")
+            if url.path == "/api/config":
+                self._send(200, json.dumps({"symbols": symbols}).encode("utf-8"), "application/json")
             elif url.path == "/api/snapshot":
                 symbol = parse_qs(url.query).get("symbol", [symbols[0]])[0]
                 if symbol not in symbols:
@@ -241,6 +71,8 @@ def main() -> int:
                 snap = read_snapshot(args.state_dir, args.data_root, symbol)
                 self._send(200, json.dumps(snap, ensure_ascii=False, default=str).encode("utf-8"),
                            "application/json; charset=utf-8")
+            elif (path := static_file(url.path)) is not None:
+                self._send(200, path.read_bytes(), TYPES.get(path.suffix, "application/octet-stream"))
             else:
                 self._send(404, b"not found", "text/plain")
 
