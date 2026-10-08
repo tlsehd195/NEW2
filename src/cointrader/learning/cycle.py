@@ -16,7 +16,9 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Callable, Iterable, Optional
 
+from cointrader.data.models import Timeframe
 from cointrader.journal.store import LayeredStore
+from cointrader.learning.challenger import challenger_records
 from cointrader.learning.drift_check import daily_drift_record
 from cointrader.notifications.notifier import Notifier, Severity
 
@@ -26,6 +28,19 @@ Step = Callable[[LayeredStore, str, str, datetime], list[dict]]
 
 def drift_step(store: LayeredStore, symbol: str, timeframe: str, day_start: datetime) -> list[dict]:
     return [daily_drift_record(store, symbol, timeframe, day_start)]
+
+
+def challenger_step(champions: dict[str, int]) -> Step:
+    """Shadow retrain-and-compare against the given champions (strategy_id -> horizon in bars)."""
+    def step(store: LayeredStore, symbol: str, timeframe: str, day_start: datetime) -> list[dict]:
+        return challenger_records(store, symbol, timeframe, day_start, champions)
+    return step
+
+
+def lag_for(champions: dict[str, int], timeframe: str = "15m") -> timedelta:
+    """Wait until the longest champion horizon after midnight has been realized (+30 min slack)."""
+    longest = max(champions.values(), default=0)
+    return max(timedelta(hours=1), Timeframe(timeframe).delta * longest + timedelta(minutes=30))
 
 
 class DailyLearningCycle:
@@ -38,6 +53,7 @@ class DailyLearningCycle:
         self.steps = list(steps) if steps is not None else [drift_step]
         self.lag = lag
         self.notifier = notifier
+        self.next_try: Optional[datetime] = None  # set by the caller after a failure (retry back-off)
         self.done: set[str] = {r["day"] for r in store.read("learning")
                                if r.get("event") == "daily_cycle_done" and r.get("timeframe") == timeframe}
 
@@ -46,7 +62,7 @@ class DailyLearningCycle:
 
     def maybe_run(self, now: datetime) -> Optional[list[dict]]:
         day = self.due_day(now)
-        if day.isoformat() in self.done:
+        if day.isoformat() in self.done or (self.next_try is not None and now < self.next_try):
             return None
         return self.run_day(day, now=now)
 

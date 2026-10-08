@@ -104,6 +104,9 @@ def test_a_failing_learning_step_never_stops_the_trader(tmp_path):
     store = LayeredStore(tmp_path)
     notes = _Notes()
     trader = SimpleNamespace(store=store, notifier=notes, _now=D0 + timedelta(days=2))
-    _run_learning(trader, DailyLearningCycle(store, [SYM], steps=[boom]))
+    cycle = DailyLearningCycle(store, [SYM], steps=[boom])
+    _run_learning(trader, cycle)
+    trader._now += timedelta(minutes=30)
+    _run_learning(trader, cycle)  # backs off instead of retrying on every feed event
     assert [r["event"] for r in store.read("audit")] == ["learning_cycle_failed"]
     assert notes.sent == ["learning cycle failed"]
