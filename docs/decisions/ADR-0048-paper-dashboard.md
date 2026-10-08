@@ -1,11 +1,28 @@
 # ADR-0048: 읽기 전용 모의투자 대시보드
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-10-09
 **Deciders:** account owner, Claude Code session
 
 ## Context
 
+사용자가 터미널 명령을 칠 때만 포지션을 볼 수 있어서, 트레이딩뷰처럼 실시간 가격과 포지션을
+눈으로 보고 싶다고 요청했다.
+
 ## Decision
 
+`scripts/run_dashboard.py`가 이 PC에서만(127.0.0.1) 작은 웹 화면을 연다. 15분봉 차트 위에
+체결 지점·진입가·손절선·현재가를 그리고, 포지션·평가손익·잔고·최근 판단·청산 거래를 5초마다
+갱신한다. 데이터는 `src/cointrader/monitoring/dashboard.py`가 `var/`의 `paper_state.json`과
+저널(normalized/execution/decision/outcome)에서 읽기만 한다.
+
+- 쓰기 경로와 조작 버튼이 없다. 거래·브로커·실행 코드를 import하지 않는다(테스트로 고정:
+  `cointrader.journal.store`만 허용).
+- 차트는 외부 라이브러리 없이 canvas로 직접 그린다(인터넷·CDN 차단과 무관하게 동작).
+- 현재가는 1분 호가 통계의 중간값(최대 약 1분 지연), 봉은 닫힌 15분봉만이다.
+
 ## Consequences
+
+- 모의투자 프로세스와 별개로 켜고 끌 수 있고 매매에 영향이 없다.
+- 현재 진행 중인(아직 안 닫힌) 봉은 그리지 않는다.
+- 실거래 화면이 아니다. 라이브에서 쓰려면 별도 결정이 필요하다.
