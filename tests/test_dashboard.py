@@ -1,0 +1,71 @@
+import json
+from datetime import datetime, timedelta, timezone
+
+from cointrader.journal.store import LayeredStore
+from cointrader.monitoring.dashboard import read_snapshot
+
+NOW = datetime(2026, 10, 8, 12, 0, tzinfo=timezone.utc)
+
+
+def _store(tmp_path):
+    store = LayeredStore(tmp_path / "data")
+    t0 = NOW - timedelta(minutes=45)
+    for i in range(3):
+        t = t0 + timedelta(minutes=15 * i)
+        row = {"kind": "candle", "symbol": "ETHUSDT", "source": "t", "via": "ws", "timeframe": "15m",
+               "open_time": t.isoformat(), "o": 100 + i, "h": 102 + i, "l": 99 + i, "c": 101 + i, "v": 1.0}
+        store.append("normalized", row, at=t + timedelta(minutes=15))
+        store.append("normalized", row, at=t + timedelta(minutes=16))  # duplicate bar must collapse
+    store.append("normalized", {"kind": "candle", "symbol": "BTCUSDT", "source": "t", "timeframe": "15m",
+                                "open_time": t0.isoformat(), "o": 1, "h": 1, "l": 1, "c": 1, "v": 1}, at=NOW)
+    store.append("normalized", {"kind": "book_stats_1m", "symbol": "ETHUSDT", "source": "t",
+                                "interval_start": (NOW - timedelta(minutes=1)).isoformat(), "mid_price": 110.0}, at=NOW)
+    store.append("execution", {"event": "fill", "client_order_id": "c1", "symbol": "ETHUSDT", "mode": "paper",
+                               "side": "BUY", "quantity": 2.0, "price": 100.5}, at=NOW - timedelta(minutes=30))
+    store.append("decision", {"decision_id": "d1", "symbol": "ETHUSDT", "strategy_id": "s", "strategy_version": "1",
+                              "action": "enter_long", "reason": "vote", "mode": "paper",
+                              "bar_open_time": (NOW - timedelta(minutes=30)).isoformat()}, at=NOW)
+    store.append("outcome", {"trade_id": "x", "symbol": "ETHUSDT", "strategy_id": "s", "net_pnl": -1.5, "mode": "paper",
+                             "exit_time": NOW.isoformat(), "direction": 1, "exit_reason": "stop"}, at=NOW)
+    return tmp_path / "state"
+
+
+def _state(state_dir, **trade):
+    state_dir.mkdir(parents=True, exist_ok=True)
+    state = {"saved_at": NOW.isoformat(), "broker": {"balance": 9990.0, "positions": {}, "resting": []},
+             "open_trades": trade}
+    (state_dir / "paper_state.json").write_text(json.dumps(state), encoding="utf-8")
+
+
+def test_snapshot_collects_chart_position_and_history(tmp_path):
+    state_dir = _store(tmp_path)
+    _state(state_dir, ETHUSDT={"direction": 1, "state": "open", "entry_qty": 2.0, "exit_qty": 0.0,
+                               "entry_notional": 201.0, "stop_price": 95.0, "strategy_id": "s", "entry_time": None})
+    snap = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)
+    assert [c["close"] for c in snap["candles"]] == [101, 102, 103]  # deduped, ETH only, time ordered
+    assert snap["last_price"] == 110.0
+    pos = snap["position"]
+    assert pos["direction"] == "long" and pos["entry_price"] == 100.5 and pos["stop_price"] == 95.0
+    assert abs(pos["unrealized_pnl"] - 2.0 * (110.0 - 100.5)) < 1e-9
+    assert snap["account"]["balance"] == 9990.0
+    assert snap["fills"][0]["side"] == "BUY" and snap["decisions"][0]["action"] == "enter_long"
+    assert snap["closed_trades"][0]["net_pnl"] == -1.5
+
+
+def test_snapshot_without_state_or_position(tmp_path):
+    state_dir = _store(tmp_path)
+    assert read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["account"] is None
+    _state(state_dir)
+    snap = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)
+    assert snap["position"] is None and snap["account"]["open_positions"] == 0
+    assert read_snapshot(state_dir, tmp_path / "empty", "ETHUSDT", now=NOW)["candles"] == []
+
+
+def test_dashboard_reads_only_the_journal():
+    import ast
+    from pathlib import Path
+
+    tree = ast.parse(Path("src/cointrader/monitoring/dashboard.py").read_text(encoding="utf-8"))
+    mods = {n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.module}
+    mods |= {a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names}
+    assert {m for m in mods if m.startswith("cointrader")} == {"cointrader.journal.store"}
