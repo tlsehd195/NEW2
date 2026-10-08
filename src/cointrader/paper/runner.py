@@ -14,6 +14,7 @@ from cointrader.data.feed import CandleHistory, FeedUnavailable
 from cointrader.data.models import Timeframe
 from cointrader.data.realtime import FeedLimits, ResilientEventFeed
 from cointrader.journal.store import LayeredStore
+from cointrader.learning.cycle import DailyLearningCycle
 from cointrader.notifications.notifier import Notifier, Severity
 from cointrader.paper.engine import PaperConfig, PaperTrader
 from cointrader.risk.engine import RiskEngine
@@ -40,6 +41,7 @@ class ReplayFileSource:
     def close(self) -> None:
         self._lines = None
 
+LEARNING_TIMEFRAME = "15m"  # single timeframe (project decision 2026-10-02)
 WARMUP_MARGIN = 20  # extra bars so one missed stream bar does not drop a strategy back to warm-up
 
 
@@ -101,7 +103,8 @@ def bootstrap(trader: PaperTrader, history: CandleHistory, now: datetime, bars: 
 
 
 def run(trader: PaperTrader, source, *, history: Optional[CandleHistory], now: Callable[[], datetime],
-        max_events: Optional[int] = None, sleep=None, limits: FeedLimits = FeedLimits()) -> int:
+        max_events: Optional[int] = None, sleep=None, limits: FeedLimits = FeedLimits(),
+        learning: Optional[DailyLearningCycle] = None) -> int:
     feed_kwargs = {"history": history, "limits": limits, "now": now}
     if sleep is not None:
         feed_kwargs["sleep"] = sleep
@@ -112,6 +115,8 @@ def run(trader: PaperTrader, source, *, history: Optional[CandleHistory], now: C
         for item in feed.run():
             trader.process(item)
             processed += 1
+            if learning is not None and trader._now is not None:
+                _run_learning(trader, learning)
             if max_events is not None and processed >= max_events:
                 break
     except FeedUnavailable as exc:
@@ -121,6 +126,22 @@ def run(trader: PaperTrader, source, *, history: Optional[CandleHistory], now: C
         if trader._now is not None:
             trader.save_state()
     return processed
+
+
+def _run_learning(trader: PaperTrader, learning: DailyLearningCycle) -> None:
+    """The daily learning cycle (ADR-0044) is observation only, so its failure must never stop trading:
+    it is recorded and reported, and the day is retried at the next event."""
+    try:
+        learning.maybe_run(trader._now)
+    except Exception as exc:  # noqa: BLE001
+        trader.store.append("audit", {"event": "learning_cycle_failed", "detail": f"{type(exc).__name__}: {exc}"},
+                            at=trader._now)
+        trader.notifier.notify(Severity.WARNING, "learning cycle failed", f"{type(exc).__name__}: {exc}",
+                               at=trader._now, key="learning_cycle_failed")
+
+
+def build_learning(trader: PaperTrader) -> DailyLearningCycle:
+    return DailyLearningCycle(trader.store, trader.symbols, timeframe=LEARNING_TIMEFRAME, notifier=trader.notifier)
 
 
 def live_stream_url(trader: PaperTrader) -> str:

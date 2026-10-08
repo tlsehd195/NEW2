@@ -11,6 +11,7 @@ Every fact the system produces lands in exactly one layer:
     quality     DATA_QUALITY_EVENT records
     safety      kill switch reads, reconciliation results, blocks, risk events
     audit       process start/stop, config/version changes, maintenance runs
+    learning    daily drift checks and shadow (challenger) evaluations (ADR-0044)
 
 Files are partitioned `<root>/<layer>/<YYYY-MM-DD>.jsonl` by the record's
 UTC time. Nothing is ever rewritten in place. The only mutations are the
@@ -41,12 +42,13 @@ from cointrader._time import require_aware
 
 DATA_SCHEMA_VERSION = "1.0.0"
 
-LAYERS = ("raw", "normalized", "feature", "decision", "execution", "outcome", "quality", "safety", "audit")
+LAYERS = ("raw", "normalized", "feature", "decision", "execution", "outcome", "quality", "safety", "audit", "learning")
 
 # Never deleted by any automatic process: orders, fills, positions, PnL,
 # risk decisions, safety events, audit trail, outcomes, strategy versions,
 # and the features/candles the research dataset is rebuilt from.
-PROTECTED_LAYERS = frozenset({"normalized", "feature", "decision", "execution", "outcome", "quality", "safety", "audit"})
+PROTECTED_LAYERS = frozenset({"normalized", "feature", "decision", "execution", "outcome", "quality", "safety", "audit",
+                              "learning"})
 
 # Minimal required fields per layer: a record missing them is refused
 # (fail-closed) rather than stored half-empty.
@@ -60,6 +62,7 @@ REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "quality": ("kind", "symbol", "detail", "blocks_trading"),
     "safety": ("event", "detail"),
     "audit": ("event",),
+    "learning": ("event", "symbol", "timeframe", "day"),
 }
 
 

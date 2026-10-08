@@ -214,6 +214,7 @@ class PaperTrader:
             bars = self._bars(c.market, c.timeframe.value)
             if not bars or c.open_time > bars[-1].open_time:
                 bars.append(c)
+                self._journal_candle(c, via="bootstrap")
 
     def start(self, now: datetime) -> bool:
         """Recovery sequence. Returns True when entries may resume."""
@@ -391,10 +392,7 @@ class PaperTrader:
         if bars and c.open_time <= bars[-1].open_time:
             return  # duplicate or late bar: never re-decide on it
         bars.append(c)
-        self.store.append("normalized", {"kind": "candle", "symbol": c.market, "source": c.source,
-                                         "timeframe": c.timeframe.value, "open_time": c.open_time.isoformat(),
-                                         "o": c.open, "h": c.high, "l": c.low, "c": c.close, "v": c.volume},
-                          at=c.received_at)
+        self._journal_candle(c, via="stream")
         if c.market not in self.symbols:
             return
         history = list(bars)
@@ -402,6 +400,14 @@ class PaperTrader:
             if strategy.timeframe == c.timeframe.value:
                 self._evaluate(sid, version, strategy, c, history)
         self._mark_equity()
+
+    def _journal_candle(self, c: Candle, *, via: str) -> None:
+        # Bootstrap bars are journaled too (with their real source), so the learning cycle (ADR-0044) can
+        # rebuild the exact history the strategies saw; readers dedupe by bar time.
+        self.store.append("normalized", {"kind": "candle", "symbol": c.market, "source": c.source, "via": via,
+                                         "timeframe": c.timeframe.value, "open_time": c.open_time.isoformat(),
+                                         "o": c.open, "h": c.high, "l": c.low, "c": c.close, "v": c.volume},
+                          at=c.received_at)
 
     def _account_state(self, symbol: str):
         now = self._clock()
@@ -442,7 +448,7 @@ class PaperTrader:
                     "strength": signal.strength, "reason": signal.reason, "stop_distance": signal.stop_distance,
                     "take_profit_distance": signal.take_profit_distance,
                     "trailing_distance": signal.trailing_distance, "signal_regime": signal.regime,
-                    "context": asdict(context)},
+                    "context": asdict(context), "features": signal.features or {}},
             quality=quality_info, action=action, reason=reason, risk=risk_info, client_order_id=cid,
             position_before=(trade.direction * trade.open_quantity) if trade else 0.0,
         )

@@ -33,6 +33,7 @@ from cointrader.data.realtime import WebSocketMessageSource  # noqa: E402
 from cointrader.paper.runner import (  # noqa: E402
     ReplayFileSource,
     bootstrap,
+    build_learning,
     build_trader,
     dump_status,
     live_stream_url,
@@ -146,7 +147,8 @@ def main() -> int:
             print(f"bootstrapped {bootstrap(trader, history, _now())} candles", flush=True)
         source = ReplayFileSource(args.replay) if args.replay else WebSocketMessageSource(live_stream_url(trader))
         try:
-            n = run(trader, source, history=history, now=_now, max_events=args.max_events)
+            n = run(trader, source, history=history, now=_now, max_events=args.max_events,
+                    learning=build_learning(trader))
             print(f"processed {n} events", flush=True)
             print(dump_status(trader))
             _print_krw(cfg)
