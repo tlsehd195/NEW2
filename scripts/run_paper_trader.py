@@ -30,6 +30,7 @@ sys.path.insert(0, str(REPO / "src"))
 from cointrader.data.binance_futures import BinanceFuturesCandles  # noqa: E402
 from cointrader.data.feed import FeedUnavailable  # noqa: E402
 from cointrader.data.realtime import MultiMessageSource, WebSocketMessageSource  # noqa: E402
+from cointrader.paper import single_instance  # noqa: E402
 from cointrader.paper.runner import (  # noqa: E402
     ReplayFileSource,
     bootstrap,
@@ -134,6 +135,12 @@ def main() -> int:
 
     signal.signal(signal.SIGTERM, stop)
     cfg = load_default_paper_config()
+    if not args.replay:  # a replay writes nothing to the live state, so it may run alongside
+        lock = single_instance.acquire(REPO / cfg["state_dir"] / "trader.lock")
+        if lock is None:
+            print("The paper trader is already running for this state directory. Not starting a second one.",
+                  file=sys.stderr, flush=True)
+            return 3
     history = None if args.replay else BinanceFuturesCandles()
     holder: dict = {}
     if not args.replay:
