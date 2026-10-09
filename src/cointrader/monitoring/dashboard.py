@@ -8,6 +8,7 @@ trading code and has no write path, so it cannot affect trading.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,25 @@ from cointrader.journal.store import LayeredStore
 from cointrader.strategies.daytrade import DayTradeVote
 
 EXTRA_BARS = 60  # history before the first drawn bar, so the indicator lines start at the left edge
+
+# Finished days never change, so parse each one's candles once and reuse them on the 5-second refreshes.
+# Today and yesterday are always re-read (the paper process is still appending, and late records land there).
+_DAY_CACHE: dict[tuple[str, str], dict[str, dict[str, dict]]] = {}
+_DAY_LOCK = threading.Lock()
+
+
+def _day_candles(store: LayeredStore, day: date) -> dict[str, dict[str, dict]]:
+    """{symbol: {open_time: candle}} for the 15m candles recorded on `day`."""
+    out: dict[str, dict[str, dict]] = {}
+    for r in store.read("normalized", start=day, end=day):
+        if r.get("kind") == "candle" and r.get("timeframe") == "15m":
+            out.setdefault(r["symbol"], {})[r["open_time"]] = _candle(r)
+    return out
+
+
+def _candle(r: dict) -> dict:
+    return {"time": _epoch(r["open_time"]), "open": r["o"], "high": r["h"], "low": r["l"], "close": r["c"], "volume": r["v"]}
+
 
 def _epoch(text: str) -> int:
     return int(datetime.fromisoformat(text).timestamp())
@@ -90,6 +110,27 @@ def _votes(decisions: list[dict]) -> list[dict]:
     return sorted(last.values(), key=lambda v: v["strategy"])
 
 
+def _trade(r: dict) -> dict:
+    """One closed trade for the list. `price_return` is entry price -> exit price in the trade's direction
+    (before fees, no leverage); `equity_return` is the net result after fees, spread, slippage and funding
+    as a fraction of the account at entry. Either is None when the stored row lacks the inputs."""
+    entry, exit_, direction = r.get("entry_fill"), r.get("exit_fill"), r.get("direction")
+    price_return = direction * (exit_ - entry) / entry if entry and exit_ and direction else None
+    return {"exit_time": r.get("exit_time"), "direction": direction, "net_pnl": r["net_pnl"],
+            "exit_reason": r.get("exit_reason"), "entry_price": entry, "exit_price": exit_,
+            "price_return": price_return, "equity_return": r.get("return_on_equity")}
+
+
+def _fill_kind(side: str, purpose: Optional[str]) -> Optional[str]:
+    """What a fill did to the position: long_entry / long_exit / short_entry / short_exit (None if the order is unknown).
+    A BUY opens a long or closes a short; a SELL opens a short or closes a long. Stop and exit orders are exits."""
+    if not purpose:
+        return None
+    buy = side.lower() == "buy"
+    entry = purpose == "entry"
+    return f"{'long' if buy == entry else 'short'}_{'entry' if entry else 'exit'}"
+
+
 def _rules() -> dict:
     p = DayTradeVote().parameters
     return {k: p.get(k) for k in ("enter_confidence", "exit_confidence", "min_agree", "vol_gate_lo", "vol_gate_hi")}
@@ -99,16 +140,27 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
                   now: Optional[datetime] = None) -> dict:
     now = now or datetime.now(timezone.utc)
     since: date = (now - timedelta(days=days)).date()
+    fresh_from: date = max(since, (now - timedelta(days=1)).date())
     store = LayeredStore(data_root)
 
     candles: dict[str, dict] = {}
+    day = since
+    while day < fresh_from:
+        key = (str(Path(data_root).resolve()), day.isoformat())
+        with _DAY_LOCK:
+            parsed = _DAY_CACHE.get(key)
+            if parsed is None:
+                parsed = _day_candles(store, day)
+                if parsed:  # an empty day may still get data later, so it is not remembered
+                    _DAY_CACHE[key] = parsed
+        candles.update(parsed.get(symbol, {}))
+        day += timedelta(days=1)
     last_book: Optional[dict] = None
-    for r in store.read("normalized", start=since):
+    for r in store.read("normalized", start=fresh_from):
         if r.get("symbol") != symbol:
             continue
         if r.get("kind") == "candle" and r.get("timeframe") == "15m":
-            candles[r["open_time"]] = {"time": _epoch(r["open_time"]), "open": r["o"], "high": r["h"],
-                                       "low": r["l"], "close": r["c"], "volume": r["v"]}
+            candles[r["open_time"]] = _candle(r)
         elif r.get("kind") == "book_stats_1m" and r.get("mid_price"):
             last_book = r
     full = [candles[k] for k in sorted(candles)][-(bars + EXTRA_BARS):]
@@ -117,17 +169,18 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
     last_price = last_book["mid_price"] if last_book else (series[-1]["close"] if series else None)
     last_price_time = last_book["interval_start"] if last_book else None
 
-    fills = [{"time": _epoch(r["recorded_at"]), "side": r["side"], "price": r["price"], "quantity": r["quantity"]}
-             for r in store.read("execution", start=since) if r.get("event") == "fill" and r.get("symbol") == symbol]
+    execution = [r for r in store.read("execution", start=since) if r.get("symbol") == symbol]
+    purpose = {r["client_order_id"]: (r.get("intent") or {}).get("purpose") for r in execution if r.get("event") == "order_submit"}
+    fills = [{"time": _epoch(r["recorded_at"]), "side": r["side"], "price": r["price"], "quantity": r["quantity"],
+              "kind": _fill_kind(r["side"], purpose.get(r.get("client_order_id")))}
+             for r in execution if r.get("event") == "fill"]
     symbol_decisions = [r for r in store.read("decision", start=since) if r.get("symbol") == symbol]
     decisions = [{"time": r["bar_open_time"], "action": r["action"], "reason": r["reason"]} for r in symbol_decisions]
-    trades = [{"exit_time": r.get("exit_time"), "direction": r.get("direction"), "net_pnl": r["net_pnl"],
-               "exit_reason": r.get("exit_reason")}
-              for r in store.read("outcome", start=since) if r.get("symbol") == symbol]
+    trades = [_trade(r) for r in store.read("outcome", start=since) if r.get("symbol") == symbol]
 
     state = _load_state(state_dir)
     out = {"symbol": symbol, "as_of": now.isoformat(), "candles": series, "last_price": last_price,
-           "last_price_time": last_price_time, "fills": fills[-40:], "decisions": decisions[-12:],
+           "last_price_time": last_price_time, "fills": fills[-300:], "decisions": decisions[-12:],
            "closed_trades": trades[-10:], "account": None, "position": None, "overlays": overlays, "latest": latest,
            "votes": _votes(symbol_decisions), "rules": _rules()}
     if state:

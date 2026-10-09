@@ -1,13 +1,18 @@
 // Shape of /api/snapshot, produced by src/cointrader/monitoring/dashboard.py:read_snapshot.
+export type FillKind = "long_entry" | "long_exit" | "short_entry" | "short_exit";
+
 export interface Snapshot {
   symbol: string;
   as_of: string;
   candles: { time: number; open: number; high: number; low: number; close: number; volume: number }[];
   last_price: number | null;
   last_price_time: string | null;
-  fills: { time: number; side: string; price: number; quantity: number }[];
+  fills: { time: number; side: string; price: number; quantity: number; kind: FillKind | null }[];
   decisions: { time: string; action: string; reason: string }[];
-  closed_trades: { exit_time: string | null; direction: number | null; net_pnl: number; exit_reason: string | null }[];
+  closed_trades: {
+    exit_time: string | null; direction: number | null; net_pnl: number; exit_reason: string | null;
+    entry_price: number | null; exit_price: number | null; price_return: number | null; equity_return: number | null;
+  }[];
   account: { balance: number; saved_at: string; open_positions: number } | null;
   position: {
     direction: "long" | "short"; state: string; quantity: number; entry_price: number | null;

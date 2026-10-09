@@ -104,3 +104,44 @@ def test_dashboard_page_is_built_and_served_only_from_its_folder():
     assert mod.static_file("/../run_dashboard.py") is None
     assert mod.static_file("/assets/../../run_dashboard.py") is None
     assert mod.static_file("/nope.js") is None
+
+
+def test_snapshot_scrolls_back_over_finished_days_and_reuses_them(tmp_path):
+    store = LayeredStore(tmp_path / "data")
+    for d in range(1, 4):  # three finished days before NOW, two bars each
+        for i in range(2):
+            t = (NOW - timedelta(days=d)).replace(hour=10, minute=15 * i)
+            store.append("normalized", {"kind": "candle", "symbol": "ETHUSDT", "source": "t", "timeframe": "15m",
+                                        "open_time": t.isoformat(), "o": d, "h": d, "l": d, "c": d, "v": 1.0}, at=t + timedelta(minutes=15))
+    first = read_snapshot(tmp_path / "state", tmp_path / "data", "ETHUSDT", bars=50, days=4, now=NOW)
+    assert [c["close"] for c in first["candles"]] == [3, 3, 2, 2, 1, 1]
+    # the finished days now come from the cache: removing their files must not change the answer
+    for p in (tmp_path / "data" / "normalized").glob("*.jsonl"):
+        if p.name[:10] < (NOW - timedelta(days=1)).date().isoformat():
+            p.unlink()
+    again = read_snapshot(tmp_path / "state", tmp_path / "data", "ETHUSDT", bars=50, days=4, now=NOW)
+    assert [c["close"] for c in again["candles"]][:4] == [3, 3, 2, 2]
+
+
+def test_fills_say_whether_they_opened_or_closed_a_long_or_a_short(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    for cid, side, purpose in (("e1", "BUY", "entry"), ("x1", "SELL", "stop"), ("e2", "SELL", "entry"), ("x2", "BUY", "exit")):
+        store.append("execution", {"event": "order_submit", "client_order_id": cid, "symbol": "ETHUSDT", "mode": "paper",
+                                   "intent": {"purpose": purpose}}, at=NOW)
+        store.append("execution", {"event": "fill", "client_order_id": cid, "symbol": "ETHUSDT", "mode": "paper",
+                                   "side": side, "quantity": 1.0, "price": 100.0}, at=NOW)
+    kinds = [f["kind"] for f in read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["fills"]]
+    assert kinds == [None, "long_entry", "long_exit", "short_entry", "short_exit"]  # first fill (c1) has no order record
+
+
+def test_closed_trade_shows_price_return_and_account_return(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    store.append("outcome", {"trade_id": "s", "symbol": "ETHUSDT", "strategy_id": "s", "net_pnl": 4.0, "mode": "paper",
+                             "exit_time": NOW.isoformat(), "direction": -1, "exit_reason": "target",
+                             "entry_fill": 100.0, "exit_fill": 97.0, "return_on_equity": 0.0004}, at=NOW)
+    short = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][-1]
+    assert abs(short["price_return"] - 0.03) < 1e-12 and short["equity_return"] == 0.0004  # a short gains when price falls
+    old = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][0]
+    assert old["price_return"] is None and old["equity_return"] is None  # row without prices: no made-up numbers
