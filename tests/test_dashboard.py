@@ -139,9 +139,10 @@ def test_closed_trade_shows_price_return_and_account_return(tmp_path):
     state_dir = _store(tmp_path)
     store = LayeredStore(tmp_path / "data")
     store.append("outcome", {"trade_id": "s", "symbol": "ETHUSDT", "strategy_id": "s", "net_pnl": 4.0, "mode": "paper",
-                             "exit_time": NOW.isoformat(), "direction": -1, "exit_reason": "target",
+                             "entry_time": "2026-10-09T01:00:00+00:00", "exit_time": NOW.isoformat(), "direction": -1, "exit_reason": "target",
                              "entry_fill": 100.0, "exit_fill": 97.0, "return_on_equity": 0.0004}, at=NOW)
     short = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][-1]
     assert abs(short["price_return"] - 0.03) < 1e-12 and short["equity_return"] == 0.0004  # a short gains when price falls
+    assert short["entry_time"] == "2026-10-09T01:00:00+00:00"
     old = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][0]
     assert old["price_return"] is None and old["equity_return"] is None  # row without prices: no made-up numbers

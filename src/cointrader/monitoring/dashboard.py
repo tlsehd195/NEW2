@@ -116,7 +116,7 @@ def _trade(r: dict) -> dict:
     as a fraction of the account at entry. Either is None when the stored row lacks the inputs."""
     entry, exit_, direction = r.get("entry_fill"), r.get("exit_fill"), r.get("direction")
     price_return = direction * (exit_ - entry) / entry if entry and exit_ and direction else None
-    return {"exit_time": r.get("exit_time"), "direction": direction, "net_pnl": r["net_pnl"],
+    return {"entry_time": r.get("entry_time"), "exit_time": r.get("exit_time"), "direction": direction, "net_pnl": r["net_pnl"],
             "exit_reason": r.get("exit_reason"), "entry_price": entry, "exit_price": exit_,
             "price_return": price_return, "equity_return": r.get("return_on_equity")}
 
