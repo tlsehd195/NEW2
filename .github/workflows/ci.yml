@@ -14,4 +14,6 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install -e ".[dev]"
+      - name: Ledger consistency (T9)
+        run: python scripts/check_ledgers.py
       - run: python -m pytest -q

@@ -3,9 +3,10 @@
 For each finished UTC day D it runs every step once, after `lag` past
 midnight (so the targets the steps need have been realized), writes the
 results to the `learning` layer and a `daily_cycle_done` marker. Days
-already marked are skipped, so a restart never repeats a day; days missed
-while the process was down are not backfilled automatically (run
-`scripts/run_learning_cycle.py --day` for that).
+already marked are skipped, so a restart never repeats a day. Days missed
+while the process was down are caught up one per call, oldest first, but only
+after the cycle has run at least once and at most `MAX_BACKFILL_DAYS` back
+(older gaps: `scripts/run_learning_cycle.py --day`).
 
 It runs synchronously between feed events: the journal files are only
 ever written by this same thread, so a read never sees a half-written line.
@@ -43,6 +44,9 @@ def lag_for(champions: dict[str, int], timeframe: str = "15m") -> timedelta:
     return max(timedelta(hours=1), Timeframe(timeframe).delta * longest + timedelta(minutes=30))
 
 
+MAX_BACKFILL_DAYS = 7
+
+
 class DailyLearningCycle:
     def __init__(self, store: LayeredStore, symbols: Iterable[str], *, timeframe: str = "15m",
                  steps: Optional[list[Step]] = None, lag: timedelta = timedelta(hours=1),
@@ -61,10 +65,23 @@ class DailyLearningCycle:
         return (now - self.lag).date() - timedelta(days=1)
 
     def maybe_run(self, now: datetime) -> Optional[list[dict]]:
-        day = self.due_day(now)
-        if day.isoformat() in self.done or (self.next_try is not None and now < self.next_try):
+        if self.next_try is not None and now < self.next_try:
             return None
-        return self.run_day(day, now=now)
+        day = self._next_missing_day(self.due_day(now))
+        return None if day is None else self.run_day(day, now=now)
+
+    def _next_missing_day(self, due: date) -> Optional[date]:
+        if self.done:
+            latest = max(date.fromisoformat(d) for d in self.done)
+            first = max(latest + timedelta(days=1), due - timedelta(days=MAX_BACKFILL_DAYS))
+        else:
+            first = due  # first ever run: nothing to catch up on
+        d = first
+        while d <= due:
+            if d.isoformat() not in self.done:
+                return d
+            d += timedelta(days=1)
+        return None
 
     def run_day(self, day: date, *, now: datetime) -> list[dict]:
         day_start = datetime.combine(day, time(0), tzinfo=timezone.utc)
