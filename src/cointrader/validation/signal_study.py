@@ -25,7 +25,7 @@ import math
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 from cointrader.analytics.performance import result_summary
 from cointrader.backtest.event_engine import ExecutionCosts, FuturesTerms, run_event_backtest
@@ -101,6 +101,57 @@ def _buy_and_hold(candles: Sequence[Candle]) -> float:
     return candles[-1].close / candles[0].open - 1 if len(candles) >= 2 else 0.0
 
 
+@dataclass(frozen=True)
+class WalkForwardFolds:
+    windows: tuple
+    fold_returns: dict
+    fold_trades: dict
+    integrity: dict
+    run: Callable
+
+
+def walk_forward_folds(
+    candles: Sequence[Candle], candidates: Sequence, start: datetime, end: datetime, *, policy: ValidationPolicy,
+    risk: RiskEngine, costs: ExecutionCosts, futures: FuturesTerms, initial_equity: float,
+) -> WalkForwardFolds:
+    """Integrity checks and walk-forward folds over `[start, end)` only
+    (TRAIN+VALIDATION). Shared by the study and by screening (ADR-0051);
+    the caller has already checked every range against the locks."""
+    timeframe = candles[0].timeframe
+    windows = generate_walk_forward_windows(start, end, train=policy.fold_train, test=policy.fold_test,
+                                            step=policy.fold_test)
+    if len(windows) < policy.num_groups:
+        raise ValueError(f"only {len(windows)} walk-forward folds; need >= {policy.num_groups} for PBO")
+
+    in_sample = _slice(candles, start, end)
+    integrity = {c.strategy_id: check_signal_strategy(in_sample, c, samples=policy.integrity_samples)
+                 for c in candidates}
+
+    # Indicator history may reach back before a fold's own train start (a
+    # 201-bar warm-up is 8 days of 1h bars but 201 days of 1d bars); it is
+    # never scored, and any bar it touches was checked against the locks.
+    def run(c, warm_from: datetime, start: datetime, end: datetime):
+        warm_from = min(warm_from, start - (c.warmup + 1) * timeframe.delta)
+        return run_event_backtest(_slice(candles, warm_from, end), c, risk, costs=costs, futures=futures,
+                                  initial_equity=initial_equity, score_from=start)
+
+    fold_returns: dict[str, list[float]] = {}
+    fold_trades: dict[str, list[int]] = {}
+    for c in candidates:
+        results = [run(c, w.train_start, w.test_start, w.test_end) for w in windows]
+        fold_returns[c.strategy_id] = [r.total_return for r in results]
+        fold_trades[c.strategy_id] = [len(r.trades) for r in results]
+    return WalkForwardFolds(tuple(windows), fold_returns, fold_trades, integrity, run)
+
+
+def deflated_sharpes(fold_returns: dict, extra_trials: int) -> tuple[dict, int]:
+    """DSR per candidate; constant fold returns count as zero-Sharpe trials."""
+    varying = {n: r for n, r in fold_returns.items() if len(set(r)) > 1}
+    constant = len(fold_returns) - len(varying)
+    dsr = compute_dsr_for_all_candidates(varying, zero_sharpe_trials=extra_trials + constant) if varying else {}
+    return dsr, next(iter(dsr.values())).num_trials if dsr else extra_trials + constant
+
+
 def run_signal_study(
     hypothesis: Hypothesis,
     log: PreregistrationLog,
@@ -113,6 +164,7 @@ def run_signal_study(
     costs: ExecutionCosts = ExecutionCosts(),
     futures: FuturesTerms = FuturesTerms(),
     initial_equity: float = 10_000.0,
+    screened_trials: int = 0,
 ) -> SignalStudyReport:
     log.verify(hypothesis)
     if tuple(c.strategy_id for c in candidates) != hypothesis.candidates:
@@ -131,36 +183,15 @@ def run_signal_study(
         assert_not_locked(locked, hypothesis.market, candles[0].open_time, split.train_start)
     assert_not_locked(locked, hypothesis.market, split.test_start, split.test_end)
 
-    windows = generate_walk_forward_windows(split.train_start, split.validation_end, train=policy.fold_train,
-                                            test=policy.fold_test, step=policy.fold_test)
-    if len(windows) < policy.num_groups:
-        raise ValueError(f"only {len(windows)} walk-forward folds; need >= {policy.num_groups} for PBO")
-
-    in_sample = _slice(candles, split.train_start, split.validation_end)
-    integrity = {c.strategy_id: check_signal_strategy(in_sample, c, samples=policy.integrity_samples)
-                 for c in candidates}
-
-    # Indicator history may reach back before a fold's own train start (a
-    # 201-bar warm-up is 8 days of 1h bars but 201 days of 1d bars); it is
-    # never scored, and any bar it touches was checked against the locks above.
-    def run(c, warm_from: datetime, start: datetime, end: datetime):
-        warm_from = min(warm_from, start - (c.warmup + 1) * timeframe.delta)
-        return run_event_backtest(_slice(candles, warm_from, end), c, risk, costs=costs, futures=futures,
-                                  initial_equity=initial_equity, score_from=start)
-
-    fold_returns: dict[str, list[float]] = {}
-    fold_trades: dict[str, list[int]] = {}
-    for c in candidates:
-        results = [run(c, w.train_start, w.test_start, w.test_end) for w in windows]
-        fold_returns[c.strategy_id] = [r.total_return for r in results]
-        fold_trades[c.strategy_id] = [len(r.trades) for r in results]
+    wf = walk_forward_folds(candles, candidates, split.train_start, split.validation_end, policy=policy, risk=risk,
+                            costs=costs, futures=futures, initial_equity=initial_equity)
+    windows, fold_returns, fold_trades, integrity = wf.windows, wf.fold_returns, wf.fold_trades, wf.integrity
+    run = wf.run
 
     pbo = compute_pbo(fold_returns, num_groups=policy.num_groups)
-    extra_trials = max(0, log.total_registered_candidates() - len(candidates))
-    varying = {n: r for n, r in fold_returns.items() if len(set(r)) > 1}
-    constant = len(fold_returns) - len(varying)
-    dsr = compute_dsr_for_all_candidates(varying, zero_sharpe_trials=extra_trials + constant) if varying else {}
-    trials = next(iter(dsr.values())).num_trials if dsr else extra_trials + constant
+    # Screened candidates (ADR-0051) are trials too: a finalist is deflated against them as well.
+    extra_trials = max(0, log.total_registered_candidates() - len(candidates)) + screened_trials
+    dsr, trials = deflated_sharpes(fold_returns, extra_trials)
 
     test_bars = _slice(candles, split.test_start, split.test_end)
     reports = []

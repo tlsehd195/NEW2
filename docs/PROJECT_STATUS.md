@@ -5,7 +5,11 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-09 (선별/결선 분리 제안)**
+**마지막 갱신: 2026-10-09 (선별/결선 분리 구현)**
+
+## 2026-10-09: 선별/결선 분리 구현 (ADR-0051 승인)
+
+`scripts/run_screening.py`: 워크포워드만 돌리고 TEST 봉은 불러오지 않는다. 등록·횟수 제한 없음, 자동 루프도 가능. 실행마다 `research/screening.jsonl`에 남고 결선 DSR 시도 수에 더해진다. 시장별 첫 선별이 범위 끝 20%를 결선 TEST로 예약(`configs/reserved_windows.json`). 결선 = `run_validation.py`, 같은 start/end, 선별한 후보 3개 이하, 사람만. 30일 3개 예산은 결선에만 적용(숫자 그대로, 2026-10-29까지 결선은 여전히 막힘). 등록·잠금 변경 없음.
 
 ## 2026-10-09: 선별(워크포워드)과 결선(TEST 1회) 분리 제안 (ADR-0051, 문서만)
 

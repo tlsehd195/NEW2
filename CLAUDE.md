@@ -11,9 +11,12 @@
 
 ## 절대 규칙
 
-1. **검증 순서를 건너뛰지 않는다.** 사전등록(`validation/preregistration.py`) →
-   locked window 확인 → 워크포워드 → PBO/DSR → held-out TEST 1회. TEST에 쓴 구간은
-   즉시 `configs/locked_windows.json`에 추가하고 다시는 어떤 용도로도 쓰지 않는다.
+1. **검증 순서를 건너뛰지 않는다.** 선별(`scripts/run_screening.py`, 워크포워드만, TEST 안 읽음,
+   횟수 제한 없음, `research/screening.jsonl`에 기록) → 결선: 선별한 후보 3개 이하를 사람이
+   사전등록(`validation/preregistration.py`) → locked window 확인 → 워크포워드 → PBO/DSR(선별 횟수까지
+   시도 수에 포함) → 예약된 held-out TEST 1회(ADR-0051). TEST에 쓴 구간은 즉시
+   `configs/locked_windows.json`에 추가하고 다시는 어떤 용도로도 쓰지 않는다. 예약 구간
+   (`configs/reserved_windows.json`)은 선별이 건드리지 않는다.
    가설을 바꾸면 새 id로 다시 등록한다(기존 기록 수정 금지).
 2. **킬 스위치 해제, 라이브 승인, APPROVED/DEPLOYED 전이, 실제 자금 이동
    (`funding/bridge.py`의 `execute_transfer`)은 사람만.** 이 경로를 호출하는 코드를

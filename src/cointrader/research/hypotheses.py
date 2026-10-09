@@ -18,6 +18,10 @@ A new hypothesis is refused when:
 - the rolling registration budget is spent (default: 3 hypotheses per
   30 days per family, and 3 per 30 days over all families combined, ADR-0031), so the loop cannot
   brute-force its way to a pass.
+
+Since ADR-0051 a registration is a FINAL EXAM: walk-forward screening
+(`validation/screening.py`) has no registration and no count limit, so
+this budget now counts only the runs that read a held-out TEST.
 """
 
 from __future__ import annotations

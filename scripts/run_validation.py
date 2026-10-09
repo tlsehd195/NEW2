@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""Pre-registered walk-forward validation of a strategy FAMILY, then the
-one-time held-out TEST, then the TEST window is locked immediately.
+"""FINAL EXAM (ADR-0051): pre-registered walk-forward validation of at
+most 3 screened finalists, then the one-time held-out TEST, then the TEST
+window is locked immediately. Screen first with scripts/run_screening.py
+and use the same --start/--end, so TEST is the market's reserved window.
 
     python3 scripts/run_validation.py --hypothesis-id H-0014 --family swing \
         --symbol ETHUSDT --timeframe 1h --start 2021-01-01 --end 2023-06-01 \
         --statement "..." --rationale "why this is a new question, >= 40 chars" \
         --registered-by 동동 --out reports/H-0014.json
 
-Order enforced (CLAUDE.md rule 1): hypothesis checks (dead families,
+Order enforced (CLAUDE.md rule 1): finalist checks (screened, <= 3,
+reserved TEST, human) -> hypothesis checks (dead families,
 budget, locked windows) -> pre-registration -> locked-window check ->
 walk-forward + integrity checks -> PBO/DSR -> TEST once -> LOCK the TEST
-window in configs/locked_windows.json -> automatic lifecycle steps
+window in configs/locked_windows.json and release the reservation -> automatic lifecycle steps
 (stop at OOS_TESTED; APPROVED/DEPLOYED are human-only).
-Commit research/*.jsonl and configs/locked_windows.json afterwards.
+Commit research/*.jsonl, configs/locked_windows.json and configs/reserved_windows.json afterwards.
 """
 
 from __future__ import annotations
@@ -38,7 +41,9 @@ from cointrader.strategies.registry import StrategyRegistry  # noqa: E402
 from cointrader.validation.locked_windows import load_locked_windows  # noqa: E402
 from cointrader.validation.policies import POLICIES  # noqa: E402
 from cointrader.validation.preregistration import Hypothesis, PreregistrationLog  # noqa: E402
+from cointrader.validation.screening import ScreeningLedger, check_finalists, load_reserved, release  # noqa: E402
 from cointrader.validation.signal_study import criteria_from, lock_test_window, run_signal_study  # noqa: E402
+from cointrader.validation.walk_forward import build_chronological_split  # noqa: E402
 
 
 def _utc(day: str) -> datetime:
@@ -57,8 +62,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--hypothesis-id", required=True)
     ap.add_argument("--family", required=True, choices=sorted(POLICIES))
-    ap.add_argument("--strategies", nargs="*", help="registered ids; default = every registered one of the family "
-                                                     "that supports this timeframe")
+    ap.add_argument("--strategies", nargs="+", required=True, help="screened finalists (at most 3)")
     ap.add_argument("--symbol", required=True)
     ap.add_argument("--timeframe", required=True)
     ap.add_argument("--start", required=True)
@@ -73,6 +77,8 @@ def main() -> int:
     ap.add_argument("--log", type=Path, default=REPO / "research" / "preregistration.jsonl")
     ap.add_argument("--locked-path", type=Path, default=REPO / "configs" / "locked_windows.json")
     ap.add_argument("--ledger", type=Path, default=REPO / "research" / "candidate_status.jsonl")
+    ap.add_argument("--screening", type=Path, default=REPO / "research" / "screening.jsonl")
+    ap.add_argument("--reserved-path", type=Path, default=REPO / "configs" / "reserved_windows.json")
     ap.add_argument("--out", type=Path)
     args = ap.parse_args()
 
@@ -80,8 +86,7 @@ def main() -> int:
         ap.error("--max-per-window above the default needs --budget-adr naming the ADR that records the human approval")
     policy = POLICIES[args.family]
     registry = StrategyRegistry.load()
-    ids = args.strategies or sorted(s.strategy_id for s in registry.by_family(args.family)
-                                    if args.timeframe in s.timeframes and args.symbol in s.markets)
+    ids = args.strategies
     candidates = [registry.build(i, market=args.symbol, family=args.family) for i in ids]
     locked = load_locked_windows(args.locked_path)
     now = datetime.now(timezone.utc)
@@ -91,6 +96,9 @@ def main() -> int:
         success_criteria=dict(policy.success_criteria), registered_by=args.registered_by, registered_at=now,
     )
     log = PreregistrationLog(args.log)
+    screening = ScreeningLedger(args.screening)
+    split = build_chronological_split(hypothesis.data_start, hypothesis.data_end, align_to=Timeframe(args.timeframe).delta)
+    check_finalists(hypothesis, screening, load_reserved(args.reserved_path), split.test_start, split.test_end)
     register_checked(log, args.log, hypothesis, locked, rationale=args.rationale, replication=args.replication,
                      budget=Budget(max_per_window=args.max_per_window, max_all_kinds=args.max_per_window))
 
@@ -113,9 +121,11 @@ def main() -> int:
     futures, fnotes = load_futures_terms(args.symbol, hypothesis.data_start, hypothesis.data_end)
     filters, _, _ = load_markets()
     report = run_signal_study(hypothesis, log, candles, candidates, locked, policy=policy,
-                              risk=RiskEngine(load_risk(), filters), futures=futures)
+                              risk=RiskEngine(load_risk(), filters), futures=futures,
+                              screened_trials=screening.total_candidates())
     window = lock_test_window(report, path=args.locked_path, note=f"{args.hypothesis_id} {args.family} {args.symbol} {args.timeframe}; "
                                            f"TEST used once by run_validation.py at {now.isoformat()}")
+    release(args.symbol, args.reserved_path)  # the reservation is now a locked window
     ledger = CandidateLedger(args.ledger)
     criteria = criteria_from(hypothesis, policy)
     transitions = {}
