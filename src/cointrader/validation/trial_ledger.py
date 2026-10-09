@@ -21,13 +21,14 @@ from cointrader.validation.pbo_dsr import DsrResult, compute_dsr_for_all_candida
 from cointrader.validation.preregistration import PreregistrationLog
 
 
-def prior_trials(log: PreregistrationLog, current_candidates: Sequence[str]) -> int:
-    """Registered candidates (across all hypotheses) beyond this run's."""
-    return max(0, log.total_registered_candidates() - len(set(current_candidates)))
+def prior_trials(log: PreregistrationLog, current_candidates: Sequence[str], screened: int = 0) -> int:
+    """Registered candidates (across all hypotheses) beyond this run's,
+    plus `screened` candidate runs from `research/screening.jsonl` (ADR-0051)."""
+    return max(0, log.total_registered_candidates() - len(set(current_candidates))) + screened
 
 
 def compute_cumulative_dsr(
-    fold_returns_by_candidate: Mapping[str, Sequence[float]], log: PreregistrationLog,
+    fold_returns_by_candidate: Mapping[str, Sequence[float]], log: PreregistrationLog, screened: int = 0,
 ) -> dict[str, DsrResult]:
-    extra = prior_trials(log, list(fold_returns_by_candidate))
+    extra = prior_trials(log, list(fold_returns_by_candidate), screened)
     return compute_dsr_for_all_candidates(fold_returns_by_candidate, zero_sharpe_trials=extra)

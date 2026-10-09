@@ -60,4 +60,5 @@ def test_prior_trials_counts_registered_minus_current(tmp_path):
     log = PreregistrationLog(path)
     assert log.total_registered_candidates() == 6
     assert prior_trials(log, ["x", "y", "z"]) == 3
+    assert prior_trials(log, ["x", "y", "z"], screened=4) == 7  # screened runs are trials too (ADR-0051)
     assert prior_trials(PreregistrationLog(tmp_path / "none.jsonl"), ["a"]) == 0

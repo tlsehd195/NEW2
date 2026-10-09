@@ -245,3 +245,48 @@ def test_daytrade_kind_has_its_own_policy_and_is_a_known_family():
     p = POLICIES["daytrade"]
     assert (p.family, p.fold_train, p.fold_test) == ("daytrade", timedelta(days=14), timedelta(days=7))
     assert (p.num_groups, p.min_folds) == (8, 16)  # same promotion rigor as the other kinds
+
+
+# ------------------------------------------------- screening (ADR-0051) --
+def test_screening_reads_no_test_and_reserves_it(tmp_path):
+    from cointrader.validation.screening import ScreeningRefused, load_reserved, reserve, run_screening
+    from cointrader.validation.walk_forward import build_chronological_split
+    cs, cands, hyp, log, risk = setup_study(tmp_path)
+    start, end = hyp.data_start, hyp.data_end
+    split = build_chronological_split(start, end)
+    with pytest.raises(ScreeningRefused, match="past VALIDATION"):
+        run_screening(cs, cands, "BTCUSDT", start, end, (), (), policy=POLICY, risk=risk, prior_trials=0,
+                      futures=FuturesTerms(assume_no_funding=True))
+    in_sample = [c for c in cs if c.open_time < split.validation_end]
+    rep = run_screening(in_sample, cands, "BTCUSDT", start, end, (), (), policy=POLICY, risk=risk, prior_trials=5,
+                        futures=FuturesTerms(assume_no_funding=True))
+    assert rep.new_reservation and (rep.reservation.start, rep.reservation.end) == (split.test_start, split.test_end)
+    assert rep.label.startswith("SCREENING") and rep.trials_deflated_against >= 7
+    path = tmp_path / "reserved.json"
+    reserve(rep.reservation, path)
+    with pytest.raises(ScreeningRefused, match="already has"):
+        reserve(rep.reservation, path)
+    # the same range again keeps the reservation; a range reaching into it is refused
+    again = run_screening(in_sample, cands, "BTCUSDT", start, end, (), load_reserved(path), policy=POLICY, risk=risk,
+                          prior_trials=0, futures=FuturesTerms(assume_no_funding=True))
+    assert not again.new_reservation
+    with pytest.raises(ScreeningRefused, match="reserved TEST"):
+        run_screening(cs, cands, "BTCUSDT", start, end + timedelta(days=30), (), load_reserved(path), policy=POLICY,
+                      risk=risk, prior_trials=0, futures=FuturesTerms(assume_no_funding=True))
+
+
+def test_final_exam_gate(tmp_path):
+    from cointrader.validation.screening import ReservedWindow, ScreeningLedger, ScreeningRefused, check_finalists
+    ledger = ScreeningLedger(tmp_path / "s.jsonl")
+    ledger.append({"market": "BTCUSDT", "timeframe": "1h", "candidates": [{"strategy_id": f"swing_{i}"} for i in "abcd"]})
+    ts, te = T0 + timedelta(days=240), T0 + timedelta(days=300)
+    res = [ReservedWindow("BTCUSDT", ts, te, "n")]
+    check_finalists(hyp("H-1", ["swing_a", "swing_b", "swing_c"]), ledger, res, ts, te)
+    for bad, why in [(hyp("H-1", ["swing_a", "swing_b", "swing_c", "swing_d"]), "at most 3"),
+                     (hyp("H-1", ["swing_z"]), "never screened"),
+                     (hyp("H-1", ["swing_a"], market="ETHUSDT"), "no reserved"),
+                     (hyp("H-1", ["swing_a"], by="RESEARCH_LOOP"), "only a human")]:
+        with pytest.raises(ScreeningRefused, match=why):
+            check_finalists(bad, ledger, res, ts, te)
+    with pytest.raises(ScreeningRefused, match="not BTCUSDT's"):
+        check_finalists(hyp("H-1", ["swing_a"]), ledger, res, ts, te + timedelta(days=1))
