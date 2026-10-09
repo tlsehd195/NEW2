@@ -9,7 +9,7 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 
 ## 2026-10-10: 보고서 부족분 T7·T9·T10·T14 (ADR-0056)
 
-T7: 클라우드·Actions에서 바이낸스 공개 API가 막혀 `markets.json` 값은 확인 못 함(`verified=false` 유지). 사용자 PC에서 `python3 scripts/verify_markets.py --write` 실행 필요. 위험 설정 해시에는 영향 없음, 값이 바뀌면 체결 반올림이 달라지니 이전 수치와 비교 금지. T9: `scripts/check_ledgers.py`(CI 단계), 현재 오류·경고 0. T10: 학습 사이클은 이미 모의투자에 연결돼 있었고, 꺼져 있던 날을 하루씩 보충(최대 7일)하도록 추가, 관측 전용. T14: 주간 디스코드 요약, 기본 꺼짐(`configs/weekly_summary.json`), 웹훅 없으면 안 보냄. 가설·예산·위험 한도·안전 파일 변경 없음. T6은 사용자 PC에서만 가능.
+T7: 클라우드·Actions에서 바이낸스 공개 API가 막혀 `markets.json` 값은 확인 못 함(`verified=false` 유지). 사용자 PC에서 `python3 scripts/verify_markets.py --write` 실행 필요. 위험 설정 해시에는 영향 없음, 값이 바뀌면 체결 반올림이 달라지니 이전 수치와 비교 금지. T9: `scripts/check_ledgers.py`(CI 단계), 현재 오류·경고 0. T10: 학습 사이클은 이미 모의투자에 연결돼 있었고, 꺼져 있던 날을 하루씩 보충(최대 7일)하도록 추가, 관측 전용. T14: 주간 디스코드 요약, 기본 꺼짐(`configs/weekly_summary.json`), 웹훅 없으면 안 보냄. 가설·예산·위험 한도·안전 파일 변경 없음. T6은 사용자 PC에서만 가능. 추가: `start-dashboard-next.bat`가 시작 때 `verify_markets.py --write`를 자동 실행(못 닿으면 그대로 두고 계속).
 
 ## 2026-10-10: 모의투자 시간손절·일일 진입 상한·호가 깊이 (ADR-0055)
 

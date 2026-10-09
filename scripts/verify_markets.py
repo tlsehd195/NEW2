@@ -33,10 +33,14 @@ def main() -> int:
     ap.add_argument("--write", action="store_true")
     args = ap.parse_args()
     raw = json.loads(PATH.read_text(encoding="utf-8"))
-    if args.from_file:
-        filters = parse_exchange_info(json.loads(args.from_file.read_text(encoding="utf-8")))
-    else:
-        filters = BinanceFuturesClient().exchange_filters()
+    try:
+        if args.from_file:
+            filters = parse_exchange_info(json.loads(args.from_file.read_text(encoding="utf-8")))
+        else:
+            filters = BinanceFuturesClient().exchange_filters()
+    except Exception as exc:  # noqa: BLE001  unreachable exchange must not break a launcher; verified stays as it was
+        print(f"could not fetch exchange rules ({type(exc).__name__}: {exc}); markets.json left unchanged", file=sys.stderr)
+        return 2
     diffs, missing = compare_markets(raw["markets"], filters)
     for sym in missing:
         print(f"MISSING  {sym}: not TRADING on the exchange (or absent)")
@@ -48,6 +52,8 @@ def main() -> int:
         if missing:
             print("not writing: fix the missing symbols first", file=sys.stderr)
             return 1
+        if ok and raw.get("verified") is True:
+            return 0
         for d in diffs:
             raw["markets"][d.symbol][d.field] = d.exchange
         raw["verified"] = True
