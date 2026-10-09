@@ -9,6 +9,7 @@ import { YAxis } from "@/components/charts/y-axis";
 import { BandFill, FillLegend, FillMarks, Guides, PriceLevels, SeriesPath, type Level } from "./overlays";
 import { bollingerSeries, donchianSeries, emaSeries, obvSeries, rocSeries, rsiSeries } from "./indicators";
 import { PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
+import { CalendarPage } from "./Calendar";
 import { SettingsPanel } from "./SettingsPanel";
 import { clampInt, useSettings, type PanelId, type Settings } from "./settings";
 import type { Snapshot } from "./types";
@@ -165,6 +166,7 @@ export default function App() {
   const [asOf, setAsOf] = useState("불러오는 중…");
   const [s, update, reset] = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [page, setPage] = useState<1 | 2>(1); // 1 = daily calendar, 2 = the full dashboard
   const [side, setSide] = useState<"all" | "long" | "short">("all");
   const home: View = { count: clampInt(s.startBars, 20, 1000), endTime: null };
   const [view, setView] = useState<View>(home);
@@ -373,19 +375,26 @@ export default function App() {
     <main>
       <h1>모의투자 대시보드<span className="badge">읽기 전용 · 실제 돈 아님</span></h1>
       <div className="mono">{asOf}</div>
+      <div className="tabs" role="tablist" aria-label="페이지">
+        <button className={page === 1 ? "on" : ""} onClick={() => setPage(1)}>1 캘린더</button>
+        <button className={page === 2 ? "on" : ""} onClick={() => setPage(2)}>2 대시보드</button>
+        <button className="gear" style={{ marginLeft: "auto" }} onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
+      </div>
+      <div className="err">{err}</div>
+      {page === 1 && <CalendarPage d={d} />}
+      {page === 2 && <>
       <div className="tabs">
         {symbols.map((sy) => (
           <button key={sy} className={sy === sym ? "on" : ""} onClick={() => { setSym(sy); location.hash = sy; setD(null); setView(home); }}>{sy}</button>
         ))}
-        <button className="gear" style={{ marginLeft: "auto" }} onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
       </div>
-      <div className="err">{err}</div>
       {!s.layout.some((l) => l.show) && <div className="muted">보이는 패널이 없어요. ⚙ 설정에서 패널을 켜 주세요.</div>}
       <div className="board">
         {s.layout.filter((l) => l.show).map((l, i) => (
           <div key={`${l.id}-${i}-${l.size}-${s.fontScale}-${s.chartHeight}`} className={`slot span-${l.size}`}>{panels[l.id]}</div>
         ))}
       </div>
+      </>}
       {settingsOpen && <SettingsPanel s={s} update={update} reset={reset} close={() => setSettingsOpen(false)} />}
     </main>
   );

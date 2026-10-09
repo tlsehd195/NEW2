@@ -167,7 +167,21 @@ def test_snapshot_equity_curve_kill_switch_and_reconciliation(tmp_path):
     snap = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW + timedelta(minutes=10), kill_switch_path=ks)
     assert [p["pnl"] for p in snap["equity_curve"]] == [-1.5, 2.5]  # cumulative, all symbols, by exit time
     assert snap["kill_switch"]["engaged"] is False and snap["kill_switch"]["triggered_by"] == "me"
+    assert len(snap["daily"]) == 1 and snap["daily"][0]["trades"] == 2 and abs(snap["daily"][0]["pnl"] - 2.5) < 1e-9
+    assert snap["daily"][0]["wins"] == 1 and snap["daily"][0]["return_pct"] is None  # no equity_at_entry in the fixture
     assert snap["reconciliation"]["ok"] is False and snap["reconciliation"]["mismatches"] == ["ETHUSDT"]
     missing = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW, kill_switch_path=tmp_path / "nope.jsonl")
     assert missing["kill_switch"]["engaged"] is True  # fail-closed like the trader
     assert read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["kill_switch"] is None
+
+
+def test_daily_groups_by_korea_day_and_reports_return(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    for i, (hour, pnl) in enumerate(((14, 50.0), (15, -20.0), (16, 10.0))):  # 14:00 UTC = 23:00 KST; 15:00 UTC = next KST day
+        store.append("outcome", {"trade_id": f"k{i}", "symbol": "BTCUSDT", "strategy_id": "s", "net_pnl": pnl, "mode": "paper",
+                                 "exit_time": datetime(2026, 10, 7, hour, tzinfo=timezone.utc).isoformat(),
+                                 "equity_at_entry": 10000.0}, at=NOW)
+    days = {d["date"]: d for d in read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["daily"]}
+    assert days["2026-10-07"]["pnl"] == 50.0 and days["2026-10-07"]["return_pct"] == 0.005
+    assert days["2026-10-08"]["trades"] == 3 and days["2026-10-08"]["wins"] == 1  # -1.5 fixture trade at 12:00 UTC too

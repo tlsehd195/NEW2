@@ -124,6 +124,11 @@ export function demoSnapshot(symbol: string, bars: number, now = Date.now()): Sn
       acc.push({ time: t.exit_time ?? new Date(now).toISOString(), pnl: (acc.at(-1)?.pnl ?? 0) + t.net_pnl })
       return acc
     }, []),
+    daily: Array.from({ length: 20 }, (_, i) => {
+      const day = new Date(now + 9 * 3_600_000 - (i + 1) * 86_400_000).toISOString().slice(0, 10)
+      const pnl = Math.round((Math.sin(i * 1.7) * 30 + 6) * 100) / 100
+      return { date: day, pnl, trades: 1 + (i % 4), wins: i % 3 === 0 ? 0 : 1, return_pct: pnl / 10000 }
+    }),
     kill_switch: { engaged: false, reason: "released", triggered_by: "demo", at: new Date(now - 3_600_000).toISOString() },
     reconciliation: { ok: true, detail: "ok", mismatches: [], at: new Date(now - 120_000).toISOString() },
     account: { balance, saved_at: new Date(now - 30_000).toISOString(), open_positions: 1 },

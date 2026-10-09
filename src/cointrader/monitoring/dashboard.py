@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import threading
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Optional
@@ -62,6 +63,9 @@ def _krw_account(state_dir: Path, balance: float) -> dict:
         return {"rate_krw": None, "balance_krw": None, "equity_krw": None, "krw_as_of": None}
 
 
+_KST = ZoneInfo("Asia/Seoul")
+
+
 def _equity_curve(store: LayeredStore, now: datetime, days: int = 30, max_points: int = 600) -> list[dict]:
     """Cumulative net PnL (USDT) over every closed trade of the last `days` days, all symbols, ordered by exit time."""
     rows = [r for r in store.read("outcome", start=(now - timedelta(days=days)).date()) if r.get("exit_time")]
@@ -71,6 +75,24 @@ def _equity_curve(store: LayeredStore, now: datetime, days: int = 30, max_points
         total += r["net_pnl"]
         curve.append({"time": r["exit_time"], "pnl": total})
     return curve[-max_points:]
+
+
+def _daily(store: LayeredStore, now: datetime, days: int = 400) -> list[dict]:
+    """One row per Korea-time day with closed trades: net PnL (USDT), trade count, wins, and the return as a share
+    of the account at the day's first entry (`equity_at_entry`; None when the stored row lacks it)."""
+    rows = [r for r in store.read("outcome", start=(now - timedelta(days=days)).date()) if r.get("exit_time")]
+    rows.sort(key=lambda r: r["exit_time"])
+    out: dict[str, dict] = {}
+    for r in rows:
+        day = datetime.fromisoformat(r["exit_time"]).astimezone(_KST).date().isoformat()
+        d = out.setdefault(day, {"date": day, "pnl": 0.0, "trades": 0, "wins": 0, "start_equity": r.get("equity_at_entry")})
+        d["pnl"] += r["net_pnl"]
+        d["trades"] += 1
+        d["wins"] += r["net_pnl"] > 0
+    for d in out.values():
+        eq = d.pop("start_equity")
+        d["return_pct"] = d["pnl"] / eq if eq else None
+    return list(out.values())
 
 
 def _kill_switch(path: Optional[Path]) -> Optional[dict]:
@@ -239,7 +261,7 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
            "last_price_time": last_price_time, "fills": fills[-300:], "decisions": decisions[-12:],
            "closed_trades": trades[-10:], "account": None, "position": None, "overlays": overlays, "latest": latest,
            "votes": _votes(symbol_decisions), "rules": _rules(),
-           "equity_curve": _equity_curve(store, now), "kill_switch": _kill_switch(kill_switch_path),
+           "equity_curve": _equity_curve(store, now), "daily": _daily(store, now), "kill_switch": _kill_switch(kill_switch_path),
            "reconciliation": _reconciliation(store, now)}
     if state:
         out["position"] = _position(state, symbol, last_price, leverage)

@@ -35,6 +35,14 @@ export interface EquityPoint {
   pnl: number
 }
 
+export interface DailyResult {
+  date: string
+  pnl: number
+  trades: number
+  wins: number
+  return_pct: number | null
+}
+
 export interface KillSwitch {
   engaged: boolean
   reason: string | null
@@ -95,6 +103,7 @@ export interface Snapshot {
   latest: Partial<Record<"rsi14" | "ema20_gap" | "bollinger_z" | "roc14" | "donchian_pos", number | null>>
   votes: Vote[]
   rules: Partial<Record<RuleKey, number>>
+  daily?: DailyResult[]
   equity_curve?: EquityPoint[]
   kill_switch?: KillSwitch | null
   reconciliation?: Reconciliation | null
