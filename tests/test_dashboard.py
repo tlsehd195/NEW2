@@ -121,3 +121,15 @@ def test_snapshot_scrolls_back_over_finished_days_and_reuses_them(tmp_path):
             p.unlink()
     again = read_snapshot(tmp_path / "state", tmp_path / "data", "ETHUSDT", bars=50, days=4, now=NOW)
     assert [c["close"] for c in again["candles"]][:4] == [3, 3, 2, 2]
+
+
+def test_fills_say_whether_they_opened_or_closed_a_long_or_a_short(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    for cid, side, purpose in (("e1", "BUY", "entry"), ("x1", "SELL", "stop"), ("e2", "SELL", "entry"), ("x2", "BUY", "exit")):
+        store.append("execution", {"event": "order_submit", "client_order_id": cid, "symbol": "ETHUSDT", "mode": "paper",
+                                   "intent": {"purpose": purpose}}, at=NOW)
+        store.append("execution", {"event": "fill", "client_order_id": cid, "symbol": "ETHUSDT", "mode": "paper",
+                                   "side": side, "quantity": 1.0, "price": 100.0}, at=NOW)
+    kinds = [f["kind"] for f in read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["fills"]]
+    assert kinds == [None, "long_entry", "long_exit", "short_entry", "short_exit"]  # first fill (c1) has no order record

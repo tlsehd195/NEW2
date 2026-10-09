@@ -110,6 +110,16 @@ def _votes(decisions: list[dict]) -> list[dict]:
     return sorted(last.values(), key=lambda v: v["strategy"])
 
 
+def _fill_kind(side: str, purpose: Optional[str]) -> Optional[str]:
+    """What a fill did to the position: long_entry / long_exit / short_entry / short_exit (None if the order is unknown).
+    A BUY opens a long or closes a short; a SELL opens a short or closes a long. Stop and exit orders are exits."""
+    if not purpose:
+        return None
+    buy = side.lower() == "buy"
+    entry = purpose == "entry"
+    return f"{'long' if buy == entry else 'short'}_{'entry' if entry else 'exit'}"
+
+
 def _rules() -> dict:
     p = DayTradeVote().parameters
     return {k: p.get(k) for k in ("enter_confidence", "exit_confidence", "min_agree", "vol_gate_lo", "vol_gate_hi")}
@@ -148,8 +158,11 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
     last_price = last_book["mid_price"] if last_book else (series[-1]["close"] if series else None)
     last_price_time = last_book["interval_start"] if last_book else None
 
-    fills = [{"time": _epoch(r["recorded_at"]), "side": r["side"], "price": r["price"], "quantity": r["quantity"]}
-             for r in store.read("execution", start=since) if r.get("event") == "fill" and r.get("symbol") == symbol]
+    execution = [r for r in store.read("execution", start=since) if r.get("symbol") == symbol]
+    purpose = {r["client_order_id"]: (r.get("intent") or {}).get("purpose") for r in execution if r.get("event") == "order_submit"}
+    fills = [{"time": _epoch(r["recorded_at"]), "side": r["side"], "price": r["price"], "quantity": r["quantity"],
+              "kind": _fill_kind(r["side"], purpose.get(r.get("client_order_id")))}
+             for r in execution if r.get("event") == "fill"]
     symbol_decisions = [r for r in store.read("decision", start=since) if r.get("symbol") == symbol]
     decisions = [{"time": r["bar_open_time"], "action": r["action"], "reason": r["reason"]} for r in symbol_decisions]
     trades = [{"exit_time": r.get("exit_time"), "direction": r.get("direction"), "net_pnl": r["net_pnl"],

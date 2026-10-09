@@ -1,6 +1,7 @@
 // Chart layers the dashboard adds on top of bklit's charts. They read scales from bklit's chart context
 // (the "custom indicator" pattern), so they line up with the candles and move with hover.
 import { useChart } from "@/components/charts/chart-context";
+import type { FillKind, Snapshot } from "./types";
 
 const fmt = (n: number) => n.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
@@ -71,9 +72,19 @@ export function PriceLevels({ levels }: { levels: Level[] }) {
   );
 }
 
-/** Buy / sell triangles under / over the candle each fill landed in. */
-export function FillMarks({ fills }: { fills: { time: number; side: string }[] }) {
+// How a fill looks: entries are solid triangles pointing the way the trade bets (long up / short down),
+// exits are hollow diamonds; green = long, red = short. Long entry and short exit sit under the candle, the rest above.
+export const FILL_STYLES: Record<FillKind, { label: string; name: string; color: string; entry: boolean; below: boolean }> = {
+  long_entry: { label: "L진입", name: "롱 진입", color: "var(--up)", entry: true, below: true },
+  long_exit: { label: "L청산", name: "롱 청산", color: "var(--up)", entry: false, below: false },
+  short_entry: { label: "S진입", name: "숏 진입", color: "var(--down)", entry: true, below: false },
+  short_exit: { label: "S청산", name: "숏 청산", color: "var(--down)", entry: false, below: true },
+};
+
+/** Entry / exit marks for the candle each fill landed in. Text labels only when the view is zoomed in enough to read. */
+export function FillMarks({ fills }: { fills: Snapshot["fills"] }) {
   const { data, xScale, yScale, xAccessor } = useChart();
+  const labels = data.length <= 140;
   return (
     <g pointerEvents="none">
       {fills.map((f, k) => {
@@ -82,14 +93,57 @@ export function FillMarks({ fills }: { fills: { time: number; side: string }[] }
           return t <= f.time && f.time < t + 900;
         });
         if (!row) return null;
-        const buy = f.side.toLowerCase() === "buy";
         const x = xScale(xAccessor(row));
-        const y = buy ? yScale(row.low as number) + 12 : yScale(row.high as number) - 12;
+        const st = f.kind ? FILL_STYLES[f.kind] : null;
+        const below = st ? st.below : f.side.toLowerCase() === "buy";
+        const color = st ? st.color : "var(--mute)";
+        const y = below ? yScale(row.low as number) + 14 : yScale(row.high as number) - 14;
         const s = 6;
-        const pts = buy ? `${x},${y - s} ${x - s},${y + s} ${x + s},${y + s}` : `${x},${y + s} ${x - s},${y - s} ${x + s},${y - s}`;
-        return <polygon key={k} points={pts} fill={buy ? "var(--up)" : "var(--down)"} />;
+        let shape;
+        if (st && !st.entry) {
+          shape = <polygon points={`${x},${y - s - 1} ${x + s + 1},${y} ${x},${y + s + 1} ${x - s - 1},${y}`} fill="var(--panel)" stroke={color} strokeWidth={2} />;
+        } else {
+          const up = st ? st.label.startsWith("L") : below;
+          const pts = up ? `${x},${y - s} ${x - s},${y + s} ${x + s},${y + s}` : `${x},${y + s} ${x - s},${y - s} ${x + s},${y - s}`;
+          shape = <polygon points={pts} fill={color} />;
+        }
+        return (
+          <g key={k}>
+            {shape}
+            {st && labels && (
+              <text x={x} y={below ? y + s + 13 : y - s - 5} fontSize={11} fontWeight={600} textAnchor="middle" fill={color} fontFamily="system-ui, sans-serif">
+                {st.label}
+              </text>
+            )}
+          </g>
+        );
       })}
     </g>
+  );
+}
+
+/** Small key for the marks above, shown over the chart. */
+export function FillLegend() {
+  const kinds = Object.keys(FILL_STYLES) as FillKind[];
+  return (
+    <>
+      {kinds.map((k) => {
+        const st = FILL_STYLES[k];
+        const long = k.startsWith("long");
+        return (
+          <span key={k} style={{ color: st.color, display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <svg width="14" height="14" viewBox="-7 -7 14 14" aria-hidden="true">
+              {st.entry ? (
+                <polygon points={long ? "0,-6 -6,6 6,6" : "0,6 -6,-6 6,-6"} fill="currentColor" />
+              ) : (
+                <polygon points="0,-6 6,0 0,6 -6,0" fill="var(--panel)" stroke="currentColor" strokeWidth="2" />
+              )}
+            </svg>
+            {st.label} <span className="muted">({st.name})</span>
+          </span>
+        );
+      })}
+    </>
   );
 }
 

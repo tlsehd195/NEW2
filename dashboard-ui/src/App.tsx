@@ -6,7 +6,7 @@ import { Line, LineChart } from "@/components/charts/line-chart";
 import { ChartTooltip } from "@/components/charts/tooltip";
 import { XAxis } from "@/components/charts/x-axis";
 import { YAxis } from "@/components/charts/y-axis";
-import { BandFill, FillMarks, Guides, PriceLevels, SeriesPath, type Level } from "./overlays";
+import { BandFill, FillLegend, FillMarks, Guides, PriceLevels, SeriesPath, type Level } from "./overlays";
 import { DEFAULT_VIEW, PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
 import type { Snapshot } from "./types";
 
@@ -203,6 +203,8 @@ export default function App() {
         <span style={{ color: "var(--chart-2)" }}>━ 볼린저(20,2)</span>
         <span style={{ color: "var(--chart-3)" }}>━ 돈치안(20)</span>
         <span className="muted">· 아래 패널: RSI, ROC, OBV</span>
+        <span className="muted">· 체결:</span>
+        <FillLegend />
         <span className="muted">· 드래그: 과거로 이동 · 휠: 확대/축소 · 더블클릭: 처음으로</span>
         {view.endTime != null && <button className="latest" onClick={() => setView({ ...view, endTime: null })}>최신으로 ▶</button>}
       </div>
