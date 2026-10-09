@@ -9,7 +9,10 @@ export interface Snapshot {
   last_price_time: string | null;
   fills: { time: number; side: string; price: number; quantity: number; kind: FillKind | null }[];
   decisions: { time: string; action: string; reason: string }[];
-  closed_trades: { exit_time: string | null; direction: number | null; net_pnl: number; exit_reason: string | null }[];
+  closed_trades: {
+    exit_time: string | null; direction: number | null; net_pnl: number; exit_reason: string | null;
+    entry_price: number | null; exit_price: number | null; price_return: number | null; equity_return: number | null;
+  }[];
   account: { balance: number; saved_at: string; open_positions: number } | null;
   position: {
     direction: "long" | "short"; state: string; quantity: number; entry_price: number | null;

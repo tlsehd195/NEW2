@@ -133,3 +133,15 @@ def test_fills_say_whether_they_opened_or_closed_a_long_or_a_short(tmp_path):
                                    "side": side, "quantity": 1.0, "price": 100.0}, at=NOW)
     kinds = [f["kind"] for f in read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["fills"]]
     assert kinds == [None, "long_entry", "long_exit", "short_entry", "short_exit"]  # first fill (c1) has no order record
+
+
+def test_closed_trade_shows_price_return_and_account_return(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    store.append("outcome", {"trade_id": "s", "symbol": "ETHUSDT", "strategy_id": "s", "net_pnl": 4.0, "mode": "paper",
+                             "exit_time": NOW.isoformat(), "direction": -1, "exit_reason": "target",
+                             "entry_fill": 100.0, "exit_fill": 97.0, "return_on_equity": 0.0004}, at=NOW)
+    short = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][-1]
+    assert abs(short["price_return"] - 0.03) < 1e-12 and short["equity_return"] == 0.0004  # a short gains when price falls
+    old = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][0]
+    assert old["price_return"] is None and old["equity_return"] is None  # row without prices: no made-up numbers

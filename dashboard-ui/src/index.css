@@ -118,3 +118,9 @@ h1 { font-size: 34px; line-height: 1.1; letter-spacing: -.03em; font-weight: 800
 @media (max-width: 600px) { main { padding: 20px 16px; } h1 { font-size: 26px; } }
 .chartstack { cursor: grab; user-select: none; -webkit-user-select: none; }
 .latest { background: var(--inv-bg); color: var(--inv-fg); border: 0; padding: 3px 10px; cursor: pointer; font: 500 12px system-ui, sans-serif; }
+.trades { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 13px; }
+.trades th { text-align: right; font-weight: 500; color: var(--mute); padding: 4px 8px 8px; border-bottom: 1px solid var(--line); vertical-align: bottom; cursor: help; }
+.trades th small { display: block; font-size: 11px; opacity: .8; }
+.trades td { text-align: right; padding: 6px 8px; border-bottom: 1px dashed var(--line); }
+.trades th:first-child, .trades td:first-child { text-align: left; }
+.trades tr:last-child td { border-bottom: 0; }

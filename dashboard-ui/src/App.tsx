@@ -12,6 +12,7 @@ import type { Snapshot } from "./types";
 
 const fmt = (n: number | null | undefined) => (n == null ? "-" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 2 }));
 const sgn = (n: number | null | undefined) => (n == null ? "" : n >= 0 ? "up" : "down");
+const signedPct = (x: number | null | undefined, digits: number) => (x == null ? "-" : (x >= 0 ? "+" : "") + (x * 100).toFixed(digits) + "%");
 const pct = (x: number | null | undefined) => (x == null ? "-" : (x * 100).toFixed(1) + "%");
 const whenFull = (d: Date) => d.toLocaleString("ko-KR", { hour12: false });
 const NAMES: Record<string, string> = {
@@ -263,14 +264,33 @@ export default function App() {
             ))}
           </ul>
         </Card>
-        <Card title="청산된 거래">
-          <ul className="list">
-            {d?.closed_trades.length
-              ? d.closed_trades.slice().reverse().map((x, i) => (
-                <li key={i} className={sgn(x.net_pnl)}>{(x.net_pnl >= 0 ? "+" : "") + fmt(x.net_pnl)} USDT  {x.exit_reason ?? ""}</li>
-              ))
-              : <li className="muted">아직 없음</li>}
-          </ul>
+        <Card title="청산된 거래" wide>
+          {d?.closed_trades.length ? (
+            <table className="trades">
+              <thead>
+                <tr>
+                  <th>방향</th>
+                  <th>진입 → 청산가</th>
+                  <th title="진입가에서 청산가까지 가격이 내 방향으로 움직인 %. 수수료·레버리지 반영 전">가격 수익률 %<small>(수수료 전)</small></th>
+                  <th title="수수료·슬리피지·펀딩을 뺀 손익을, 진입 때 계좌 잔고로 나눈 %">계좌 수익률 %<small>(수수료 후)</small></th>
+                  <th>손익 USDT</th>
+                  <th>청산 이유</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.closed_trades.slice().reverse().map((x, i) => (
+                  <tr key={i}>
+                    <td className={x.direction === 1 ? "up" : x.direction === -1 ? "down" : ""}>{x.direction === 1 ? "롱" : x.direction === -1 ? "숏" : "-"}</td>
+                    <td>{fmt(x.entry_price)} → {fmt(x.exit_price)}</td>
+                    <td className={sgn(x.price_return)}>{signedPct(x.price_return, 2)}</td>
+                    <td className={sgn(x.equity_return)}>{signedPct(x.equity_return, 3)}</td>
+                    <td className={sgn(x.net_pnl)}>{(x.net_pnl >= 0 ? "+" : "") + fmt(x.net_pnl)}</td>
+                    <td className="muted">{x.exit_reason ?? ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : <div className="muted">아직 없음</div>}
         </Card>
       </div>
     </main>

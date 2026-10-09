@@ -110,6 +110,17 @@ def _votes(decisions: list[dict]) -> list[dict]:
     return sorted(last.values(), key=lambda v: v["strategy"])
 
 
+def _trade(r: dict) -> dict:
+    """One closed trade for the list. `price_return` is entry price -> exit price in the trade's direction
+    (before fees, no leverage); `equity_return` is the net result after fees, spread, slippage and funding
+    as a fraction of the account at entry. Either is None when the stored row lacks the inputs."""
+    entry, exit_, direction = r.get("entry_fill"), r.get("exit_fill"), r.get("direction")
+    price_return = direction * (exit_ - entry) / entry if entry and exit_ and direction else None
+    return {"exit_time": r.get("exit_time"), "direction": direction, "net_pnl": r["net_pnl"],
+            "exit_reason": r.get("exit_reason"), "entry_price": entry, "exit_price": exit_,
+            "price_return": price_return, "equity_return": r.get("return_on_equity")}
+
+
 def _fill_kind(side: str, purpose: Optional[str]) -> Optional[str]:
     """What a fill did to the position: long_entry / long_exit / short_entry / short_exit (None if the order is unknown).
     A BUY opens a long or closes a short; a SELL opens a short or closes a long. Stop and exit orders are exits."""
@@ -165,9 +176,7 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
              for r in execution if r.get("event") == "fill"]
     symbol_decisions = [r for r in store.read("decision", start=since) if r.get("symbol") == symbol]
     decisions = [{"time": r["bar_open_time"], "action": r["action"], "reason": r["reason"]} for r in symbol_decisions]
-    trades = [{"exit_time": r.get("exit_time"), "direction": r.get("direction"), "net_pnl": r["net_pnl"],
-               "exit_reason": r.get("exit_reason")}
-              for r in store.read("outcome", start=since) if r.get("symbol") == symbol]
+    trades = [_trade(r) for r in store.read("outcome", start=since) if r.get("symbol") == symbol]
 
     state = _load_state(state_dir)
     out = {"symbol": symbol, "as_of": now.isoformat(), "candles": series, "last_price": last_price,
