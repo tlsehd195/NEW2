@@ -382,3 +382,130 @@ def test_margin_policy_refuses_without_tiers(tmp_path):
     r = Replay(t); start(t, r); r.minute(60_000); r.minute(60_000)
     assert SYM not in t.open_trades
     assert any(d["reason"] == "margin_tiers_unknown" for d in rows(tmp_path, "decision"))
+
+
+class HoldScripted(Scripted):
+    """Same plan, plus the engine-enforced knobs the backtest reads from the strategy (ADR-0055)."""
+
+    def __init__(self, plan: dict, max_hold_bars=None, max_entries_per_day=None):
+        super().__init__(plan)
+        self.max_hold_bars = max_hold_bars
+        self.max_entries_per_day = max_entries_per_day
+
+
+def test_time_stop_closes_after_max_hold_bars_with_korean_reason(tmp_path):
+    t = make_trader(tmp_path, strategies={"test_scripted_v1": (HoldScripted({122: entry_long(stop=2000.0)}, 3), "1")})
+    r = Replay(t)
+    start(t, r)
+    r.minute(60_000)
+    r.minute(60_000)  # 122 -> entry
+    assert t.open_trades[SYM].state == "open"
+    r.minute(60_000)  # held 1
+    r.minute(60_000)  # held 2
+    assert SYM in t.open_trades
+    r.minute(60_000)  # held 3 -> time stop, filled on the +500ms book
+    assert SYM not in t.open_trades
+    out = rows(tmp_path, "outcome")
+    assert len(out) == 1 and out[0]["exit_reason"].startswith("시간손절(") and out[0]["holding_bars"] == 3
+    last = [d for d in rows(tmp_path, "decision") if d["action"] == "exit"]
+    assert last and last[-1]["reason"] == out[0]["exit_reason"]
+
+
+def test_no_time_stop_when_strategy_has_no_max_hold(tmp_path):
+    t = make_trader(tmp_path, {122: entry_long(stop=2000.0)})
+    r = Replay(t)
+    start(t, r)
+    for _ in range(12):
+        r.minute(60_000)
+    assert SYM in t.open_trades and not rows(tmp_path, "outcome")
+
+
+def test_time_stop_reason_text():
+    from cointrader.paper.engine import _time_stop_reason
+    assert _time_stop_reason(48, timedelta(minutes=15)) == "시간손절(12시간)"
+    assert _time_stop_reason(5, timedelta(minutes=15)) == "시간손절(1.2시간)"
+
+
+def test_daily_entry_cap_blocks_and_survives_restart(tmp_path):
+    exit_now = Signal(0, exit_long=True, reason="exit_now", regime="TREND_UP")
+    plan = {122: entry_long(), 124: exit_now, 126: entry_long(), 128: entry_long()}
+    t = make_trader(tmp_path, strategies={"test_scripted_v1": (HoldScripted(plan, max_entries_per_day=1), "1")})
+    r = Replay(t)
+    start(t, r)
+    for _ in range(8):
+        r.minute(60_000)
+    assert t.counters["entries"] == 1 and SYM not in t.open_trades
+    blocked = [d for d in rows(tmp_path, "decision") if d["action"] == "blocked"]
+    assert [d["reason"] for d in blocked] == ["entry_cap_per_day", "entry_cap_per_day"]
+    t.save_state()
+    t2 = make_trader(tmp_path, strategies={"test_scripted_v1": (HoldScripted({}, max_entries_per_day=1), "1")})
+    t2._restore(json.loads(t.state_path.read_text(encoding="utf-8")))
+    assert t2._entries_by_day == t._entries_by_day and sum(t2._entries_by_day.values()) == 1
+
+
+def _delta(first, last, prev, bids, asks, at):
+    from cointrader.data.market_events import DepthDelta
+    return DepthDelta(SYM, first, last, prev, tuple(bids), tuple(asks), at, at, "test")
+
+
+def test_depth_deltas_build_the_book_and_market_fills_walk_it(tmp_path):
+    from cointrader.data.orderbook import DepthSnapshot
+    calls = []
+
+    def snap(symbol):
+        calls.append(symbol)
+        return DepthSnapshot(symbol, 100, ((59_999.5, 20.0),), ((60_000.5, 0.01), (60_010.5, 20.0)), T0)
+
+    t = make_trader(tmp_path, {122: entry_long(stop=2000.0)})
+    t._depth_snapshot = snap
+    r = Replay(t)
+    start(t, r)
+    r.minute(60_000)
+    t.broker.max_book_age = timedelta(minutes=5)  # the replay's clock only ticks once a minute
+    at = T0 + timedelta(minutes=121, seconds=5)
+    before = {k: len(rows(tmp_path, k)) for k in ("raw", "normalized")}
+    t.process(_delta(100, 101, 99, [(59_999.5, 21.0)], [], at))
+    t.process(_delta(102, 102, 101, [], [(60_020.5, 5.0)], at + timedelta(milliseconds=100)))
+    assert calls == [SYM] and SYM in t.broker._depth
+    assert len(rows(tmp_path, "raw")) == before["raw"]  # deltas are not journaled
+    r.minute(60_000)  # 122 -> entry; 0.01 at the best ask, the rest from the next level
+    fill = t.broker.fill_log[0]
+    assert fill.price > 60_000.5 and fill.quantity > 0.01
+
+
+def test_depth_gap_is_journaled_without_blocking_trading(tmp_path):
+    from cointrader.data.orderbook import DepthSnapshot
+    t = make_trader(tmp_path, {122: entry_long(stop=2000.0)})
+    t._depth_snapshot = lambda s: DepthSnapshot(s, 100, ((59_999.5, 20.0),), ((60_000.5, 20.0),), T0)
+    r = Replay(t)
+    start(t, r)
+    r.minute(60_000)
+    t.broker.max_book_age = timedelta(minutes=5)  # the replay's clock only ticks once a minute
+    at = T0 + timedelta(minutes=121, seconds=5)
+    t.process(_delta(100, 101, 99, [], [], at))
+    t.process(_delta(105, 106, 104, [], [], at + timedelta(milliseconds=100)))  # pu != previous u -> gap
+    gaps = [q for q in rows(tmp_path, "quality") if q["kind"] == "orderbook_sequence_gap"]
+    assert len(gaps) == 1 and gaps[0]["blocks_trading"] is False
+    r.minute(60_000)
+    assert t.open_trades[SYM].state == "open"  # entry still allowed, filled from the best quote
+
+
+def test_depth_snapshot_failure_is_audited_and_does_not_stop_the_loop(tmp_path):
+    def boom(symbol):
+        raise OSError("network down")
+
+    t = make_trader(tmp_path)
+    t._depth_snapshot = boom
+    r = Replay(t)
+    start(t, r)
+    t.process(_delta(100, 101, 99, [], [], T0 + timedelta(minutes=121)))
+    assert [a for a in rows(tmp_path, "audit") if a["event"] == "depth_snapshot_failed"]
+    r.minute(60_000)
+
+
+def test_depth_is_ignored_without_a_snapshot_source(tmp_path):
+    t = make_trader(tmp_path)
+    r = Replay(t)
+    start(t, r)
+    t.process(_delta(100, 101, 99, [], [], T0 + timedelta(minutes=121)))
+    assert not t.broker._depth

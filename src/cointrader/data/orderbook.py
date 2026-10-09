@@ -49,6 +49,11 @@ class LocalOrderBook:
         self.synced = False
         self.last_update_at: Optional[datetime] = None
 
+    @property
+    def needs_snapshot(self) -> bool:
+        """True until a REST snapshot is installed (and again after a sequence gap reset the book)."""
+        return self._snapshot_id is None
+
     def reset(self) -> None:
         self._bids.clear()
         self._asks.clear()

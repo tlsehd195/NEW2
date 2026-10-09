@@ -142,13 +142,17 @@ def main() -> int:
                   file=sys.stderr, flush=True)
             return 3
     history = None if args.replay else BinanceFuturesCandles()
+    depth_snapshot = None
+    if not args.replay:  # public REST only (no credentials): the order book the simulated fills walk through
+        from cointrader.execution.binance_client import BinanceFuturesClient
+        depth_snapshot = BinanceFuturesClient().depth_snapshot
     holder: dict = {}
     if not args.replay:
         _start_krw_rates(cfg)
         if args.krw_live_seconds > 0:
             _start_krw_live(cfg, holder, args.krw_live_seconds)
     while True:
-        trader = build_trader(cfg)
+        trader = build_trader(cfg, depth_snapshot=depth_snapshot)
         holder["trader"] = trader
         if not args.no_bootstrap and history is not None:
             print(f"bootstrapped {bootstrap(trader, history, _now())} candles", flush=True)
