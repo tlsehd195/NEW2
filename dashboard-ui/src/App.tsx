@@ -165,6 +165,7 @@ export default function App() {
   const [asOf, setAsOf] = useState("불러오는 중…");
   const [s, update, reset] = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [side, setSide] = useState<"all" | "long" | "short">("all");
   const home: View = { count: clampInt(s.startBars, 20, 1000), endTime: null };
   const [view, setView] = useState<View>(home);
   const stackRef = useRef<HTMLDivElement>(null);
@@ -299,6 +300,11 @@ export default function App() {
     ),
     trades: (
       <Card title="청산된 거래">
+        <div className="sidepick" role="group" aria-label="롱·숏 보기">
+          {(["all", "long", "short"] as const).map((v) => (
+            <button key={v} className={side === v ? "on" : ""} onClick={() => setSide(v)}>{v === "all" ? "전체" : v === "long" ? "롱" : "숏"}</button>
+          ))}
+        </div>
         {d?.closed_trades.length ? (
           <table className="trades">
             <thead>
@@ -313,7 +319,7 @@ export default function App() {
               </tr>
             </thead>
             <tbody>
-              {d.closed_trades.slice().reverse().map((x, i) => (
+              {d.closed_trades.filter((x) => side === "all" || x.direction === (side === "long" ? 1 : -1)).reverse().map((x, i) => (
                 <tr key={i}>
                   {tradeCols.times && <td style={{ textAlign: "left" }}>{kst(x.entry_time)}<br /><span className="muted">{kst(x.exit_time)}</span></td>}
                   {tradeCols.dir && <td className={x.direction === 1 ? "up" : x.direction === -1 ? "down" : ""}>{x.direction === 1 ? "롱" : x.direction === -1 ? "숏" : "-"}</td>}
