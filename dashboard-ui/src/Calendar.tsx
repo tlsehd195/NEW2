@@ -21,6 +21,7 @@ function Stat({ k, v, c, sub }: { k: string; v: string; c?: string; sub?: string
 export function CalendarPage({ d }: { d: Snapshot | null }) {
   const today = kstToday();
   const [month, setMonth] = useState(today.slice(0, 7)); // "YYYY-MM"
+  const [picked, setPicked] = useState<string | null>(null); // the day found with the date search
   const daily = d?.daily ?? [];
   const byDate = useMemo(() => new Map(daily.map((x) => [x.date, x])), [daily]);
   const inMonth = daily.filter((x) => x.date.startsWith(month));
@@ -58,8 +59,21 @@ export function CalendarPage({ d }: { d: Snapshot | null }) {
         <button onClick={() => shift(-1)} aria-label="이전 달">‹</button>
         <strong className="mono">{y}년 {m}월</strong>
         <button onClick={() => shift(1)} aria-label="다음 달">›</button>
-        <button className="today" onClick={() => setMonth(today.slice(0, 7))}>오늘</button>
+        <button className="today" onClick={() => { setMonth(today.slice(0, 7)); setPicked(null); }}>오늘</button>
+        <label className="muted" style={{ marginLeft: "auto" }}>날짜 검색{" "}
+          <input type="date" className="mono" value={picked ?? ""} onChange={(e) => {
+            setPicked(e.target.value || null);
+            if (e.target.value) setMonth(e.target.value.slice(0, 7));
+          }} />
+        </label>
       </div>
+      {picked && (
+        <div className="calfound" role="status">
+          {picked} · {byDate.get(picked)
+            ? <><span className={`mono ${cls(byDate.get(picked)!.pnl)}`}>{signed(byDate.get(picked)!.pnl)} USDT</span>{` (${pct(byDate.get(picked)!.return_pct)}) · ${byDate.get(picked)!.trades}건 (승 ${byDate.get(picked)!.wins})`}</>
+            : <span className="muted">이 날은 청산된 거래가 없어요</span>}
+        </div>
+      )}
       <div className="calgrid">
         {["일", "월", "화", "수", "목", "금", "토"].map((w) => <div key={w} className="calwd muted">{w}</div>)}
         {cells.map((c, i) => {
@@ -67,7 +81,7 @@ export function CalendarPage({ d }: { d: Snapshot | null }) {
           const alpha = x ? 0.1 + 0.3 * Math.min(1, Math.abs(x.pnl) / maxAbs) : 0;
           const tint = x ? (x.pnl >= 0 ? `rgba(16,196,138,${alpha})` : `rgba(242,54,74,${alpha})`) : undefined;
           return (
-            <div key={i} className={`calcell${c === today ? " now" : ""}${c ? "" : " empty"}`} style={{ background: tint }}>
+            <div key={i} className={`calcell${c === today ? " now" : ""}${c && c === picked ? " picked" : ""}${c ? "" : " empty"}`} style={{ background: tint }}>
               {c && <div className="muted mono">{Number(c.slice(8))}</div>}
               {x && (
                 <>

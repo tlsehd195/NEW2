@@ -23,6 +23,7 @@ function Stat({ label, value, valueClass, sub }: { label: string; value: string;
 export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
   const today = kstToday()
   const [month, setMonth] = useState(today.slice(0, 7))
+  const [picked, setPicked] = useState<string | null>(null) // the day found with the date search
   const daily = snapshot.daily ?? []
   const byDate = useMemo(() => new Map(daily.map((x) => [x.date, x])), [daily])
   const inMonth = daily.filter((x) => x.date.startsWith(month))
@@ -83,10 +84,35 @@ export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
           <button className="rounded border border-border px-3 py-1 text-sm" onClick={() => shift(1)} aria-label="다음 달">
             ›
           </button>
-          <button className="rounded border border-border px-3 py-1 text-xs" onClick={() => setMonth(today.slice(0, 7))}>
+          <button className="rounded border border-border px-3 py-1 text-xs" onClick={() => { setMonth(today.slice(0, 7)); setPicked(null) }}>
             오늘
           </button>
+          <label className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
+            날짜 검색
+            <input
+              type="date"
+              value={picked ?? ""}
+              onChange={(e) => {
+                setPicked(e.target.value || null)
+                if (e.target.value) setMonth(e.target.value.slice(0, 7))
+              }}
+              className="rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground"
+            />
+          </label>
         </div>
+        {picked && (
+          <p className="mb-3 rounded border border-border px-3 py-2 text-sm" role="status">
+            {picked} ·{" "}
+            {byDate.get(picked) ? (
+              <>
+                <span className={cn("font-mono", tone(byDate.get(picked)!.pnl))}>{signed(byDate.get(picked)!.pnl)} USDT</span>
+                {` (${pct(byDate.get(picked)!.return_pct)}) · ${byDate.get(picked)!.trades}건 (승 ${byDate.get(picked)!.wins})`}
+              </>
+            ) : (
+              <span className="text-muted-foreground">이 날은 청산된 거래가 없어요</span>
+            )}
+          </p>
+        )}
         <div className="grid grid-cols-7 gap-1">
           {["일", "월", "화", "수", "목", "금", "토"].map((w) => (
             <div key={w} className="py-1 text-center text-xs text-muted-foreground">
@@ -103,6 +129,7 @@ export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
                   "min-h-16 rounded border p-1.5 text-xs md:min-h-24",
                   c ? "border-border" : "border-transparent",
                   c === today && "ring-1 ring-foreground",
+                  c === picked && "ring-2 ring-primary",
                 )}
                 style={x ? { background: x.pnl >= 0 ? `rgba(46,189,133,${a})` : `rgba(240,84,94,${a})` } : undefined}
               >
