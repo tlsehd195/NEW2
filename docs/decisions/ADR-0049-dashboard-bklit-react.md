@@ -58,3 +58,4 @@ bklit UI는 shadcn 레지스트리로 배포되는 React + visx 부품이라 브
 - 계좌 잔고의 원화 표시: 서버가 `krw_live.json`(ADR-0041)의 환율로 `balance_krw`·`equity_krw`를 채운다. 파일이 없거나 읽을 수 없으면 비워 두고 화면은 "-"로 표시한다(fail-closed).
 - 자산곡선·안전 상태 패널: `read_snapshot`이 `equity_curve`(outcome의 net_pnl 누적), `kill_switch`(킬 스위치 JSONL의 마지막 줄, 읽기만), `reconciliation`(safety 레이어의 마지막 재조정)을 돌려준다. 안전 파일은 수정하지 않고 로그 파일만 읽는다.
 - 페이지 1 캘린더: `read_snapshot`의 `daily`(outcome을 한국시간 날짜로 묶음: 손익, 건수, 승수, 그날 첫 진입 때 계좌 잔고 대비 수익률)로 그린다. 기존 화면은 페이지 2로 옮겼다.
+- 캘린더 날짜 검색은 화면 안에서만 동작한다(서버 호출 없음, `daily`에서 찾음). 페이지 1은 종목과 무관한 계좌 전체 기록이라 dashboard-next의 BTC/ETH 선택은 페이지 2에서만 보인다.

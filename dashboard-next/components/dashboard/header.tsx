@@ -16,6 +16,7 @@ interface Props {
   error?: string
   asOf?: string
   isValidating: boolean
+  showSymbols?: boolean
 }
 
 const REFRESH_OPTIONS = [5, 10, 30, 60]
@@ -35,6 +36,7 @@ export function DashboardHeader(p: Props) {
           </div>
         </div>
 
+        {p.showSymbols !== false && (
         <nav aria-label="심볼 선택" className="flex items-center gap-1 rounded-lg bg-secondary p-1">
           {p.symbols.map((s) => (
             <button
@@ -52,6 +54,7 @@ export function DashboardHeader(p: Props) {
             </button>
           ))}
         </nav>
+        )}
 
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-2 py-1 text-xs font-medium text-primary">

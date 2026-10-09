@@ -52,6 +52,7 @@ export function Dashboard() {
         error={data?.error}
         asOf={snapshot?.as_of}
         isValidating={isValidating}
+        showSymbols={page === 2}
       />
       <main className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-4 lg:px-6">
         {error && (
