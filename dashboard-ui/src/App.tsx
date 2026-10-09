@@ -10,7 +10,7 @@ import { BandFill, FillLegend, FillMarks, Guides, PriceLevels, SeriesPath, type 
 import { bollingerSeries, donchianSeries, emaSeries, obvSeries, rocSeries, rsiSeries } from "./indicators";
 import { PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
 import { SettingsPanel } from "./SettingsPanel";
-import { clampInt, useSettings, type Settings } from "./settings";
+import { clampInt, useSettings, type PanelId, type Settings } from "./settings";
 import type { Snapshot } from "./types";
 
 const fmt = (n: number | null | undefined) => (n == null ? "-" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 2 }));
@@ -34,9 +34,9 @@ function Row({ k, v, cls }: { k: string; v: ReactNode; cls?: string }) {
   );
 }
 
-function Card({ title, children, wide }: { title: string; children: ReactNode; wide?: boolean }) {
+function Card({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="card frame" style={wide ? { gridColumn: "1 / -1" } : undefined}>
+    <div className="card frame">
       <h2 className="mono">{title}</h2>
       {children}
     </div>
@@ -54,13 +54,16 @@ function OhlcTip({ point }: { point: Record<string, unknown> }) {
   );
 }
 
+const PRICE_ASPECT = { low: "2.8 / 1", normal: "2.1 / 1", high: "1.6 / 1" };
+const PANEL_ASPECT = { low: "10 / 1", normal: "7 / 1", high: "5 / 1" };
+
 function PriceChart({ d, rows, s }: { d: Snapshot; rows: Row[]; s: Settings }) {
   const levels: Level[] = [];
   if (d.position?.entry_price) levels.push({ price: d.position.entry_price, label: "진입", color: "var(--acc)" });
   if (d.position?.stop_price) levels.push({ price: d.position.stop_price, label: "손절", color: "var(--down)", dash: "5,4" });
   if (d.last_price) levels.push({ price: d.last_price, label: "현재", color: "#71717a", dash: "2,3" });
   return (
-    <CandlestickChart data={rows} aspectRatio="2.1 / 1" margin={{ top: 24, right: PLOT_RIGHT, bottom: 36, left: PLOT_LEFT }} animationDuration={700} candleGap={0.3}>
+    <CandlestickChart data={rows} aspectRatio={PRICE_ASPECT[s.chartHeight]} margin={{ top: 24, right: PLOT_RIGHT, bottom: 36, left: PLOT_LEFT }} animationDuration={700} candleGap={0.3}>
       <Grid horizontal numTicksRows={6} strokeDasharray="none" strokeOpacity={0.7} />
       {s.bb.on && s.bb.fill && <BandFill upper="bb_upper" lower="bb_lower" fill={s.bb.color} fillOpacity={0.07} />}
       {s.bb.on && <SeriesPath field="bb_upper" stroke={s.bb.color} width={s.bb.width} />}
@@ -78,8 +81,8 @@ function PriceChart({ d, rows, s }: { d: Snapshot; rows: Row[]; s: Settings }) {
   );
 }
 
-function IndicatorPanel({ rows, field, name, color, width, guides, show }: {
-  rows: Row[]; field: string; name: string; color: string; width: number; guides: number[]; show: (v: number) => string;
+function IndicatorPanel({ rows, field, name, color, width, aspect, guides, show }: {
+  rows: Row[]; field: string; name: string; color: string; width: number; aspect: string; guides: number[]; show: (v: number) => string;
 }) {
   const data = useMemo(() => rows.map((r) => ({ date: r.date, v: r[field] })).filter((r) => typeof r.v === "number"), [rows, field]);
   const last = data.length ? (data[data.length - 1].v as number) : null;
@@ -88,7 +91,7 @@ function IndicatorPanel({ rows, field, name, color, width, guides, show }: {
     <div className="frame">
       <div className="panel-title mono">{name} {last == null ? "" : show(last)}</div>
       {data.length > 1 ? (
-        <LineChart data={data} aspectRatio="7 / 1" margin={{ top: 30, right: PLOT_RIGHT, bottom: 10, left: PLOT_LEFT }} animationDuration={700}
+        <LineChart data={data} aspectRatio={aspect} margin={{ top: 30, right: PLOT_RIGHT, bottom: 10, left: PLOT_LEFT }} animationDuration={700}
           xDomain={domain} xDomainSlotCount={rows.length} yDomainTween={false}>
           <Grid horizontal numTicksRows={3} strokeDasharray="none" strokeOpacity={0.7} />
           <Guides values={guides} />
@@ -203,17 +206,11 @@ export default function App() {
   const [from, to] = windowOf(times, view);
   const rows = useMemo(() => allRows.slice(from, to), [allRows, from, to]);
   const p = d?.position, a = d?.account, L = d?.latest ?? {};
-  return (
-    <main>
-      <h1>모의투자 대시보드<span className="badge">읽기 전용 · 실제 돈 아님</span></h1>
-      <div className="mono">{asOf}</div>
-      <div className="tabs">
-        {symbols.map((sy) => (
-          <button key={sy} className={sy === sym ? "on" : ""} onClick={() => { setSym(sy); location.hash = sy; setD(null); setView(home); }}>{sy}</button>
-        ))}
-      </div>
-      <div className="legend">
-        <button className="gear" onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
+  const tradeCols = s.tradeColumns;
+  const panels: Record<PanelId, ReactNode> = {
+    chart: (
+      <>
+        <div className="legend">
         {s.ema.on && <span style={{ color: s.ema.color }}>━ EMA{clampInt(s.ema.period, 2, 200)}</span>}
         {s.bb.on && <span style={{ color: s.bb.color }}>━ 볼린저({clampInt(s.bb.period, 2, 200)},{s.bb.k})</span>}
         {s.don.on && <span style={{ color: s.don.color }}>━ 돈치안({clampInt(s.don.period, 2, 200)})</span>}
@@ -227,83 +224,112 @@ export default function App() {
         </div>
         {d && rows.length > 0 && (
           <>
-            {s.rsi.on && <IndicatorPanel rows={rows} field="rsi" name={`RSI(${clampInt(s.rsi.period, 2, 200)})`} color={s.rsi.color} width={s.rsi.width} guides={[30, 50, 70]} show={(v) => v.toFixed(1)} />}
-            {s.roc.on && <IndicatorPanel rows={rows} field="roc" name={`ROC(${clampInt(s.roc.period, 2, 200)})`} color={s.roc.color} width={s.roc.width} guides={[0]} show={(v) => (v * 100).toFixed(2) + "%"} />}
-            {s.obv.on && <IndicatorPanel rows={rows} field="obv" name="OBV (거래량 누적 흐름)" color={s.obv.color} width={s.obv.width} guides={[]} show={(v) => fmt(v)} />}
+            {s.rsi.on && <IndicatorPanel rows={rows} field="rsi" name={`RSI(${clampInt(s.rsi.period, 2, 200)})`} color={s.rsi.color} width={s.rsi.width} aspect={PANEL_ASPECT[s.chartHeight]} guides={[30, 50, 70]} show={(v) => v.toFixed(1)} />}
+            {s.roc.on && <IndicatorPanel rows={rows} field="roc" name={`ROC(${clampInt(s.roc.period, 2, 200)})`} color={s.roc.color} width={s.roc.width} aspect={PANEL_ASPECT[s.chartHeight]} guides={[0]} show={(v) => (v * 100).toFixed(2) + "%"} />}
+            {s.obv.on && <IndicatorPanel rows={rows} field="obv" name="OBV (거래량 누적 흐름)" color={s.obv.color} width={s.obv.width} aspect={PANEL_ASPECT[s.chartHeight]} guides={[]} show={(v) => fmt(v)} />}
           </>
         )}
       </div>
-      <div className="err">{err}</div>
-      <div className="grid">
-        <Card title="현재가">
-          <div className="big">{fmt(d?.last_price)}</div>
-          <div className="muted">{d?.last_price_time ? "호가 기준 " + d.last_price_time.slice(11, 16) + " UTC" : ""}</div>
-        </Card>
-        <Card title="포지션">
-          {p ? (
-            <>
-              <Row k="방향" v={p.direction === "long" ? "롱" : "숏"} />
-              <Row k="상태" v={p.state} />
-              <Row k="수량" v={fmt(p.quantity)} />
-              <Row k="진입가" v={fmt(p.entry_price)} />
-              <Row k="손절가" v={fmt(p.stop_price)} />
-              <Row k="평가손익(USDT)" v={(p.unrealized_pnl != null && p.unrealized_pnl >= 0 ? "+" : "") + fmt(p.unrealized_pnl)} cls={sgn(p.unrealized_pnl)} />
-              <Row k="전략" v={p.strategy} />
-            </>
-          ) : <div className="muted">포지션 없음</div>}
-        </Card>
-        <Card title="계좌">
-          {a ? (
-            <>
-              <Row k="잔고(USDT)" v={fmt(a.balance)} />
-              <Row k="열린 포지션" v={a.open_positions + "개"} />
-              <Row k="저장 시각" v={a.saved_at.slice(11, 19) + " UTC"} />
-            </>
-          ) : <div className="muted">저장된 상태 없음</div>}
-        </Card>
-        <Card title="지표별 판단 (닫힌 15분봉마다 갱신)" wide>{d ? <Votes d={d} /> : null}</Card>
-        <Card title="지표 현재값 (전략이 쓰는 값)">
-          <Row k="RSI(14)" v={L.rsi14 == null ? "-" : L.rsi14.toFixed(1)} />
-          <Row k="EMA20 대비" v={L.ema20_gap == null ? "-" : (L.ema20_gap * 100).toFixed(2) + "%"} cls={sgn(L.ema20_gap)} />
-          <Row k="볼린저 z" v={L.bollinger_z == null ? "-" : L.bollinger_z.toFixed(2)} cls={sgn(L.bollinger_z)} />
-          <Row k="돈치안 위치" v={L.donchian_pos == null ? "-" : (L.donchian_pos * 100).toFixed(0) + "% (0=하단 100=상단)"} />
-          <Row k="ROC(14)" v={L.roc14 == null ? "-" : (L.roc14 * 100).toFixed(2) + "%"} cls={sgn(L.roc14)} />
-        </Card>
-        <Card title="최근 판단">
-          <ul className="list">
-            {(d?.decisions ?? []).slice().reverse().map((x, i) => (
-              <li key={i}>{whenFull(new Date(x.time))}  {x.action}  {x.reason}</li>
-            ))}
-          </ul>
-        </Card>
-        <Card title="청산된 거래" wide>
-          {d?.closed_trades.length ? (
-            <table className="trades">
-              <thead>
-                <tr>
-                  <th>방향</th>
-                  <th>진입 → 청산가</th>
-                  <th title="진입가에서 청산가까지 가격이 내 방향으로 움직인 %. 수수료·레버리지 반영 전">가격 수익률 %<small>(수수료 전)</small></th>
-                  <th title="수수료·슬리피지·펀딩을 뺀 손익을, 진입 때 계좌 잔고로 나눈 %">계좌 수익률 %<small>(수수료 후)</small></th>
-                  <th>손익 USDT</th>
-                  <th>청산 이유</th>
+      </>
+    ),
+    price: (
+      <Card title="현재가">
+        <div className="big">{fmt(d?.last_price)}</div>
+        <div className="muted">{d?.last_price_time ? "호가 기준 " + d.last_price_time.slice(11, 16) + " UTC" : ""}</div>
+      </Card>
+    ),
+    position: (
+      <Card title="포지션">
+        {p ? (
+          <>
+            <Row k="방향" v={p.direction === "long" ? "롱" : "숏"} />
+            <Row k="상태" v={p.state} />
+            <Row k="수량" v={fmt(p.quantity)} />
+            <Row k="진입가" v={fmt(p.entry_price)} />
+            <Row k="손절가" v={fmt(p.stop_price)} />
+            <Row k="평가손익(USDT)" v={(p.unrealized_pnl != null && p.unrealized_pnl >= 0 ? "+" : "") + fmt(p.unrealized_pnl)} cls={sgn(p.unrealized_pnl)} />
+            <Row k="전략" v={p.strategy} />
+          </>
+        ) : <div className="muted">포지션 없음</div>}
+      </Card>
+    ),
+    account: (
+      <Card title="계좌">
+        {a ? (
+          <>
+            <Row k="잔고(USDT)" v={fmt(a.balance)} />
+            <Row k="열린 포지션" v={a.open_positions + "개"} />
+            <Row k="저장 시각" v={a.saved_at.slice(11, 19) + " UTC"} />
+          </>
+        ) : <div className="muted">저장된 상태 없음</div>}
+      </Card>
+    ),
+    votes: <Card title="지표별 판단 (닫힌 15분봉마다 갱신)">{d ? <Votes d={d} /> : null}</Card>,
+    ivals: (
+      <Card title="지표 현재값 (전략이 쓰는 값)">
+        <Row k="RSI(14)" v={L.rsi14 == null ? "-" : L.rsi14.toFixed(1)} />
+        <Row k="EMA20 대비" v={L.ema20_gap == null ? "-" : (L.ema20_gap * 100).toFixed(2) + "%"} cls={sgn(L.ema20_gap)} />
+        <Row k="볼린저 z" v={L.bollinger_z == null ? "-" : L.bollinger_z.toFixed(2)} cls={sgn(L.bollinger_z)} />
+        <Row k="돈치안 위치" v={L.donchian_pos == null ? "-" : (L.donchian_pos * 100).toFixed(0) + "% (0=하단 100=상단)"} />
+        <Row k="ROC(14)" v={L.roc14 == null ? "-" : (L.roc14 * 100).toFixed(2) + "%"} cls={sgn(L.roc14)} />
+      </Card>
+    ),
+    decisions: (
+      <Card title="최근 판단">
+        <ul className="list">
+          {(d?.decisions ?? []).slice().reverse().map((x, i) => (
+            <li key={i}>{whenFull(new Date(x.time))}  {x.action}  {x.reason}</li>
+          ))}
+        </ul>
+      </Card>
+    ),
+    trades: (
+      <Card title="청산된 거래">
+        {d?.closed_trades.length ? (
+          <table className="trades">
+            <thead>
+              <tr>
+                {tradeCols.dir && <th>방향</th>}
+                {tradeCols.prices && <th>진입 → 청산가</th>}
+                {tradeCols.priceRet && <th title="진입가에서 청산가까지 가격이 내 방향으로 움직인 %. 수수료·레버리지 반영 전">가격 수익률 %<small>(수수료 전)</small></th>}
+                {tradeCols.equityRet && <th title="수수료·슬리피지·펀딩을 뺀 손익을, 진입 때 계좌 잔고로 나눈 %">계좌 수익률 %<small>(수수료 후)</small></th>}
+                {tradeCols.pnl && <th>손익 USDT</th>}
+                {tradeCols.reason && <th>청산 이유</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {d.closed_trades.slice().reverse().map((x, i) => (
+                <tr key={i}>
+                  {tradeCols.dir && <td className={x.direction === 1 ? "up" : x.direction === -1 ? "down" : ""}>{x.direction === 1 ? "롱" : x.direction === -1 ? "숏" : "-"}</td>}
+                  {tradeCols.prices && <td>{fmt(x.entry_price)} → {fmt(x.exit_price)}</td>}
+                  {tradeCols.priceRet && <td className={sgn(x.price_return)}>{signedPct(x.price_return, 2)}</td>}
+                  {tradeCols.equityRet && <td className={sgn(x.equity_return)}>{signedPct(x.equity_return, 3)}</td>}
+                  {tradeCols.pnl && <td className={sgn(x.net_pnl)}>{(x.net_pnl >= 0 ? "+" : "") + fmt(x.net_pnl)}</td>}
+                  {tradeCols.reason && <td className="muted">{x.exit_reason ?? ""}</td>}
                 </tr>
-              </thead>
-              <tbody>
-                {d.closed_trades.slice().reverse().map((x, i) => (
-                  <tr key={i}>
-                    <td className={x.direction === 1 ? "up" : x.direction === -1 ? "down" : ""}>{x.direction === 1 ? "롱" : x.direction === -1 ? "숏" : "-"}</td>
-                    <td>{fmt(x.entry_price)} → {fmt(x.exit_price)}</td>
-                    <td className={sgn(x.price_return)}>{signedPct(x.price_return, 2)}</td>
-                    <td className={sgn(x.equity_return)}>{signedPct(x.equity_return, 3)}</td>
-                    <td className={sgn(x.net_pnl)}>{(x.net_pnl >= 0 ? "+" : "") + fmt(x.net_pnl)}</td>
-                    <td className="muted">{x.exit_reason ?? ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : <div className="muted">아직 없음</div>}
-        </Card>
+              ))}
+            </tbody>
+          </table>
+        ) : <div className="muted">아직 없음</div>}
+      </Card>
+    ),
+  };
+  return (
+    <main>
+      <h1>모의투자 대시보드<span className="badge">읽기 전용 · 실제 돈 아님</span></h1>
+      <div className="mono">{asOf}</div>
+      <div className="tabs">
+        {symbols.map((sy) => (
+          <button key={sy} className={sy === sym ? "on" : ""} onClick={() => { setSym(sy); location.hash = sy; setD(null); setView(home); }}>{sy}</button>
+        ))}
+        <button className="gear" style={{ marginLeft: "auto" }} onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
+      </div>
+      <div className="err">{err}</div>
+      {!s.layout.some((l) => l.show) && <div className="muted">보이는 패널이 없어요. ⚙ 설정에서 패널을 켜 주세요.</div>}
+      <div className="board">
+        {s.layout.filter((l) => l.show).map((l, i) => (
+          <div key={`${l.id}-${i}-${l.size}-${s.fontScale}-${s.chartHeight}`} className={`slot span-${l.size}`}>{panels[l.id]}</div>
+        ))}
       </div>
       {settingsOpen && <SettingsPanel s={s} update={update} reset={reset} close={() => setSettingsOpen(false)} />}
     </main>
