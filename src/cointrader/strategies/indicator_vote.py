@@ -41,6 +41,7 @@ class IndicatorVote:
     exit_confidence: float = 0.52
     min_agree: float = 0.6  # fraction of indicators on the entry side
     stop_atr: float = 2.5
+    trail_atr: Optional[float] = None  # trailing stop this many ATRs behind the best price (None = fixed stop)
     atr_period: int = 14
     allow_short: bool = True
     use_side_data: bool = False  # add funding + open-interest votes
@@ -70,6 +71,8 @@ class IndicatorVote:
             raise ValueError("need 0 < vol_gate_lo < 1 < vol_gate_hi")
         if not self.score_scale > 0 or not 2 <= self.vol_short < self.vol_long or self.bars_per_day < 1:
             raise ValueError("need score_scale > 0, 2 <= vol_short < vol_long, bars_per_day >= 1")
+        if self.trail_atr is not None and not self.trail_atr > 0:
+            raise ValueError("trail_atr must be > 0 when set")
         for name in ("max_hold_bars", "max_entries_per_day", "quality_window_bars"):
             v = getattr(self, name)
             if v is not None and v < 1:
@@ -78,7 +81,8 @@ class IndicatorVote:
     @property
     def strategy_id(self) -> str:
         side = "_side" if self.use_side_data else ""
-        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}_v{self.version}"
+        trail = f"_t{self.trail_atr:g}" if self.trail_atr is not None else ""
+        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{trail}_v{self.version}"
 
     @property
     def warmup(self) -> int:
@@ -93,9 +97,10 @@ class IndicatorVote:
         # Listed only when set, so the swing candidates' recorded parameters stay exactly as registered.
         extra = {"score_scale": self.score_scale, "vol_short": self.vol_short, "vol_long": self.vol_long,
                  "bars_per_day": self.bars_per_day, "max_hold_bars": self.max_hold_bars,
-                 "max_entries_per_day": self.max_entries_per_day, "quality_window_bars": self.quality_window_bars}
+                 "max_entries_per_day": self.max_entries_per_day, "quality_window_bars": self.quality_window_bars,
+                 "trail_atr": self.trail_atr}
         defaults = {"score_scale": 1.0, "vol_short": 10, "vol_long": 60, "bars_per_day": 1, "max_hold_bars": None,
-                    "max_entries_per_day": None, "quality_window_bars": None}
+                    "max_entries_per_day": None, "quality_window_bars": None, "trail_atr": None}
         params.update({k: v for k, v in extra.items() if v != defaults[k]})
         return params
 
@@ -175,8 +180,9 @@ class IndicatorVote:
             return flat("atr_or_vol_unavailable", features=feats)
         total = max(1, len(v.per_indicator))
         exit_long, exit_short = v.p_long < self.exit_confidence, v.p_long > 1 - self.exit_confidence
-        common = dict(stop_distance=self.stop_atr * atr, features=feats, exit_long=exit_long, exit_short=exit_short,
-                      regime=regime)
+        trail = self.trail_atr * atr if self.trail_atr is not None else None
+        common = dict(stop_distance=self.stop_atr * atr, trailing_distance=trail, features=feats, exit_long=exit_long,
+                      exit_short=exit_short, regime=regime)
         strength = min(1.0, (v.confidence - 0.5) * 4)
         gated = not (self.vol_gate_lo <= ratio <= self.vol_gate_hi)
         if gated:
