@@ -24,6 +24,13 @@ const EXIT_REASONS: Record<string, string> = {
   retry_exit: "청산 재시도", unknown: "알 수 없음",
 };
 const exitReason = (r: string | null) => (!r ? "" : r.startsWith("signal_exit:") ? "신호 청산" : EXIT_REASONS[r] ?? r);
+// "daytrade_indicator_vote_h16_c0.6_v1" -> "4시간 예측(h16) c0.6": h = 앞으로 볼 봉 수(15분봉), 그 기간을 시간으로 풀어 쓴다.
+const strategyName = (id: string) => {
+  const m = /^daytrade_indicator_vote_(side_)?h(\d+)_(c[\d.]+)/.exec(id);
+  if (!m) return id.replace("daytrade_indicator_vote_", "");
+  const hours = (Number(m[2]) * 15) / 60;
+  return `${m[1] ? "방향별 " : ""}${Number.isInteger(hours) ? hours : hours.toFixed(1)}시간 예측(h${m[2]}) ${m[3]}`;
+};
 const whenFull = (d: Date) => d.toLocaleString("ko-KR", { hour12: false });
 const NAMES: Record<string, string> = {
   ema_trend: "EMA 추세", donchian_pos: "돈치안 위치", roc: "ROC 모멘텀", rsi: "RSI", bollinger_b: "볼린저 %B", obv_slope: "OBV 기울기",
@@ -124,7 +131,7 @@ function Votes({ d }: { d: Snapshot }) {
         return (
           <div key={v.strategy}>
             <div className="muted">
-              {v.strategy.replace("daytrade_indicator_vote_", "")} · {bar} 봉 · 결정: {ACTIONS[v.action] ?? v.action} ({v.reason})
+              {strategyName(v.strategy)} · {bar} 봉 · 결정: {ACTIONS[v.action] ?? v.action} ({v.reason})
             </div>
             {Object.entries(v.per_indicator).map(([k, pr]) => (
               <div className="row" key={k}>
@@ -255,7 +262,7 @@ export default function App() {
             <Row k="진입가" v={fmt(p.entry_price)} />
             <Row k="손절가" v={fmt(p.stop_price)} />
             <Row k="평가손익(USDT)" v={(p.unrealized_pnl != null && p.unrealized_pnl >= 0 ? "+" : "") + fmt(p.unrealized_pnl)} cls={sgn(p.unrealized_pnl)} />
-            <Row k="전략" v={p.strategy} />
+            <Row k="전략" v={strategyName(p.strategy)} />
           </>
         ) : <div className="muted">포지션 없음</div>}
       </Card>
