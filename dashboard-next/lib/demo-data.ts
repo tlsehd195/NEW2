@@ -120,6 +120,12 @@ export function demoSnapshot(symbol: string, bars: number, now = Date.now()): Sn
     fills,
     decisions: decisions.slice(-12),
     closed_trades: closed.slice(-10),
+    equity_curve: closed.reduce<{ time: string; pnl: number }[]>((acc, t) => {
+      acc.push({ time: t.exit_time ?? new Date(now).toISOString(), pnl: (acc.at(-1)?.pnl ?? 0) + t.net_pnl })
+      return acc
+    }, []),
+    kill_switch: { engaged: false, reason: "released", triggered_by: "demo", at: new Date(now - 3_600_000).toISOString() },
+    reconciliation: { ok: true, detail: "ok", mismatches: [], at: new Date(now - 120_000).toISOString() },
     account: { balance, saved_at: new Date(now - 30_000).toISOString(), open_positions: 1 },
     position: {
       direction: "long",

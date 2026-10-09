@@ -50,9 +50,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--state-dir", type=Path, default=REPO / cfg["state_dir"])
     ap.add_argument("--data-root", type=Path, default=REPO / cfg["data_root"])
+    ap.add_argument("--kill-switch-log", type=Path, default=REPO / cfg["kill_switch_path"], help="read-only")
     ap.add_argument("--port", type=int, default=8765)
     args = ap.parse_args()
     symbols = list(cfg["symbols"])
+    kill_switch_path = args.kill_switch_log
 
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
@@ -76,7 +78,8 @@ def main() -> int:
                     bars = min(max(int(parse_qs(url.query).get("bars", ["200"])[0]), 50), 2000)
                 except ValueError:
                     bars = 200
-                snap = read_snapshot(args.state_dir, args.data_root, symbol, bars=bars, days=bars // 96 + 2, leverage=leverage)
+                snap = read_snapshot(args.state_dir, args.data_root, symbol, bars=bars, days=bars // 96 + 2, leverage=leverage,
+                                     kill_switch_path=kill_switch_path)
                 self._send(200, json.dumps(snap, ensure_ascii=False, default=str).encode("utf-8"),
                            "application/json; charset=utf-8")
             elif (path := static_file(url.path)) is not None:

@@ -150,3 +150,24 @@ def test_closed_trade_shows_price_return_and_account_return(tmp_path):
     assert short["entry_time"] == "2026-10-09T01:00:00+00:00"
     old = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["closed_trades"][0]
     assert old["price_return"] is None and old["equity_return"] is None  # row without prices: no made-up numbers
+
+
+def test_snapshot_equity_curve_kill_switch_and_reconciliation(tmp_path):
+    state_dir = _store(tmp_path)
+    store = LayeredStore(tmp_path / "data")
+    store.append("outcome", {"trade_id": "y", "symbol": "BTCUSDT", "strategy_id": "s", "net_pnl": 4.0, "mode": "paper",
+                             "exit_time": (NOW + timedelta(minutes=5)).isoformat()}, at=NOW)
+    store.append("safety", {"event": "reconciliation", "detail": "ok", "ok": True, "mismatches": [], "mode": "paper"}, at=NOW)
+    store.append("safety", {"event": "reconciliation", "detail": "position_mismatch", "ok": False,
+                            "mismatches": ["ETHUSDT"], "mode": "paper"}, at=NOW + timedelta(minutes=1))
+    _state(state_dir)
+    ks = tmp_path / "ks.jsonl"
+    ks.write_text(json.dumps({"engaged": False, "reason": "released", "triggered_by": "me",
+                              "occurred_at": NOW.isoformat(), "configuration_version": "v"}) + "\n", encoding="utf-8")
+    snap = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW + timedelta(minutes=10), kill_switch_path=ks)
+    assert [p["pnl"] for p in snap["equity_curve"]] == [-1.5, 2.5]  # cumulative, all symbols, by exit time
+    assert snap["kill_switch"]["engaged"] is False and snap["kill_switch"]["triggered_by"] == "me"
+    assert snap["reconciliation"]["ok"] is False and snap["reconciliation"]["mismatches"] == ["ETHUSDT"]
+    missing = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW, kill_switch_path=tmp_path / "nope.jsonl")
+    assert missing["kill_switch"]["engaged"] is True  # fail-closed like the trader
+    assert read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["kill_switch"] is None

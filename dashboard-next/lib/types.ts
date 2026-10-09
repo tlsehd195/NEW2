@@ -30,6 +30,25 @@ export interface ClosedTrade {
   equity_return: number | null
 }
 
+export interface EquityPoint {
+  time: string
+  pnl: number
+}
+
+export interface KillSwitch {
+  engaged: boolean
+  reason: string | null
+  triggered_by: string | null
+  at: string | null
+}
+
+export interface Reconciliation {
+  ok: boolean
+  detail: string | null
+  mismatches: string[]
+  at: string | null
+}
+
 export interface Position {
   direction: "long" | "short"
   state: string
@@ -76,6 +95,9 @@ export interface Snapshot {
   latest: Partial<Record<"rsi14" | "ema20_gap" | "bollinger_z" | "roc14" | "donchian_pos", number | null>>
   votes: Vote[]
   rules: Partial<Record<RuleKey, number>>
+  equity_curve?: EquityPoint[]
+  kill_switch?: KillSwitch | null
+  reconciliation?: Reconciliation | null
 }
 
 export type DataSource = "live" | "demo"

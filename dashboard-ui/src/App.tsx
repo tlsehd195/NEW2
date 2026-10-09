@@ -222,6 +222,10 @@ export default function App() {
   const rows = useMemo(() => allRows.slice(from, to), [allRows, from, to]);
   const p = d?.position, a = d?.account, L = d?.latest ?? {};
   const tradeCols = s.tradeColumns;
+  const equityRows = useMemo(
+    () => (d?.equity_curve ?? []).map((p) => ({ date: new Date(p.time), pnl: p.pnl })) as unknown as Row[],
+    [d?.equity_curve],
+  );
   const panels: Record<PanelId, ReactNode> = {
     chart: (
       <>
@@ -282,6 +286,30 @@ export default function App() {
             <Row k="저장 시각" v={a.saved_at.slice(11, 19) + " UTC"} />
           </>
         ) : <div className="muted">저장된 상태 없음</div>}
+      </Card>
+    ),
+    equity: (
+      <Card title="자산곡선 (누적 손익, 최근 30일·모든 종목)">
+        <IndicatorPanel rows={equityRows} field="pnl" name="누적 손익(USDT)" color="#3aa0c0" width={1.8}
+          aspect={PANEL_ASPECT[s.chartHeight]} guides={[0]} show={(v) => (v >= 0 ? "+" : "") + fmt(v)} />
+      </Card>
+    ),
+    safety: (
+      <Card title="안전 상태 (조회 전용)">
+        {d?.kill_switch ? (
+          <>
+            <Row k="킬 스위치" v={d.kill_switch.engaged ? "작동 중 (거래 중지)" : "해제됨"} cls={d.kill_switch.engaged ? "down" : "up"} />
+            <Row k="사유" v={(d.kill_switch.reason ?? "-") + (d.kill_switch.triggered_by ? " · " + d.kill_switch.triggered_by : "")} />
+            <Row k="시각" v={d.kill_switch.at ? whenFull(new Date(d.kill_switch.at)) : "-"} />
+          </>
+        ) : <Row k="킬 스위치" v="알 수 없음" />}
+        {d?.reconciliation ? (
+          <>
+            <Row k="재조정(내부 vs 거래소)" v={d.reconciliation.ok ? "일치" : "불일치 (신규 진입 차단)"} cls={d.reconciliation.ok ? "up" : "down"} />
+            {!d.reconciliation.ok && <Row k="불일치 내용" v={(d.reconciliation.detail ?? "") + " " + d.reconciliation.mismatches.join(", ")} />}
+            <Row k="확인 시각" v={d.reconciliation.at ? whenFull(new Date(d.reconciliation.at)) : "-"} />
+          </>
+        ) : <Row k="재조정" v="최근 기록 없음" />}
       </Card>
     ),
     votes: <Card title="지표별 판단 (닫힌 15분봉마다 갱신)">{d ? <Votes d={d} /> : null}</Card>,

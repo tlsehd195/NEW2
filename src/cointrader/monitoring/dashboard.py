@@ -62,6 +62,45 @@ def _krw_account(state_dir: Path, balance: float) -> dict:
         return {"rate_krw": None, "balance_krw": None, "equity_krw": None, "krw_as_of": None}
 
 
+def _equity_curve(store: LayeredStore, now: datetime, days: int = 30, max_points: int = 600) -> list[dict]:
+    """Cumulative net PnL (USDT) over every closed trade of the last `days` days, all symbols, ordered by exit time."""
+    rows = [r for r in store.read("outcome", start=(now - timedelta(days=days)).date()) if r.get("exit_time")]
+    rows.sort(key=lambda r: r["exit_time"])
+    total, curve = 0.0, []
+    for r in rows:
+        total += r["net_pnl"]
+        curve.append({"time": r["exit_time"], "pnl": total})
+    return curve[-max_points:]
+
+
+def _kill_switch(path: Optional[Path]) -> Optional[dict]:
+    """Latest event of the kill-switch log, read only. Mirrors the trader's fail-closed rule: a missing or
+    unreadable log counts as engaged. Returns None when the dashboard was not told where the log is."""
+    if path is None:
+        return None
+    try:
+        lines = [l for l in Path(path).read_text(encoding="utf-8").splitlines() if l.strip()]
+        d = json.loads(lines[-1]) if lines else None
+    except (OSError, ValueError):
+        d = None
+    if not d:
+        return {"engaged": True, "reason": "kill_switch_log_missing_or_unreadable", "triggered_by": None, "at": None}
+    return {"engaged": bool(d.get("engaged")), "reason": d.get("reason"), "triggered_by": d.get("triggered_by"),
+            "at": d.get("occurred_at")}
+
+
+def _reconciliation(store: LayeredStore, now: datetime) -> Optional[dict]:
+    """Latest local-vs-exchange reconciliation result from the `safety` layer (None if none in the last 2 days)."""
+    last = None
+    for r in store.read("safety", start=(now - timedelta(days=2)).date()):
+        if r.get("event") == "reconciliation":
+            last = r
+    if last is None:
+        return None
+    return {"ok": bool(last.get("ok")), "detail": last.get("detail"), "mismatches": last.get("mismatches") or [],
+            "at": last.get("recorded_at")}
+
+
 def _position(state: dict, symbol: str, last_price: Optional[float], leverage: Optional[int] = None) -> Optional[dict]:
     t = (state.get("open_trades") or {}).get(symbol)
     if not t:
@@ -153,7 +192,8 @@ def _rules() -> dict:
 
 
 def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 200, days: int = 3,
-                  now: Optional[datetime] = None, leverage: Optional[int] = None) -> dict:
+                  now: Optional[datetime] = None, leverage: Optional[int] = None,
+                  kill_switch_path: Optional[Path] = None) -> dict:
     now = now or datetime.now(timezone.utc)
     since: date = (now - timedelta(days=days)).date()
     fresh_from: date = max(since, (now - timedelta(days=1)).date())
@@ -198,7 +238,9 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
     out = {"symbol": symbol, "as_of": now.isoformat(), "candles": series, "last_price": last_price,
            "last_price_time": last_price_time, "fills": fills[-300:], "decisions": decisions[-12:],
            "closed_trades": trades[-10:], "account": None, "position": None, "overlays": overlays, "latest": latest,
-           "votes": _votes(symbol_decisions), "rules": _rules()}
+           "votes": _votes(symbol_decisions), "rules": _rules(),
+           "equity_curve": _equity_curve(store, now), "kill_switch": _kill_switch(kill_switch_path),
+           "reconciliation": _reconciliation(store, now)}
     if state:
         out["position"] = _position(state, symbol, last_price, leverage)
         out["account"] = {"balance": state["broker"]["balance"], "saved_at": state["saved_at"],

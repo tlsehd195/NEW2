@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { useSnapshot, useTraderConfig } from "@/hooks/use-trader"
 import { DashboardHeader } from "./header"
@@ -8,6 +8,8 @@ import { StatStrip } from "./stat-strip"
 import { ChartPanel } from "./chart-panel"
 import { PositionCard } from "./position-card"
 import { VotesCard } from "./votes-card"
+import { EquityCard } from "./equity-card"
+import { SafetyCard } from "./safety-card"
 import { ActivityTabs } from "./activity-tabs"
 import { kst } from "@/lib/format"
 
@@ -17,6 +19,19 @@ export function Dashboard() {
   const { data: config } = useTraderConfig()
   const [selected, setSelected] = useState<string>()
   const [refreshSec, setRefreshSec] = useState(10)
+  // Remember the symbol and refresh interval in this browser (unavailable storage just means no memory).
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("dashboard-next:prefs") ?? "{}")
+      if (typeof saved.symbol === "string") setSelected(saved.symbol)
+      if (typeof saved.refreshSec === "number" && saved.refreshSec > 0) setRefreshSec(saved.refreshSec)
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard-next:prefs", JSON.stringify({ symbol: selected, refreshSec }))
+    } catch {}
+  }, [selected, refreshSec])
   const symbols = config?.symbols ?? []
   const symbol = selected && symbols.includes(selected) ? selected : symbols[0]
   const { data, error, isValidating } = useSnapshot(symbol, BARS, refreshSec)
@@ -48,10 +63,12 @@ export function Dashboard() {
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
               <div className="flex min-w-0 flex-col gap-4">
                 <ChartPanel snapshot={snapshot} />
+                <EquityCard snapshot={snapshot} />
                 <ActivityTabs snapshot={snapshot} />
               </div>
               <aside className="flex flex-col gap-4" aria-label="포지션과 신호">
                 <PositionCard snapshot={snapshot} />
+                <SafetyCard snapshot={snapshot} />
                 <VotesCard snapshot={snapshot} />
               </aside>
             </div>

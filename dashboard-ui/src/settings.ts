@@ -3,12 +3,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 export interface LineSetting { on: boolean; period: number; color: string; width: number }
-export type PanelId = "chart" | "price" | "position" | "account" | "votes" | "ivals" | "decisions" | "trades";
+export type PanelId = "chart" | "price" | "position" | "account" | "votes" | "ivals" | "decisions" | "trades" | "equity" | "safety";
 export type PanelSize = "third" | "half" | "twothirds" | "full";
 export interface PanelSetting { id: PanelId; show: boolean; size: PanelSize }
 export const PANEL_NAMES: Record<PanelId, string> = {
   chart: "차트", price: "현재가", position: "포지션", account: "계좌", votes: "지표별 판단",
-  ivals: "지표 현재값", decisions: "최근 판단", trades: "청산된 거래",
+  ivals: "지표 현재값", decisions: "최근 판단", trades: "청산된 거래", equity: "자산곡선", safety: "안전 상태",
 };
 export const PANEL_SIZES: [PanelSize, string][] = [["third", "1/3"], ["half", "1/2"], ["twothirds", "2/3"], ["full", "전체"]];
 export const TRADE_COLUMNS = { dir: "방향", times: "진입·청산 시각(한국시간)", prices: "진입 → 청산가", priceRet: "가격 수익률 %", equityRet: "계좌 수익률 %", pnl: "손익 USDT", reason: "청산 사유" };
@@ -38,6 +38,7 @@ export const DEFAULTS: Settings = {
   layout: [
     { id: "chart", show: true, size: "full" }, { id: "price", show: true, size: "third" },
     { id: "position", show: true, size: "third" }, { id: "account", show: true, size: "third" },
+    { id: "equity", show: true, size: "twothirds" }, { id: "safety", show: true, size: "third" },
     { id: "votes", show: true, size: "full" }, { id: "ivals", show: true, size: "third" },
     { id: "decisions", show: true, size: "third" }, { id: "trades", show: true, size: "full" },
   ],
