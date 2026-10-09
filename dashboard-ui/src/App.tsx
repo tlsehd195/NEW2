@@ -275,6 +275,9 @@ export default function App() {
         {a ? (
           <>
             <Row k="잔고(USDT)" v={fmt(a.balance)} />
+            <Row k="잔고(원화)" v={a.balance_krw != null ? Math.round(a.balance_krw).toLocaleString("ko-KR") + "원" : "-"} />
+            <Row k="평가금액(원화, 미실현 포함)" v={a.equity_krw != null ? Math.round(a.equity_krw).toLocaleString("ko-KR") + "원" : "-"} />
+            <Row k="환율(원/USDT)" v={fmt(a.rate_krw)} />
             <Row k="열린 포지션" v={a.open_positions + "개"} />
             <Row k="저장 시각" v={a.saved_at.slice(11, 19) + " UTC"} />
           </>

@@ -67,7 +67,10 @@ export interface Snapshot {
   fills: Fill[]
   decisions: { time: string; action: string; reason: string }[]
   closed_trades: ClosedTrade[]
-  account: { balance: number; saved_at: string; open_positions: number } | null
+  account: {
+    balance: number; saved_at: string; open_positions: number
+    rate_krw?: number | null; balance_krw?: number | null; equity_krw?: number | null; krw_as_of?: string | null
+  } | null
   position: Position | null
   overlays: Record<string, (number | null)[]>
   latest: Partial<Record<"rsi14" | "ema20_gap" | "bollinger_z" | "roc14" | "donchian_pos", number | null>>

@@ -48,7 +48,10 @@ def test_snapshot_collects_chart_position_and_history(tmp_path):
     assert pos["direction"] == "long" and pos["entry_price"] == 100.5 and pos["stop_price"] == 95.0
     assert abs(pos["unrealized_pnl"] - 2.0 * (110.0 - 100.5)) < 1e-9
     assert pos["notional"] == 201.0 and pos["leverage"] == 3 and abs(pos["margin"] - 67.0) < 1e-9
-    assert snap["account"]["balance"] == 9990.0
+    assert snap["account"]["balance"] == 9990.0 and snap["account"]["balance_krw"] is None
+    (state_dir / "krw_live.json").write_text(json.dumps({"rate_krw_per_usdt": 1400.0, "value_krw": 14000000.0, "as_of": NOW.isoformat()}))
+    acc = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["account"]
+    assert acc["rate_krw"] == 1400.0 and acc["balance_krw"] == 9990.0 * 1400.0 and acc["equity_krw"] == 14000000.0
     assert snap["fills"][0]["side"] == "BUY" and snap["decisions"][0]["action"] == "enter_long"
     assert snap["closed_trades"][0]["net_pnl"] == -1.5
     assert len(snap["overlays"]["ema20"]) == 3 and snap["overlays"]["ema20"][0] is None  # too few bars for a 20-bar line

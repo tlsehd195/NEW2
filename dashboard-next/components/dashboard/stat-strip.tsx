@@ -43,7 +43,13 @@ export function StatStrip({ snapshot }: { snapshot: Snapshot }) {
       <Stat
         label="계좌 잔고"
         value={account ? usd(account.balance) : "-"}
-        sub={account ? `저장 ${kst(account.saved_at)}` : "트레이더 미실행"}
+        sub={
+          account
+            ? account.balance_krw != null
+              ? `≈ ${Math.round(account.balance_krw).toLocaleString("ko-KR")}원 (${num(account.rate_krw, 0)}원/USDT)`
+              : `저장 ${kst(account.saved_at)} · 원화 환산 없음`
+            : "트레이더 미실행"
+        }
       />
       <Stat
         label="미실현 손익"

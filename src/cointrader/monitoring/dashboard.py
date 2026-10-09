@@ -50,6 +50,18 @@ def _load_state(state_dir: Path) -> Optional[dict]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _krw_account(state_dir: Path, balance: float) -> dict:
+    """KRW view of the account from `krw_live.json` (ADR-0041, written by the paper trader from the Upbit
+    KRW-USDT ticker). Missing/unreadable file -> no KRW fields; `krw_as_of` lets the page show staleness."""
+    try:
+        snap = json.loads((Path(state_dir) / "krw_live.json").read_text(encoding="utf-8"))
+        rate = float(snap["rate_krw_per_usdt"])
+        return {"rate_krw": rate, "balance_krw": balance * rate, "equity_krw": snap.get("value_krw"),
+                "krw_as_of": snap.get("as_of")}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {"rate_krw": None, "balance_krw": None, "equity_krw": None, "krw_as_of": None}
+
+
 def _position(state: dict, symbol: str, last_price: Optional[float], leverage: Optional[int] = None) -> Optional[dict]:
     t = (state.get("open_trades") or {}).get(symbol)
     if not t:
@@ -190,5 +202,6 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
     if state:
         out["position"] = _position(state, symbol, last_price, leverage)
         out["account"] = {"balance": state["broker"]["balance"], "saved_at": state["saved_at"],
-                          "open_positions": len(state.get("open_trades") or {})}
+                          "open_positions": len(state.get("open_trades") or {}),
+                          **_krw_account(state_dir, state["broker"]["balance"])}
     return out
