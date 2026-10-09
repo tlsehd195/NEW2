@@ -51,6 +51,10 @@ export function PositionCard({ snapshot }: { snapshot: Snapshot }) {
               {stopDistance != null && <span className="ml-1.5 text-xs text-muted-foreground">({(stopDistance * 100).toFixed(2)}%)</span>}
             </Row>
             <Row label="수량">{num(pos.quantity, 4)}</Row>
+            <Row label="포지션 금액(명목)">{pos.notional != null ? `${num(pos.notional)} USDT` : "-"}</Row>
+            <Row label={pos.leverage ? `사용 증거금 (${pos.leverage}배 추정)` : "사용 증거금"}>
+              {pos.margin != null ? `${num(pos.margin)} USDT` : "-"}
+            </Row>
             <Row label="진입 시각">{kst(pos.entry_time)}</Row>
             <Row label="전략">
               <span className="text-xs">{shortStrategy(pos.strategy)}</span>

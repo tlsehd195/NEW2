@@ -25,7 +25,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from cointrader.monitoring.dashboard import read_snapshot  # noqa: E402
-from cointrader.settings import load_paper  # noqa: E402
+from cointrader.settings import load_margin_policy, load_paper  # noqa: E402
 
 STATIC = Path(__file__).resolve().parent / "dashboard_static"  # built from dashboard-ui/ (npm run build)
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
@@ -43,6 +43,10 @@ def static_file(url_path: str) -> Optional[Path]:
 
 def main() -> int:
     cfg = load_paper()
+    try:
+        leverage = load_margin_policy()[0].exchange_leverage  # only used to estimate the margin shown per position
+    except Exception:  # noqa: BLE001
+        leverage = None
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--state-dir", type=Path, default=REPO / cfg["state_dir"])
     ap.add_argument("--data-root", type=Path, default=REPO / cfg["data_root"])
@@ -72,7 +76,7 @@ def main() -> int:
                     bars = min(max(int(parse_qs(url.query).get("bars", ["200"])[0]), 50), 2000)
                 except ValueError:
                     bars = 200
-                snap = read_snapshot(args.state_dir, args.data_root, symbol, bars=bars, days=bars // 96 + 2)
+                snap = read_snapshot(args.state_dir, args.data_root, symbol, bars=bars, days=bars // 96 + 2, leverage=leverage)
                 self._send(200, json.dumps(snap, ensure_ascii=False, default=str).encode("utf-8"),
                            "application/json; charset=utf-8")
             elif (path := static_file(url.path)) is not None:

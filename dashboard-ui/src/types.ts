@@ -13,10 +13,14 @@ export interface Snapshot {
     entry_time: string | null; exit_time: string | null; direction: number | null; net_pnl: number; exit_reason: string | null;
     entry_price: number | null; exit_price: number | null; price_return: number | null; equity_return: number | null;
   }[];
-  account: { balance: number; saved_at: string; open_positions: number } | null;
+  account: {
+    balance: number; saved_at: string; open_positions: number;
+    rate_krw?: number | null; balance_krw?: number | null; equity_krw?: number | null; krw_as_of?: string | null;
+  } | null;
   position: {
     direction: "long" | "short"; state: string; quantity: number; entry_price: number | null;
     stop_price: number | null; strategy: string; entry_time: string | null; unrealized_pnl: number | null;
+    notional?: number | null; leverage?: number | null; margin?: number | null;
   } | null;
   overlays: Record<string, (number | null)[]>;
   latest: Partial<Record<"rsi14" | "ema20_gap" | "bollinger_z" | "roc14" | "donchian_pos", number | null>>;
