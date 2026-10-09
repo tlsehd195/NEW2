@@ -239,6 +239,7 @@ class _Position:
     best: float
     worst: float
     funding: float = 0.0
+    trailing_activation: Optional[float] = None
 
 
 @dataclass
@@ -255,6 +256,7 @@ class _PendingEntry:
     reason: str
     features: dict
     risk_decision_id: str
+    trailing_activation: Optional[float] = None
 
 
 def _reason_key(reason: str) -> str:
@@ -489,7 +491,7 @@ def run_event_backtest(
                                          qty / pending.quantity, fee, spread_c, slip_c, stop_price, tp_price,
                                          pending.trailing_distance, liq, margin, mark(None, bar.open),
                                          pending.regime, pending.reason, pending.features, pending.risk_decision_id,
-                                         reference, reference)
+                                         reference, reference, trailing_activation=pending.trailing_activation)
                 pending = None
             elif pending is not None and qty <= 0 and costs.entry_order == "market":
                 rejected["no_liquidity"] += 1
@@ -527,7 +529,8 @@ def run_event_backtest(
             else:
                 pos.best = max(pos.best, bar.high) if d > 0 else min(pos.best, bar.low)
                 pos.worst = min(pos.worst, bar.low) if d > 0 else max(pos.worst, bar.high)
-                if pos.trailing_distance is not None:
+                if pos.trailing_distance is not None and (
+                        pos.trailing_activation is None or (pos.best - pos.entry_reference) * d >= pos.trailing_activation):
                     trail = pos.best - d * pos.trailing_distance
                     trail = filters.round_price(trail, up=d < 0)
                     if pos.stop_price is None or (d > 0 and trail > pos.stop_price) or (d < 0 and trail < pos.stop_price):
@@ -588,7 +591,8 @@ def run_event_backtest(
         act = i + costs.latency_bars
         pending = _PendingEntry(sig.entry, decision.quantity, act, act + costs.limit_ttl_bars - 1, limit,
                                 sig.stop_distance, sig.take_profit_distance, sig.trailing_distance, sig.regime,
-                                sig.reason, dict(sig.features), decision.decision_id)
+                                sig.reason, dict(sig.features), decision.decision_id,
+                                trailing_activation=sig.trailing_activation)
 
     if position is not None:
         last = candles[-1]

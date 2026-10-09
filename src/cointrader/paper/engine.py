@@ -125,6 +125,7 @@ class OpenTrade:
     exit_reason: Optional[str] = None
     bars_held: int = 0
     pending_exit: Optional[str] = None  # reason, when an exit must be (re)tried
+    trail_activation: Optional[float] = None  # trail only once best has moved this far from the entry average
 
     @property
     def open_quantity(self) -> float:
@@ -524,7 +525,8 @@ class PaperTrader:
             symbol=symbol, direction=signal.entry, entry_cid=intent.client_order_id, decision_id="",
             risk_decision_id=decision.decision_id, signal_reason=signal.reason, regime=signal.regime,
             features=features, stop_distance=signal.stop_distance, tp_distance=signal.take_profit_distance,
-            trail_distance=signal.trailing_distance, equity_at_entry=account.equity,
+            trail_distance=signal.trailing_distance, trail_activation=signal.trailing_activation,
+            equity_at_entry=account.equity,
             decided_at=now.isoformat(), expected_entry_slippage=half_spread,
         )
         self.counters["entries"] += 1
@@ -644,7 +646,8 @@ class PaperTrader:
             return
         if t.tp_price is not None and (mid - t.tp_price) * t.direction >= 0:
             self._submit_exit(t, "take_profit")
-        elif t.trail_distance is not None and (t.best - mid) * t.direction >= t.trail_distance:
+        elif t.trail_distance is not None and (t.best - mid) * t.direction >= t.trail_distance and (
+                t.trail_activation is None or (t.best - t.entry_notional / t.entry_qty) * t.direction >= t.trail_activation):
             self._submit_exit(t, "trailing_stop")
 
     def _submit_exit(self, t: OpenTrade, reason: str) -> Optional[str]:
