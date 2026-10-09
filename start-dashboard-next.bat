@@ -31,6 +31,9 @@ if errorlevel 1 (
   if errorlevel 1 ( echo [ERROR] pnpm install failed. & pause & exit /b 1 )
 )
 
+rem 3b) exchange rules check against Binance; fixes configs\markets.json when reachable, never blocks start-up (ADR-0056)
+%PY% scripts\verify_markets.py --write
+
 rem 4a) paper trader in its own window. If one is already running the new window says so and stops (no double run).
 start "NEW2 paper trading" cmd /c "%PY% scripts\run_paper_trader.py & echo. & echo Paper trader stopped. & pause"
 
