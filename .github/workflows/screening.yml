@@ -1,0 +1,73 @@
+name: Run walk-forward screening (no TEST, no registration; ADR-0051)
+
+on:
+  # push is only here so GitHub indexes the workflow for dispatch; the job is skipped on push.
+  push:
+    branches: [main]
+    paths: [".github/workflows/screening.yml"]
+  workflow_dispatch:
+    inputs:
+      family:
+        required: true
+        default: "daytrade"
+      symbol:
+        required: true
+        default: "BTCUSDT"
+      timeframe:
+        required: true
+        default: "15m"
+      start:
+        required: true
+        default: "2023-04-06"
+      end:
+        description: "Exclusive; the last 20% is reserved for the final exam and never loaded"
+        required: true
+        default: "2024-06-18"
+      strategies:
+        description: "Space-separated registered strategy ids"
+        required: true
+      by:
+        description: "Who ran it (a person, or RESEARCH_LOOP)"
+        required: true
+      note:
+        required: false
+        default: ""
+
+jobs:
+  screen:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      - name: Screen
+        env:
+          FAMILY: ${{ inputs.family }}
+          SYMBOL: ${{ inputs.symbol }}
+          TIMEFRAME: ${{ inputs.timeframe }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          STRATEGIES: ${{ inputs.strategies }}
+          BY: ${{ inputs.by }}
+          NOTE: ${{ inputs.note }}
+        # STRATEGIES is split on spaces on purpose: one argument per strategy id.
+        run: |
+          python3 scripts/run_screening.py --family "$FAMILY" --symbol "$SYMBOL" --timeframe "$TIMEFRAME" \
+            --start "$START" --end "$END" --strategies $STRATEGIES --by "$BY" --note "$NOTE" \
+            --out reports/screening.json > /dev/null
+      - name: Print report
+        if: always()
+        run: cat reports/screening.json || echo "no report written"
+      - name: Print files that must be committed back (screening ledger, reserved window)
+        # The runner's checkout is thrown away; these exact lines are copied into the repo afterwards.
+        if: always()
+        run: |
+          git status --short
+          git add --intent-to-add research
+          git add --intent-to-add configs/reserved_windows.json || true
+          echo "=== added lines ==="
+          git diff --no-color --unified=0 -- configs/reserved_windows.json research | grep '^+' | grep -v '^+++' || echo "(none)"

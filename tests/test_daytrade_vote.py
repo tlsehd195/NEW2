@@ -47,6 +47,13 @@ def test_daytrade_vote_identity_and_parameters():
     assert p["vol_short"] == 96 and p["vol_long"] == 960 and p["allow_short"] is True
 
 
+def test_trail_atr_is_off_by_default_and_named_in_the_id_when_set():
+    assert DayTradeVote().trail_atr is None and "trail_atr" not in DayTradeVote().parameters
+    s = DayTradeVote(trail_atr=2.5)
+    assert s.strategy_id == "daytrade_indicator_vote_h16_c0.6_t2.5_v1"
+    assert s.parameters["trail_atr"] == 2.5
+
+
 def test_score_scale_defaults_to_daily_behaviour_and_unsaturates_small_moves():
     h = bars(200)
     base = raw_scores(h, DEFAULT_PANEL)
@@ -68,7 +75,7 @@ def test_donchian_pos_is_positive_near_the_top_of_the_range():
 
 def test_knob_validation():
     for kw in ({"score_scale": 0.0}, {"vol_short": 1}, {"vol_short": 50, "vol_long": 40}, {"bars_per_day": 0},
-               {"max_hold_bars": 0}, {"max_entries_per_day": 0}, {"quality_window_bars": 0}):
+               {"max_hold_bars": 0}, {"max_entries_per_day": 0}, {"quality_window_bars": 0}, {"trail_atr": 0.0}):
         with pytest.raises(ValueError):
             DayTradeVote(**kw)
 
