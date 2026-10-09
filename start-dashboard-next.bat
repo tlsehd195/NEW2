@@ -31,7 +31,10 @@ if errorlevel 1 (
   if errorlevel 1 ( echo [ERROR] pnpm install failed. & pause & exit /b 1 )
 )
 
-rem 4) data server (reads var\, port 8765) in its own window
+rem 4a) paper trader in its own window. If one is already running the new window says so and stops (no double run).
+start "NEW2 paper trading" cmd /c "%PY% scripts\run_paper_trader.py & echo. & echo Paper trader stopped. & pause"
+
+rem 4b) data server (reads var\, port 8765) in its own window
 start "NEW2 data server" cmd /k %PY% scripts\run_dashboard.py
 
 rem 5) build once, then start the page
@@ -49,7 +52,8 @@ if not exist .next (
 )
 
 echo.
-echo Open http://localhost:3000 in your browser. Close this window to stop.
+echo Open http://localhost:3000 in your browser.
+echo To stop: press Ctrl+C in the "NEW2 paper trading" window (state is saved), then close the other windows.
 start "" http://localhost:3000
 call pnpm start
 pause
