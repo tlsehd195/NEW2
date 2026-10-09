@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { AlertTriangle } from "lucide-react"
 import { useSnapshot, useTraderConfig } from "@/hooks/use-trader"
 import { DashboardHeader } from "./header"
@@ -8,6 +8,10 @@ import { StatStrip } from "./stat-strip"
 import { ChartPanel } from "./chart-panel"
 import { PositionCard } from "./position-card"
 import { VotesCard } from "./votes-card"
+import { EquityCard } from "./equity-card"
+import { SafetyCard } from "./safety-card"
+import { CalendarPage } from "./calendar-page"
+import { cn } from "@/lib/utils"
 import { ActivityTabs } from "./activity-tabs"
 import { kst } from "@/lib/format"
 
@@ -17,6 +21,20 @@ export function Dashboard() {
   const { data: config } = useTraderConfig()
   const [selected, setSelected] = useState<string>()
   const [refreshSec, setRefreshSec] = useState(10)
+  const [page, setPage] = useState<1 | 2>(1) // 1 = daily calendar, 2 = the full dashboard
+  // Remember the symbol and refresh interval in this browser (unavailable storage just means no memory).
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("dashboard-next:prefs") ?? "{}")
+      if (typeof saved.symbol === "string") setSelected(saved.symbol)
+      if (typeof saved.refreshSec === "number" && saved.refreshSec > 0) setRefreshSec(saved.refreshSec)
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try {
+      localStorage.setItem("dashboard-next:prefs", JSON.stringify({ symbol: selected, refreshSec }))
+    } catch {}
+  }, [selected, refreshSec])
   const symbols = config?.symbols ?? []
   const symbol = selected && symbols.includes(selected) ? selected : symbols[0]
   const { data, error, isValidating } = useSnapshot(symbol, BARS, refreshSec)
@@ -44,17 +62,33 @@ export function Dashboard() {
         )}
         {snapshot ? (
           <>
-            <StatStrip snapshot={snapshot} />
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div role="tablist" aria-label="페이지" className="flex gap-1">
+              {([1, 2] as const).map((n) => (
+                <button
+                  key={n}
+                  role="tab"
+                  aria-selected={page === n}
+                  onClick={() => setPage(n)}
+                  className={cn("rounded px-3 py-1.5 text-sm", page === n ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+                >
+                  {n === 1 ? "1 캘린더" : "2 대시보드"}
+                </button>
+              ))}
+            </div>
+            {page === 1 && <CalendarPage snapshot={snapshot} />}
+            {page === 2 && <StatStrip snapshot={snapshot} />}
+            {page === 2 && <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
               <div className="flex min-w-0 flex-col gap-4">
                 <ChartPanel snapshot={snapshot} />
+                <EquityCard snapshot={snapshot} />
                 <ActivityTabs snapshot={snapshot} />
               </div>
               <aside className="flex flex-col gap-4" aria-label="포지션과 신호">
                 <PositionCard snapshot={snapshot} />
+                <SafetyCard snapshot={snapshot} />
                 <VotesCard snapshot={snapshot} />
               </aside>
-            </div>
+            </div>}
             <p className="pb-2 text-center text-xs text-muted-foreground">
               마지막 갱신 {kst(snapshot.as_of)} · 이 화면은 조회 전용이며 주문을 낼 수 없어요
             </p>

@@ -22,6 +22,10 @@ export interface Snapshot {
     stop_price: number | null; strategy: string; entry_time: string | null; unrealized_pnl: number | null;
     notional?: number | null; leverage?: number | null; margin?: number | null;
   } | null;
+  daily?: { date: string; pnl: number; trades: number; wins: number; return_pct: number | null }[];
+  equity_curve?: { time: string; pnl: number }[];
+  kill_switch?: { engaged: boolean; reason: string | null; triggered_by: string | null; at: string | null } | null;
+  reconciliation?: { ok: boolean; detail: string | null; mismatches: string[]; at: string | null } | null;
   overlays: Record<string, (number | null)[]>;
   latest: Partial<Record<"rsi14" | "ema20_gap" | "bollinger_z" | "roc14" | "donchian_pos", number | null>>;
   votes: {
