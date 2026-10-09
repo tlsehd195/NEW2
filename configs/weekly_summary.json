@@ -1,0 +1,6 @@
+{
+  "_comment": "Weekly paper-performance summary to Discord (T14). Off by default; even when enabled nothing is sent unless the DISCORD_WEBHOOK_URL environment variable is set. Run scripts/send_weekly_summary.py from a scheduler.",
+  "enabled": false,
+  "mode": "paper",
+  "days": 7
+}

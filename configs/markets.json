@@ -1,5 +1,5 @@
 {
-  "_comment": "Binance USD-M perpetual trading rules. UNVERIFIED placeholders typed from memory (sandbox and GitHub Actions cannot reach fapi.binance.com, ADR-0012). Refresh from GET /fapi/v1/exchangeInfo (BinanceFuturesClient.exchange_filters) before any live use. Meme coins and low-quality altcoins are excluded by project decision.",
+  "_comment": "Binance USD-M perpetual trading rules. UNVERIFIED placeholders typed from memory (sandbox and GitHub Actions cannot reach fapi.binance.com, ADR-0012). Check and refresh on a PC that can reach Binance with `python3 scripts/verify_markets.py --write` (ADR-0056) before any live use; it sets verified=true only if every symbol matches. Meme coins and low-quality altcoins are excluded by project decision.",
   "verified": false,
   "exchange": "binance_usdm",
   "markets": {
