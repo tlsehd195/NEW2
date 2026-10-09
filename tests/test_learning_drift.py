@@ -110,3 +110,18 @@ def test_a_failing_learning_step_never_stops_the_trader(tmp_path):
     _run_learning(trader, cycle)  # backs off instead of retrying on every feed event
     assert [r["event"] for r in store.read("audit")] == ["learning_cycle_failed"]
     assert notes.sent == ["learning cycle failed"]
+
+
+def test_cycle_catches_up_missed_days_one_per_call_but_not_on_first_run(tmp_path):
+    store = LayeredStore(tmp_path)
+    _features(store, D0, 10, seed=3)
+    cycle = DailyLearningCycle(store, [SYM])
+    first = D0 + timedelta(days=5, hours=2)  # first ever run: only the finished day 10-05
+    assert [r["day"] for r in cycle.maybe_run(first)] == ["2026-10-05"]
+    assert cycle.maybe_run(first) is None
+    later = D0 + timedelta(days=8, hours=2)  # process was down for 10-06..10-07; 10-08 is due
+    days = []
+    while (out := cycle.maybe_run(later)) is not None:
+        days += [r["day"] for r in out]
+    assert days == ["2026-10-06", "2026-10-07", "2026-10-08"]
+    assert cycle.maybe_run(later) is None
