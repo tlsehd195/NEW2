@@ -3,7 +3,13 @@
 15분봉 페이퍼 매매의 조회 전용 대시보드. 주문·설정 변경 기능은 없다. 파이썬 대시보드 서버(`scripts/run_dashboard.py`)의
 `/api/config`, `/api/snapshot`을 읽는다. `dashboard-ui/`(파이썬만으로 실행되는 판)와는 별개다.
 
-## 실행
+## Windows에서 더블클릭으로 켜기
+
+1. 파이썬(<https://www.python.org/downloads/>, 설치 때 "Add python.exe to PATH" 체크)과 Node.js LTS(<https://nodejs.org/>)를 설치한다(한 번만).
+2. 저장소 맨 위의 `start-dashboard-next.bat`을 더블클릭한다. 처음에는 패키지 설치와 빌드로 몇 분 걸린다.
+3. 브라우저에서 <http://localhost:3000>이 열린다. 끄려면 열린 검은 창 두 개를 닫는다.
+
+## 직접 실행
 
 ```
 python3 scripts/run_dashboard.py                      # 데이터 서버 (기본 127.0.0.1:8765)
