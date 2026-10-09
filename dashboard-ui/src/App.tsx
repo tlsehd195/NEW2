@@ -262,6 +262,8 @@ export default function App() {
             <Row k="수량" v={fmt(p.quantity)} />
             <Row k="진입가" v={fmt(p.entry_price)} />
             <Row k="손절가" v={fmt(p.stop_price)} />
+            <Row k="포지션 금액(USDT)" v={fmt(p.notional)} />
+            <Row k={p.leverage ? `사용 증거금(USDT, ${p.leverage}배 추정)` : "사용 증거금(USDT)"} v={fmt(p.margin)} />
             <Row k="평가손익(USDT)" v={(p.unrealized_pnl != null && p.unrealized_pnl >= 0 ? "+" : "") + fmt(p.unrealized_pnl)} cls={sgn(p.unrealized_pnl)} />
             <Row k="전략" v={strategyName(p.strategy)} />
           </>

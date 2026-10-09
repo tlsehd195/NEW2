@@ -41,12 +41,13 @@ def test_snapshot_collects_chart_position_and_history(tmp_path):
     state_dir = _store(tmp_path)
     _state(state_dir, ETHUSDT={"direction": 1, "state": "open", "entry_qty": 2.0, "exit_qty": 0.0,
                                "entry_notional": 201.0, "stop_price": 95.0, "strategy_id": "s", "entry_time": None})
-    snap = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)
+    snap = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW, leverage=3)
     assert [c["close"] for c in snap["candles"]] == [101, 102, 103]  # deduped, ETH only, time ordered
     assert snap["last_price"] == 110.0
     pos = snap["position"]
     assert pos["direction"] == "long" and pos["entry_price"] == 100.5 and pos["stop_price"] == 95.0
     assert abs(pos["unrealized_pnl"] - 2.0 * (110.0 - 100.5)) < 1e-9
+    assert pos["notional"] == 201.0 and pos["leverage"] == 3 and abs(pos["margin"] - 67.0) < 1e-9
     assert snap["account"]["balance"] == 9990.0
     assert snap["fills"][0]["side"] == "BUY" and snap["decisions"][0]["action"] == "enter_long"
     assert snap["closed_trades"][0]["net_pnl"] == -1.5

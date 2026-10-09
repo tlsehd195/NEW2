@@ -39,6 +39,9 @@ export interface Position {
   strategy: string
   entry_time: string | null
   unrealized_pnl: number | null
+  notional?: number | null
+  leverage?: number | null
+  margin?: number | null
 }
 
 export interface Vote {

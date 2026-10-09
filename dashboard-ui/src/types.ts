@@ -17,6 +17,7 @@ export interface Snapshot {
   position: {
     direction: "long" | "short"; state: string; quantity: number; entry_price: number | null;
     stop_price: number | null; strategy: string; entry_time: string | null; unrealized_pnl: number | null;
+    notional?: number | null; leverage?: number | null; margin?: number | null;
   } | null;
   overlays: Record<string, (number | null)[]>;
   latest: Partial<Record<"rsi14" | "ema20_gap" | "bollinger_z" | "roc14" | "donchian_pos", number | null>>;
