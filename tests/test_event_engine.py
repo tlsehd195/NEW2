@@ -133,6 +133,35 @@ def test_trailing_stop_ratchets():
     assert t.mfe == pytest.approx(0.10)
 
 
+def test_trailing_activation_delays_the_trail_until_price_has_moved_far_enough():
+    cs = flat_bars(12)
+    cs[4] = bar(4, 100, 103, 99.9, 102)  # best 103: +3 from the 100 entry
+    cs[5] = bar(5, 102, 102.5, 100.0, 101)  # falls back to 100
+    plain = run(cs, Scripted(entries={2: (1, 20.0, None, 2.0)})).trades[0]
+    assert plain.exit_reason == "stop"  # trail at 103 - 2 = 101 is hit
+
+    class Late(Scripted):
+        def signal(self, history, context=None):
+            s = super().signal(history, context)
+            if s.entry:
+                return Signal(s.entry, strength=1.0, reason="scripted", stop_distance=20.0, trailing_distance=2.0,
+                              trailing_activation=5.0, regime="RANGE", features={"atr": 1.0})
+            return s
+
+    r = run(cs, Late(entries={2: (1, 20.0, None, 2.0)}))
+    assert r.trades[0].exit_reason == "end_of_data"  # never moved +5, so the trail never armed
+
+    class Armed(Late):
+        def signal(self, history, context=None):
+            s = super().signal(history, context)
+            return Signal(s.entry, strength=1.0, reason="scripted", stop_distance=20.0, trailing_distance=2.0,
+                          trailing_activation=2.0, regime="RANGE", features={"atr": 1.0}) if s.entry else s
+
+    assert run(cs, Armed(entries={2: (1, 20.0, None, 2.0)})).trades[0].exit_reason == "stop"  # moved +3 >= 2
+    with pytest.raises(ValueError):
+        Signal(1, strength=1.0, stop_distance=1.0, trailing_activation=1.0)  # activation needs a trail
+
+
 def test_partial_fill_when_order_exceeds_participation():
     cs = [bar(i, 100, 100.5, 99.5, 100, v=10.0) for i in range(10)]  # 1000 USDT traded per bar
     r = run(cs, Scripted(entries={2: (1, 1.0, None, None)}, exits={5}), risk=risk(risk_per_trade=0.01, max_leverage=5))

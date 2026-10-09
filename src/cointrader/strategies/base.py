@@ -56,6 +56,7 @@ class Signal:
     stop_distance: Optional[float] = None
     take_profit_distance: Optional[float] = None
     trailing_distance: Optional[float] = None
+    trailing_activation: Optional[float] = None  # trail only once the price has moved this far in favour
     regime: str = Regime.UNDEFINED.value
     features: dict = field(default_factory=dict)
 
@@ -67,10 +68,12 @@ class Signal:
         if self.entry != 0:
             if self.stop_distance is None or not math.isfinite(self.stop_distance) or self.stop_distance <= 0:
                 raise ValueError("an entry signal needs a positive finite stop_distance")
-        for name in ("take_profit_distance", "trailing_distance"):
+        for name in ("take_profit_distance", "trailing_distance", "trailing_activation"):
             v = getattr(self, name)
             if v is not None and (not math.isfinite(v) or v <= 0):
                 raise ValueError(f"Signal.{name} must be positive and finite when set")
+        if self.trailing_activation is not None and self.trailing_distance is None:
+            raise ValueError("Signal.trailing_activation needs a trailing_distance")
 
 
 NO_SIGNAL = Signal(reason="no_signal")

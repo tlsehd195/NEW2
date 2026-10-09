@@ -630,5 +630,167 @@
     "risk_profile": "default",
     "hypothesis_id": null,
     "notes": "Same as daytrade_indicator_vote_h48_c0.6_v1 plus a 2.5-ATR trailing stop for longs and shorts (owner's idea 2026-10-09); screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_t4.5_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "trail_atr": 4.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Same as daytrade_indicator_vote_h16_c0.6_v1 plus 4.5-ATR trailing stop from entry (wider than the 2.5 tried first), longs and shorts (ADR-0053); screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_t1.5a1.5_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "trail_atr": 1.5,
+      "trail_activate_atr": 1.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Same as daytrade_indicator_vote_h16_c0.6_v1 plus trailing stop that starts only after +1.5 ATR and then follows 1.5 ATR behind (break-even start), longs and shorts (ADR-0053); screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_t4.5_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "trail_atr": 4.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Same as daytrade_indicator_vote_h48_c0.6_v1 plus 4.5-ATR trailing stop from entry (wider than the 2.5 tried first), longs and shorts (ADR-0053); screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_t1.5a1.5_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT",
+      "SOLUSDT",
+      "XRPUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "trail_atr": 1.5,
+      "trail_activate_atr": 1.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Same as daytrade_indicator_vote_h48_c0.6_v1 plus trailing stop that starts only after +1.5 ATR and then follows 1.5 ATR behind (break-even start), longs and shorts (ADR-0053); screening only, not pre-registered"
   }
 ]

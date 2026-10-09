@@ -99,9 +99,9 @@ def start(trader, replay, n_warm=120, price=60_000.0):
     assert trader.start(now)
 
 
-def entry_long(stop=300.0, tp=None, trail=None):
+def entry_long(stop=300.0, tp=None, trail=None, activation=None):
     return Signal(1, strength=0.5, reason="test_long", stop_distance=stop, take_profit_distance=tp,
-                  trailing_distance=trail, regime="TREND_UP")
+                  trailing_distance=trail, trailing_activation=activation, regime="TREND_UP")
 
 
 def rows(tmp_path, layer):
@@ -168,6 +168,13 @@ def test_take_profit_and_trailing_are_managed_on_book_updates(tmp_path):
     r2.minute(60_300)
     r2.minute(60_150)
     assert rows(tmp_path / "b", "outcome")[0]["exit_reason"] == "trailing_stop"
+
+    t3 = make_trader(tmp_path / "c", {122: entry_long(stop=500.0, trail=100.0, activation=1000.0)})
+    r3 = Replay(t3)
+    start(t3, r3)
+    for px in (60_000, 60_000, 60_300, 60_150):
+        r3.minute(px)
+    assert not rows(tmp_path / "c", "outcome")  # best never moved 1000 from the entry, so the trail never armed
 
 
 def test_restart_restores_position_and_reconciles(tmp_path):
