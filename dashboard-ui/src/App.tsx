@@ -17,6 +17,13 @@ const fmt = (n: number | null | undefined) => (n == null ? "-" : Number(n).toLoc
 const sgn = (n: number | null | undefined) => (n == null ? "" : n >= 0 ? "up" : "down");
 const signedPct = (x: number | null | undefined, digits: number) => (x == null ? "-" : (x >= 0 ? "+" : "") + (x * 100).toFixed(digits) + "%");
 const pct = (x: number | null | undefined) => (x == null ? "-" : (x * 100).toFixed(1) + "%");
+const kst = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }) : "-";
+const EXIT_REASONS: Record<string, string> = {
+  stop_loss: "손절", take_profit: "익절", trailing_stop: "추적 손절", protective_stop_failed: "보호 손절 실패로 청산",
+  retry_exit: "청산 재시도", unknown: "알 수 없음",
+};
+const exitReason = (r: string | null) => (!r ? "" : r.startsWith("signal_exit:") ? "신호 청산" : EXIT_REASONS[r] ?? r);
 const whenFull = (d: Date) => d.toLocaleString("ko-KR", { hour12: false });
 const NAMES: Record<string, string> = {
   ema_trend: "EMA 추세", donchian_pos: "돈치안 위치", roc: "ROC 모멘텀", rsi: "RSI", bollinger_b: "볼린저 %B", obv_slope: "OBV 기울기",
@@ -289,23 +296,25 @@ export default function App() {
           <table className="trades">
             <thead>
               <tr>
+                {tradeCols.times && <th title="한국시간(KST)">진입 / 청산 시각</th>}
                 {tradeCols.dir && <th>방향</th>}
                 {tradeCols.prices && <th>진입 → 청산가</th>}
                 {tradeCols.priceRet && <th title="진입가에서 청산가까지 가격이 내 방향으로 움직인 %. 수수료·레버리지 반영 전">가격 수익률 %<small>(수수료 전)</small></th>}
                 {tradeCols.equityRet && <th title="수수료·슬리피지·펀딩을 뺀 손익을, 진입 때 계좌 잔고로 나눈 %">계좌 수익률 %<small>(수수료 후)</small></th>}
                 {tradeCols.pnl && <th>손익 USDT</th>}
-                {tradeCols.reason && <th>청산 이유</th>}
+                {tradeCols.reason && <th>청산 사유</th>}
               </tr>
             </thead>
             <tbody>
               {d.closed_trades.slice().reverse().map((x, i) => (
                 <tr key={i}>
+                  {tradeCols.times && <td style={{ textAlign: "left" }}>{kst(x.entry_time)}<br /><span className="muted">{kst(x.exit_time)}</span></td>}
                   {tradeCols.dir && <td className={x.direction === 1 ? "up" : x.direction === -1 ? "down" : ""}>{x.direction === 1 ? "롱" : x.direction === -1 ? "숏" : "-"}</td>}
                   {tradeCols.prices && <td>{fmt(x.entry_price)} → {fmt(x.exit_price)}</td>}
                   {tradeCols.priceRet && <td className={sgn(x.price_return)}>{signedPct(x.price_return, 2)}</td>}
                   {tradeCols.equityRet && <td className={sgn(x.equity_return)}>{signedPct(x.equity_return, 3)}</td>}
                   {tradeCols.pnl && <td className={sgn(x.net_pnl)}>{(x.net_pnl >= 0 ? "+" : "") + fmt(x.net_pnl)}</td>}
-                  {tradeCols.reason && <td className="muted">{x.exit_reason ?? ""}</td>}
+                  {tradeCols.reason && <td className="muted" title={x.exit_reason ?? ""}>{exitReason(x.exit_reason)}</td>}
                 </tr>
               ))}
             </tbody>

@@ -11,7 +11,7 @@ export const PANEL_NAMES: Record<PanelId, string> = {
   ivals: "지표 현재값", decisions: "최근 판단", trades: "청산된 거래",
 };
 export const PANEL_SIZES: [PanelSize, string][] = [["third", "1/3"], ["half", "1/2"], ["twothirds", "2/3"], ["full", "전체"]];
-export const TRADE_COLUMNS = { dir: "방향", prices: "진입 → 청산가", priceRet: "가격 수익률 %", equityRet: "계좌 수익률 %", pnl: "손익 USDT", reason: "청산 이유" };
+export const TRADE_COLUMNS = { dir: "방향", times: "진입·청산 시각(한국시간)", prices: "진입 → 청산가", priceRet: "가격 수익률 %", equityRet: "계좌 수익률 %", pnl: "손익 USDT", reason: "청산 사유" };
 
 export interface Settings {
   theme: "auto" | "dark" | "light";
@@ -41,7 +41,7 @@ export const DEFAULTS: Settings = {
     { id: "votes", show: true, size: "full" }, { id: "ivals", show: true, size: "third" },
     { id: "decisions", show: true, size: "third" }, { id: "trades", show: true, size: "full" },
   ],
-  tradeColumns: { dir: true, prices: true, priceRet: true, equityRet: true, pnl: true, reason: true },
+  tradeColumns: { dir: true, times: true, prices: true, priceRet: true, equityRet: true, pnl: true, reason: true },
   refreshSec: 5, historyBars: 1000, startBars: 200,
   ema: { on: true, period: 20, color: "#e0a030", width: 1.4 },
   bb: { on: true, period: 20, k: 2, fill: true, color: "#9b7fe8", width: 1.4 },
