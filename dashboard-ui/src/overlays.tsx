@@ -5,7 +5,7 @@ import { useChart } from "@/components/charts/chart-context";
 const fmt = (n: number) => n.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
 /** Polyline for a numeric field of the chart data; a null value breaks the line. */
-export function SeriesPath({ field, stroke, dash }: { field: string; stroke: string; dash?: string }) {
+export function SeriesPath({ field, stroke }: { field: string; stroke: string }) {
   const { data, xScale, yScale, xAccessor } = useChart();
   let d = "";
   let pen = false;
@@ -20,7 +20,24 @@ export function SeriesPath({ field, stroke, dash }: { field: string; stroke: str
     d += `${pen ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
     pen = true;
   }
-  return <path d={d} fill="none" stroke={stroke} strokeDasharray={dash} strokeWidth={1.2} pointerEvents="none" />;
+  return <path d={d} fill="none" stroke={stroke} strokeWidth={1.4} strokeLinejoin="round" pointerEvents="none" />;
+}
+
+/** Translucent fill between two data fields (the Bollinger band), like TradingView's band shading. */
+export function BandFill({ upper, lower, fill, fillOpacity }: { upper: string; lower: string; fill: string; fillOpacity: number }) {
+  const { data, xScale, yScale, xAccessor } = useChart();
+  const top: string[] = [];
+  const bottom: string[] = [];
+  for (const row of data) {
+    const u = row[upper];
+    const l = row[lower];
+    if (typeof u !== "number" || typeof l !== "number") continue;
+    const x = xScale(xAccessor(row)).toFixed(1);
+    top.push(`${x},${yScale(u).toFixed(1)}`);
+    bottom.push(`${x},${yScale(l).toFixed(1)}`);
+  }
+  if (top.length < 2) return null;
+  return <polygon points={[...top, ...bottom.reverse()].join(" ")} fill={fill} fillOpacity={fillOpacity} pointerEvents="none" />;
 }
 
 export interface Level {
@@ -30,16 +47,15 @@ export interface Level {
   dash?: string;
 }
 
-/** Horizontal price lines with a value tag on the right edge. Off-scale levels pin to the edge with an arrow. */
+/** Horizontal price lines with a value tag on the right edge. A level outside the visible price range is not drawn. */
 export function PriceLevels({ levels }: { levels: Level[] }) {
   const { yScale, innerWidth, innerHeight } = useChart();
   return (
     <g pointerEvents="none">
       {levels.map((l) => {
-        const raw = yScale(l.price);
-        const y = Math.min(Math.max(raw, 0), innerHeight);
-        const off = raw < 0 ? " ↑" : raw > innerHeight ? " ↓" : "";
-        const text = `${l.label} ${fmt(l.price)}${off}`;
+        const y = yScale(l.price);
+        if (y < 0 || y > innerHeight) return null;
+        const text = `${l.label} ${fmt(l.price)}`;
         const w = text.length * 6.4 + 12;
         return (
           <g key={l.label}>

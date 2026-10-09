@@ -116,3 +116,5 @@ h1 { font-size: 34px; line-height: 1.1; letter-spacing: -.03em; font-weight: 800
 .err { color: var(--down); margin: 8px 0; min-height: 1em; }
 .stack { display: flex; flex-direction: column; gap: 10px; }
 @media (max-width: 600px) { main { padding: 20px 16px; } h1 { font-size: 26px; } }
+.chartstack { cursor: grab; user-select: none; -webkit-user-select: none; }
+.latest { background: var(--inv-bg); color: var(--inv-fg); border: 0; padding: 3px 10px; cursor: pointer; font: 500 12px system-ui, sans-serif; }

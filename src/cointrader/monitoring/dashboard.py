@@ -8,6 +8,7 @@ trading code and has no write path, so it cannot affect trading.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,25 @@ from cointrader.journal.store import LayeredStore
 from cointrader.strategies.daytrade import DayTradeVote
 
 EXTRA_BARS = 60  # history before the first drawn bar, so the indicator lines start at the left edge
+
+# Finished days never change, so parse each one's candles once and reuse them on the 5-second refreshes.
+# Today and yesterday are always re-read (the paper process is still appending, and late records land there).
+_DAY_CACHE: dict[tuple[str, str], dict[str, dict[str, dict]]] = {}
+_DAY_LOCK = threading.Lock()
+
+
+def _day_candles(store: LayeredStore, day: date) -> dict[str, dict[str, dict]]:
+    """{symbol: {open_time: candle}} for the 15m candles recorded on `day`."""
+    out: dict[str, dict[str, dict]] = {}
+    for r in store.read("normalized", start=day, end=day):
+        if r.get("kind") == "candle" and r.get("timeframe") == "15m":
+            out.setdefault(r["symbol"], {})[r["open_time"]] = _candle(r)
+    return out
+
+
+def _candle(r: dict) -> dict:
+    return {"time": _epoch(r["open_time"]), "open": r["o"], "high": r["h"], "low": r["l"], "close": r["c"], "volume": r["v"]}
+
 
 def _epoch(text: str) -> int:
     return int(datetime.fromisoformat(text).timestamp())
@@ -99,16 +119,27 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
                   now: Optional[datetime] = None) -> dict:
     now = now or datetime.now(timezone.utc)
     since: date = (now - timedelta(days=days)).date()
+    fresh_from: date = max(since, (now - timedelta(days=1)).date())
     store = LayeredStore(data_root)
 
     candles: dict[str, dict] = {}
+    day = since
+    while day < fresh_from:
+        key = (str(Path(data_root).resolve()), day.isoformat())
+        with _DAY_LOCK:
+            parsed = _DAY_CACHE.get(key)
+            if parsed is None:
+                parsed = _day_candles(store, day)
+                if parsed:  # an empty day may still get data later, so it is not remembered
+                    _DAY_CACHE[key] = parsed
+        candles.update(parsed.get(symbol, {}))
+        day += timedelta(days=1)
     last_book: Optional[dict] = None
-    for r in store.read("normalized", start=since):
+    for r in store.read("normalized", start=fresh_from):
         if r.get("symbol") != symbol:
             continue
         if r.get("kind") == "candle" and r.get("timeframe") == "15m":
-            candles[r["open_time"]] = {"time": _epoch(r["open_time"]), "open": r["o"], "high": r["h"],
-                                       "low": r["l"], "close": r["c"], "volume": r["v"]}
+            candles[r["open_time"]] = _candle(r)
         elif r.get("kind") == "book_stats_1m" and r.get("mid_price"):
             last_book = r
     full = [candles[k] for k in sorted(candles)][-(bars + EXTRA_BARS):]
@@ -127,7 +158,7 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
 
     state = _load_state(state_dir)
     out = {"symbol": symbol, "as_of": now.isoformat(), "candles": series, "last_price": last_price,
-           "last_price_time": last_price_time, "fills": fills[-40:], "decisions": decisions[-12:],
+           "last_price_time": last_price_time, "fills": fills[-300:], "decisions": decisions[-12:],
            "closed_trades": trades[-10:], "account": None, "position": None, "overlays": overlays, "latest": latest,
            "votes": _votes(symbol_decisions), "rules": _rules()}
     if state:

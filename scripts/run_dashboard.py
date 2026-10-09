@@ -68,7 +68,11 @@ def main() -> int:
                 if symbol not in symbols:
                     self._send(404, b'{"error": "unknown symbol"}', "application/json")
                     return
-                snap = read_snapshot(args.state_dir, args.data_root, symbol)
+                try:  # how many 15m bars of history the chart may scroll back through (default 200)
+                    bars = min(max(int(parse_qs(url.query).get("bars", ["200"])[0]), 50), 2000)
+                except ValueError:
+                    bars = 200
+                snap = read_snapshot(args.state_dir, args.data_root, symbol, bars=bars, days=bars // 96 + 2)
                 self._send(200, json.dumps(snap, ensure_ascii=False, default=str).encode("utf-8"),
                            "application/json; charset=utf-8")
             elif (path := static_file(url.path)) is not None:

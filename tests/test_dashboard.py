@@ -104,3 +104,20 @@ def test_dashboard_page_is_built_and_served_only_from_its_folder():
     assert mod.static_file("/../run_dashboard.py") is None
     assert mod.static_file("/assets/../../run_dashboard.py") is None
     assert mod.static_file("/nope.js") is None
+
+
+def test_snapshot_scrolls_back_over_finished_days_and_reuses_them(tmp_path):
+    store = LayeredStore(tmp_path / "data")
+    for d in range(1, 4):  # three finished days before NOW, two bars each
+        for i in range(2):
+            t = (NOW - timedelta(days=d)).replace(hour=10, minute=15 * i)
+            store.append("normalized", {"kind": "candle", "symbol": "ETHUSDT", "source": "t", "timeframe": "15m",
+                                        "open_time": t.isoformat(), "o": d, "h": d, "l": d, "c": d, "v": 1.0}, at=t + timedelta(minutes=15))
+    first = read_snapshot(tmp_path / "state", tmp_path / "data", "ETHUSDT", bars=50, days=4, now=NOW)
+    assert [c["close"] for c in first["candles"]] == [3, 3, 2, 2, 1, 1]
+    # the finished days now come from the cache: removing their files must not change the answer
+    for p in (tmp_path / "data" / "normalized").glob("*.jsonl"):
+        if p.name[:10] < (NOW - timedelta(days=1)).date().isoformat():
+            p.unlink()
+    again = read_snapshot(tmp_path / "state", tmp_path / "data", "ETHUSDT", bars=50, days=4, now=NOW)
+    assert [c["close"] for c in again["candles"]][:4] == [3, 3, 2, 2]

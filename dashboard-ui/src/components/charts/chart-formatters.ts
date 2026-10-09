@@ -1,5 +1,7 @@
-// Local change: the dashboard draws 15-minute bars, so axis and tooltip labels show the time of day.
+// Local change: the dashboard draws 15-minute bars, so axis and tooltip labels show day and time.
 export const shortDateFmt = new Intl.DateTimeFormat("ko-KR", {
+  month: "numeric",
+  day: "numeric",
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,

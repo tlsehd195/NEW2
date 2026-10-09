@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Candlestick } from "@/components/charts/candlestick";
 import { CandlestickChart } from "@/components/charts/candlestick-chart";
 import { Grid } from "@/components/charts/grid";
@@ -6,7 +6,8 @@ import { Line, LineChart } from "@/components/charts/line-chart";
 import { ChartTooltip } from "@/components/charts/tooltip";
 import { XAxis } from "@/components/charts/x-axis";
 import { YAxis } from "@/components/charts/y-axis";
-import { FillMarks, Guides, PriceLevels, SeriesPath, type Level } from "./overlays";
+import { BandFill, FillMarks, Guides, PriceLevels, SeriesPath, type Level } from "./overlays";
+import { DEFAULT_VIEW, PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
 import type { Snapshot } from "./types";
 
 const fmt = (n: number | null | undefined) => (n == null ? "-" : Number(n).toLocaleString("ko-KR", { maximumFractionDigits: 2 }));
@@ -17,10 +18,15 @@ const NAMES: Record<string, string> = {
   ema_trend: "EMA 추세", donchian_pos: "돈치안 위치", roc: "ROC 모멘텀", rsi: "RSI", bollinger_b: "볼린저 %B", obv_slope: "OBV 기울기",
 };
 const ACTIONS: Record<string, string> = { enter_long: "롱 진입", enter_short: "숏 진입", exit: "청산", hold: "대기" };
-const OVERLAYS: [string, string, string?][] = [
-  ["ema20", "var(--chart-1)"], ["bb_upper", "var(--chart-2)", "3,3"], ["bb_lower", "var(--chart-2)", "3,3"],
-  ["don_high", "var(--chart-3)", "1,3"], ["don_low", "var(--chart-3)", "1,3"],
+// All indicator lines are solid, like TradingView: EMA gold, Bollinger purple (with a band fill), Donchian teal.
+const OVERLAYS: [string, string][] = [
+  ["ema20", "var(--chart-1)"], ["bb_upper", "var(--chart-2)"], ["bb_lower", "var(--chart-2)"],
+  ["don_high", "var(--chart-3)"], ["don_low", "var(--chart-3)"],
 ];
+const FIELDS = [...OVERLAYS.map(([k]) => k), "rsi14", "roc14", "obv"];
+const HISTORY_BARS = 1000; // how far back the chart can scroll (about 10 days of 15m bars)
+
+type Row = { date: Date; open: number; high: number; low: number; close: number } & Record<string, number | Date | null>;
 
 function Row({ k, v, cls }: { k: string; v: ReactNode; cls?: string }) {
   return (
@@ -51,46 +57,39 @@ function OhlcTip({ point }: { point: Record<string, unknown> }) {
   );
 }
 
-function PriceChart({ d, showOverlays }: { d: Snapshot; showOverlays: boolean }) {
-  const data = useMemo(
-    () => d.candles.map((c, i) => ({
-      date: new Date(c.time * 1000), open: c.open, high: c.high, low: c.low, close: c.close,
-      ...Object.fromEntries(OVERLAYS.map(([k]) => [k, d.overlays[k]?.[i] ?? null])),
-    })),
-    [d.candles, d.overlays],
-  );
+function PriceChart({ d, rows, showOverlays }: { d: Snapshot; rows: Row[]; showOverlays: boolean }) {
   const levels: Level[] = [];
   if (d.position?.entry_price) levels.push({ price: d.position.entry_price, label: "진입", color: "var(--acc)" });
   if (d.position?.stop_price) levels.push({ price: d.position.stop_price, label: "손절", color: "var(--down)", dash: "5,4" });
   if (d.last_price) levels.push({ price: d.last_price, label: "현재", color: "#71717a", dash: "2,3" });
   return (
-    <CandlestickChart data={data} aspectRatio="2.1 / 1" margin={{ top: 24, right: 96, bottom: 36, left: 12 }} animationDuration={700} candleGap={0.3}>
-      <Grid horizontal numTicksRows={6} />
-      {showOverlays && OVERLAYS.map(([k, col, dash]) => <SeriesPath key={k} field={k} stroke={col} dash={dash} />)}
+    <CandlestickChart data={rows} aspectRatio="2.1 / 1" margin={{ top: 24, right: PLOT_RIGHT, bottom: 36, left: PLOT_LEFT }} animationDuration={700} candleGap={0.3}>
+      <Grid horizontal numTicksRows={6} strokeDasharray="none" strokeOpacity={0.7} />
+      {showOverlays && <BandFill upper="bb_upper" lower="bb_lower" fill="var(--chart-2)" fillOpacity={0.07} />}
+      {showOverlays && OVERLAYS.map(([k, col]) => <SeriesPath key={k} field={k} stroke={col} />)}
       <Candlestick />
       <FillMarks fills={d.fills} />
       <PriceLevels levels={levels} />
       <YAxis orientation="right" numTicks={6} formatValue={(v) => fmt(v)} />
-      <XAxis numTicks={7} />
+      <XAxis numTicks={6} />
       <ChartTooltip showDots={false} content={({ point }) => <OhlcTip point={point} />} />
     </CandlestickChart>
   );
 }
 
-function IndicatorPanel({ d, field, name, color, guides, show }: {
-  d: Snapshot; field: string; name: string; color: string; guides: number[]; show: (v: number) => string;
+function IndicatorPanel({ rows, field, name, color, guides, show }: {
+  rows: Row[]; field: string; name: string; color: string; guides: number[]; show: (v: number) => string;
 }) {
-  const data = useMemo(
-    () => d.candles.map((c, i) => ({ date: new Date(c.time * 1000), v: d.overlays[field]?.[i] })).filter((r) => typeof r.v === "number"),
-    [d.candles, d.overlays, field],
-  );
+  const data = useMemo(() => rows.map((r) => ({ date: r.date, v: r[field] })).filter((r) => typeof r.v === "number"), [rows, field]);
   const last = data.length ? (data[data.length - 1].v as number) : null;
+  const domain: [Date, Date] | undefined = rows.length > 1 ? [rows[0].date, rows[rows.length - 1].date] : undefined;
   return (
     <div className="frame">
       <div className="panel-title mono">{name} {last == null ? "" : show(last)}</div>
       {data.length > 1 ? (
-        <LineChart data={data} aspectRatio="7 / 1" margin={{ top: 30, right: 96, bottom: 10, left: 12 }} animationDuration={700}>
-          <Grid horizontal numTicksRows={3} />
+        <LineChart data={data} aspectRatio="7 / 1" margin={{ top: 30, right: PLOT_RIGHT, bottom: 10, left: PLOT_LEFT }} animationDuration={700}
+          xDomain={domain} xDomainSlotCount={rows.length} yDomainTween={false}>
+          <Grid horizontal numTicksRows={3} strokeDasharray="none" strokeOpacity={0.7} />
           <Guides values={guides} />
           <Line dataKey="v" stroke={color} strokeWidth={1.6} fadeEdges={false} />
           <ChartTooltip showDatePill={false} rows={(p) => [{ color, label: name, value: show(p.v as number) }]} />
@@ -147,6 +146,8 @@ export default function App() {
   const [err, setErr] = useState("");
   const [asOf, setAsOf] = useState("불러오는 중…");
   const [showOverlays, setShowOverlays] = useState(true);
+  const [view, setView] = useState<View>(DEFAULT_VIEW);
+  const stackRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/config").then((r) => r.json()).then((c: { symbols: string[] }) => {
@@ -161,7 +162,7 @@ export default function App() {
     let live = true;
     const load = async () => {
       try {
-        const snap: Snapshot = await (await fetch("/api/snapshot?symbol=" + sym)).json();
+        const snap: Snapshot = await (await fetch("/api/snapshot?bars=" + HISTORY_BARS + "&symbol=" + sym)).json();
         if (!live) return;
         setD(snap); setErr("");
         setAsOf("갱신 " + new Date().toLocaleTimeString("ko-KR", { hour12: false }) + " · 5초마다 자동 갱신 · 차트는 닫힌 15분봉");
@@ -174,6 +175,18 @@ export default function App() {
     return () => { live = false; clearInterval(t); };
   }, [sym]);
 
+  // every candle the server sent, with its indicator values; the chart shows the window chosen by drag / wheel
+  const allRows = useMemo<Row[]>(
+    () => (d?.candles ?? []).map((c, i) => ({
+      date: new Date(c.time * 1000), open: c.open, high: c.high, low: c.low, close: c.close,
+      ...Object.fromEntries(FIELDS.map((k) => [k, d?.overlays[k]?.[i] ?? null])),
+    })),
+    [d],
+  );
+  const times = useMemo(() => (d?.candles ?? []).map((c) => c.time), [d]);
+  usePanZoom(stackRef, times, view, setView);
+  const [from, to] = windowOf(times, view);
+  const rows = useMemo(() => allRows.slice(from, to), [allRows, from, to]);
   const p = d?.position, a = d?.account, L = d?.latest ?? {};
   return (
     <main>
@@ -181,25 +194,27 @@ export default function App() {
       <div className="mono">{asOf}</div>
       <div className="tabs">
         {symbols.map((s) => (
-          <button key={s} className={s === sym ? "on" : ""} onClick={() => { setSym(s); location.hash = s; setD(null); }}>{s}</button>
+          <button key={s} className={s === sym ? "on" : ""} onClick={() => { setSym(s); location.hash = s; setD(null); setView(DEFAULT_VIEW); }}>{s}</button>
         ))}
       </div>
       <div className="legend">
         <label><input type="checkbox" checked={showOverlays} onChange={(e) => setShowOverlays(e.target.checked)} /> 지표선 표시</label>
         <span style={{ color: "var(--chart-1)" }}>━ EMA20</span>
-        <span style={{ color: "var(--chart-2)" }}>┅ 볼린저(20,2)</span>
-        <span style={{ color: "var(--chart-3)" }}>┈ 돈치안(20)</span>
+        <span style={{ color: "var(--chart-2)" }}>━ 볼린저(20,2)</span>
+        <span style={{ color: "var(--chart-3)" }}>━ 돈치안(20)</span>
         <span className="muted">· 아래 패널: RSI, ROC, OBV</span>
+        <span className="muted">· 드래그: 과거로 이동 · 휠: 확대/축소 · 더블클릭: 처음으로</span>
+        {view.endTime != null && <button className="latest" onClick={() => setView({ ...view, endTime: null })}>최신으로 ▶</button>}
       </div>
-      <div className="stack">
+      <div className="stack chartstack" ref={stackRef}>
         <div className="frame">
-          {d && d.candles.length ? <PriceChart d={d} showOverlays={showOverlays} /> : <div className="muted" style={{ padding: 20, height: 300 }}>봉 데이터를 기다리는 중…</div>}
+          {d && rows.length ? <PriceChart d={d} rows={rows} showOverlays={showOverlays} /> : <div className="muted" style={{ padding: 20, height: 300 }}>봉 데이터를 기다리는 중…</div>}
         </div>
-        {d && d.candles.length > 0 && (
+        {d && rows.length > 0 && (
           <>
-            <IndicatorPanel d={d} field="rsi14" name="RSI(14)" color="var(--chart-1)" guides={[30, 50, 70]} show={(v) => v.toFixed(1)} />
-            <IndicatorPanel d={d} field="roc14" name="ROC(14)" color="var(--chart-4)" guides={[0]} show={(v) => (v * 100).toFixed(2) + "%"} />
-            <IndicatorPanel d={d} field="obv" name="OBV (거래량 누적 흐름)" color="var(--chart-5)" guides={[]} show={(v) => fmt(v)} />
+            <IndicatorPanel rows={rows} field="rsi14" name="RSI(14)" color="var(--chart-1)" guides={[30, 50, 70]} show={(v) => v.toFixed(1)} />
+            <IndicatorPanel rows={rows} field="roc14" name="ROC(14)" color="var(--chart-4)" guides={[0]} show={(v) => (v * 100).toFixed(2) + "%"} />
+            <IndicatorPanel rows={rows} field="obv" name="OBV (거래량 누적 흐름)" color="var(--chart-5)" guides={[]} show={(v) => fmt(v)} />
           </>
         )}
       </div>
