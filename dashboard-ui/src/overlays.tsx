@@ -6,7 +6,7 @@ import type { FillKind, Snapshot } from "./types";
 const fmt = (n: number) => n.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
 
 /** Polyline for a numeric field of the chart data; a null value breaks the line. */
-export function SeriesPath({ field, stroke }: { field: string; stroke: string }) {
+export function SeriesPath({ field, stroke, width }: { field: string; stroke: string; width: number }) {
   const { data, xScale, yScale, xAccessor } = useChart();
   let d = "";
   let pen = false;
@@ -21,7 +21,7 @@ export function SeriesPath({ field, stroke }: { field: string; stroke: string })
     d += `${pen ? "L" : "M"}${x.toFixed(1)},${y.toFixed(1)}`;
     pen = true;
   }
-  return <path d={d} fill="none" stroke={stroke} strokeWidth={1.4} strokeLinejoin="round" pointerEvents="none" />;
+  return <path d={d} fill="none" stroke={stroke} strokeWidth={width} strokeLinejoin="round" pointerEvents="none" />;
 }
 
 /** Translucent fill between two data fields (the Bollinger band), like TradingView's band shading. */
@@ -82,9 +82,9 @@ export const FILL_STYLES: Record<FillKind, { label: string; name: string; color:
 };
 
 /** Entry / exit marks for the candle each fill landed in. Text labels only when the view is zoomed in enough to read. */
-export function FillMarks({ fills }: { fills: Snapshot["fills"] }) {
+export function FillMarks({ fills, showLabels }: { fills: Snapshot["fills"]; showLabels: boolean }) {
   const { data, xScale, yScale, xAccessor } = useChart();
-  const labels = data.length <= 140;
+  const labels = showLabels && data.length <= 140;
   return (
     <g pointerEvents="none">
       {fills.map((f, k) => {

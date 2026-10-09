@@ -8,7 +8,6 @@ export interface View {
   endTime: number | null;
 }
 
-export const DEFAULT_VIEW: View = { count: 200, endTime: null };
 export const MIN_BARS = 20;
 // Must match the chart margins in App.tsx: the plot area is the container minus these.
 export const PLOT_LEFT = 12;
@@ -33,9 +32,9 @@ const viewFor = (times: number[], count: number, end: number): View => ({
   endTime: end >= times.length ? null : times[end - 1],
 });
 
-export function usePanZoom(ref: RefObject<HTMLElement | null>, times: number[], view: View, setView: (v: View) => void) {
-  const live = useRef({ times, view, setView });
-  live.current = { times, view, setView };
+export function usePanZoom(ref: RefObject<HTMLElement | null>, times: number[], view: View, setView: (v: View) => void, home: View) {
+  const live = useRef({ times, view, setView, home });
+  live.current = { times, view, setView, home };
 
   useEffect(() => {
     const el = ref.current;
@@ -86,7 +85,7 @@ export function usePanZoom(ref: RefObject<HTMLElement | null>, times: number[], 
       drag = null;
       el.style.cursor = "";
     };
-    const onDouble = () => live.current.setView(DEFAULT_VIEW);
+    const onDouble = () => live.current.setView(live.current.home);
 
     el.addEventListener("wheel", onWheel, { passive: false });
     el.addEventListener("pointerdown", onDown);
