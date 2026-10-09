@@ -22,7 +22,7 @@
    `daytrade_indicator_vote_h48_c0.6_t2.5_v1`. 거리는 손절폭과 같은 2.5 ATR(진입 직후부터 손절선이 따라감).
    결과를 보고 고른 값이 아니다.
 3. `.github/workflows/screening.yml`: `run_screening.py`를 수동 실행하고, 장부·예약 줄을 출력해 저장소에 옮겨 적는다.
-4. 첫 선별: BTCUSDT 15m, 2023-04-06 ~ 2024-06-18(잠긴 구간 TEST-12·TEST-17 사이), 켬/끔 4개 후보.
+4. 첫 선별: BTCUSDT 15m, 2023-04-20 ~ 2024-06-18(잠긴 구간 TEST-12·TEST-17 사이, 시작은 워밍업 약 12일이 TEST-17에 닿지 않게 ADR-0042와 같은 날), 켬/끔 4개 후보.
    이 범위 끝 20%가 BTCUSDT 결선 TEST로 예약된다.
 
 ## Consequences

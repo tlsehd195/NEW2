@@ -18,7 +18,7 @@ on:
         default: "15m"
       start:
         required: true
-        default: "2023-04-06"
+        default: "2023-04-20"
       end:
         description: "Exclusive; the last 20% is reserved for the final exam and never loaded"
         required: true
