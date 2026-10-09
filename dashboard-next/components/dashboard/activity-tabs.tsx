@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import type { Snapshot } from "@/lib/types"
@@ -14,15 +15,28 @@ function Direction({ long }: { long: boolean }) {
   return <span className={cn("text-xs font-semibold", long ? "text-up" : "text-down")}>{long ? "롱" : "숏"}</span>
 }
 
+type Side = "all" | "long" | "short"
+const SIDES: { value: Side; label: string }[] = [
+  { value: "all", label: "전체" },
+  { value: "long", label: "롱" },
+  { value: "short", label: "숏" },
+]
+
 export function ActivityTabs({ snapshot }: { snapshot: Snapshot }) {
-  const trades = [...snapshot.closed_trades].reverse()
+  const [side, setSide] = useState<Side>("all")
+  const trades = [...snapshot.closed_trades]
+    .reverse()
+    .filter((t) => side === "all" || t.direction === (side === "long" ? 1 : -1))
   const decisions = [...snapshot.decisions].reverse()
-  const fills = snapshot.fills.filter((f) => f.kind).slice(-30).reverse()
+  const fills = snapshot.fills
+    .filter((f) => f.kind && (side === "all" || f.kind.startsWith(side)))
+    .slice(-30)
+    .reverse()
 
   return (
     <section aria-label="거래 기록" className="rounded-lg border border-border bg-card">
       <Tabs defaultValue="trades" className="gap-0">
-        <div className="border-b border-border px-3 pt-2">
+        <div className="flex items-end border-b border-border px-3 pt-2">
           <TabsList variant="line" className="h-9">
             <TabsTrigger value="trades" className="px-2 text-xs">
               청산 거래 <span className="text-muted-foreground">{trades.length}</span>
@@ -34,6 +48,24 @@ export function ActivityTabs({ snapshot }: { snapshot: Snapshot }) {
               체결 <span className="text-muted-foreground">{fills.length}</span>
             </TabsTrigger>
           </TabsList>
+          <div role="group" aria-label="롱·숏 보기" className="ml-auto flex items-center gap-1 pb-1.5 text-xs">
+            {SIDES.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                aria-pressed={side === s.value}
+                onClick={() => setSide(s.value)}
+                className={cn(
+                  "rounded-md px-2 py-1 font-medium transition-colors",
+                  side === s.value
+                    ? s.value === "long" ? "bg-up/15 text-up" : s.value === "short" ? "bg-down/15 text-down" : "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <TabsContent value="trades" className="overflow-x-auto">
@@ -67,7 +99,7 @@ export function ActivityTabs({ snapshot }: { snapshot: Snapshot }) {
               </TableBody>
             </Table>
           ) : (
-            <Empty text="아직 청산된 거래가 없어요" />
+            <Empty text={side === "all" ? "아직 청산된 거래가 없어요" : `${side === "long" ? "롱" : "숏"} 청산 거래가 없어요`} />
           )}
         </TabsContent>
 
@@ -130,7 +162,7 @@ export function ActivityTabs({ snapshot }: { snapshot: Snapshot }) {
               </TableBody>
             </Table>
           ) : (
-            <Empty text="체결 내역이 없어요" />
+            <Empty text={side === "all" ? "체결 내역이 없어요" : `${side === "long" ? "롱" : "숏"} 체결이 없어요`} />
           )}
         </TabsContent>
       </Tabs>
