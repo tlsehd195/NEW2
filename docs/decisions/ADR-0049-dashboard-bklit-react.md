@@ -52,3 +52,5 @@ bklit UI는 shadcn 레지스트리로 배포되는 React + visx 부품이라 브
 - 기간을 바꿀 수 있게 하려고 차트의 지표선은 브라우저에서 계산한다(`src/indicators.ts`). `features/indicators.py`와 같은 식·같은 창
   (EMA·RSI는 기간×4)이라 기본 기간에서는 같은 값이다(`npm run check-indicators`로 서버 값과 비교, 최대 상대 차이 1e-15). 서버가 주는
   `overlays`는 이제 화면에서 쓰지 않지만 API에는 남겨 두었다. 앞쪽 봉은 기간×4만큼 선이 없다(웜업).
+- Next.js 판(`dashboard-next/`): 사용자가 올린 별도 디자인(lightweight-charts)을 그대로 저장소에 넣었다. 같은 `/api/snapshot`을 `TRADER_API_URL`로 읽고,
+  Vercel Analytics는 뺐다. 실행에 Node가 필요하므로 기본 화면은 계속 `dashboard-ui/`(파이썬만 필요)이고, 이 판은 선택 사항이다.
