@@ -35,14 +35,15 @@ import json
 import os
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Callable, Iterable, Optional
 
 from cointrader.backtest.event_engine import TradeRecord
 from cointrader.data.feed import FeedEvent
-from cointrader.data.market_events import BookTicker, DataQualityEvent, MarkPriceUpdate, TradeTick
+from cointrader.data.market_events import BookTicker, DataQualityEvent, DepthDelta, MarkPriceUpdate, TradeTick
 from cointrader.data.models import Candle
+from cointrader.data.orderbook import DepthSnapshot, LocalOrderBook
 from cointrader.data.quality_gate import QualityLimits, evaluate_data_quality
 from cointrader.data.realtime import FeedHealthMonitor
 from cointrader.execution.engine import ExecutionEngine, OrderStore
@@ -65,6 +66,11 @@ from cointrader.strategies.base import MarketContext
 STATE_VERSION = 1
 
 
+def _time_stop_reason(max_hold_bars: int, bar_length: timedelta) -> str:
+    hours = max_hold_bars * bar_length.total_seconds() / 3600
+    return f"시간손절({int(hours) if hours == int(hours) else round(hours, 1)}시간)"
+
+
 @dataclass(frozen=True)
 class PaperConfig:
     state_dir: Path
@@ -80,6 +86,9 @@ class PaperConfig:
     record_raw: bool = False
     large_trade_quantity: dict = field(default_factory=dict)
     quality_limits: QualityLimits = QualityLimits()
+    depth_levels: int = 20  # order-book levels handed to the broker for market-order fills
+    depth_every: timedelta = timedelta(milliseconds=200)  # at most one book snapshot to the broker per interval
+    depth_resync_every: timedelta = timedelta(seconds=30)  # wait between REST snapshot attempts of an unsynced book
 
 
 @dataclass
@@ -146,7 +155,13 @@ class PaperTrader:
         broker: Optional[PaperBroker] = None,
         margin_policy=None,  # risk.margin_policy.MarginPolicy | None (ADR-0037)
         margin_tiers: Optional[dict] = None,  # symbol -> [MarginTier]
+        depth_snapshot: Optional[Callable[[str], DepthSnapshot]] = None,  # public REST /fapi/v1/depth; None = no book
     ) -> None:
+        self._depth_snapshot = depth_snapshot
+        self._order_books: dict[str, LocalOrderBook] = {}
+        self._depth_last_sync_try: dict[str, datetime] = {}
+        self._depth_last_push: dict[str, datetime] = {}
+        self._entries_by_day: dict[str, int] = {}  # "strategy|symbol|UTC date" -> entries (max_entries_per_day)
         self.margin_policy = margin_policy
         self.margin_tiers = margin_tiers or {}
         self.cfg = config
@@ -277,6 +292,7 @@ class PaperTrader:
             "equity_points": [[p.at.isoformat(), p.equity] for p in self.equity_points],
             "closed_trades": [[t.closed_at.isoformat(), t.net_return] for t in self.closed_trades],
             "trade_seq": self.trade_seq,
+            "entries_by_day": self._entries_by_day,
             "last_candle": {f"{s}|{tf}": b[-1].open_time.isoformat() for (s, tf), b in self._history.items() if b},
         }
         tmp = self.state_path.with_name(self.state_path.name + ".tmp")
@@ -298,6 +314,7 @@ class PaperTrader:
         self.equity_points = [EquityPoint(datetime.fromisoformat(a), e) for a, e in state["equity_points"]]
         self.closed_trades = [ClosedTrade(datetime.fromisoformat(a), r) for a, r in state["closed_trades"]]
         self.trade_seq = state["trade_seq"]
+        self._entries_by_day = {k: int(v) for k, v in state.get("entries_by_day", {}).items()}
 
     # ------------------------------------------------------------- the loop
     def process(self, item) -> None:
@@ -323,6 +340,8 @@ class PaperTrader:
             self._on_book(item)
         elif isinstance(item, TradeTick):
             self._on_trade(item)
+        elif isinstance(item, DepthDelta):
+            self._on_depth(item)
         elif isinstance(item, MarkPriceUpdate):
             paid = self.broker.on_mark_price(item)
             t = self.open_trades.get(item.symbol)
@@ -359,6 +378,44 @@ class PaperTrader:
         trade = self.open_trades.get(t.symbol)
         if trade is not None and trade.state == "open":
             self._manage_open_trade(trade, t)
+
+    def _on_depth(self, d: DepthDelta) -> None:
+        """Keeps a local order book per symbol and hands the broker a snapshot, so market orders fill through
+        the real depth instead of the best quote only. Deltas are never journaled (100 ms stream); only a
+        sequence gap is, and a missing or unsynced book simply leaves the best-quote fallback in place."""
+        if d.symbol not in self.symbols or self._depth_snapshot is None:
+            return
+        book = self._order_books.setdefault(d.symbol, LocalOrderBook(d.symbol))
+        if book.needs_snapshot:  # no snapshot yet: buffer, then fetch one (throttled)
+            book.apply(d)
+            last = self._depth_last_sync_try.get(d.symbol)
+            if last is None or d.received_at - last >= self.cfg.depth_resync_every:
+                self._depth_last_sync_try[d.symbol] = d.received_at
+                try:
+                    snapshot = self._depth_snapshot(d.symbol)
+                except Exception as exc:  # noqa: BLE001 -- REST trouble must never stop the paper loop
+                    self.store.append("audit", {"event": "depth_snapshot_failed", "symbol": d.symbol,
+                                                "detail": f"{type(exc).__name__}: {exc}"}, at=self._now)
+                    return
+                for ev in book.load_snapshot(snapshot):
+                    self._journal_depth_gap(ev)
+        else:
+            ev = book.apply(d)
+            if ev is not None:
+                self._journal_depth_gap(ev)  # the book reset itself; the next delta triggers a fresh snapshot
+        if not book.synced:
+            return
+        last_push = self._depth_last_push.get(d.symbol)
+        if last_push is not None and d.received_at - last_push < self.cfg.depth_every:
+            return
+        self._depth_last_push[d.symbol] = d.received_at
+        self.broker.on_depth(book.snapshot(d.received_at, depth=self.cfg.depth_levels))
+
+    def _journal_depth_gap(self, ev: DataQualityEvent) -> None:
+        # Not added to _recent_quality: a lost depth book only degrades fills to the best quote, it must not block trading.
+        self.store.append("quality", {"kind": ev.kind, "symbol": ev.symbol, "detail": ev.detail,
+                                      "blocks_trading": False, "source": ev.source,
+                                      "event_type": "DATA_QUALITY_EVENT"}, at=self._now)
 
     def _on_trade(self, t: TradeTick) -> None:
         if self.cfg.record_raw:
@@ -432,12 +489,21 @@ class PaperTrader:
         if trade is not None and trade.strategy_id == sid:
             trade.bars_held += 1
             wants_exit = (trade.direction > 0 and signal.exit_long) or (trade.direction < 0 and signal.exit_short)
+            max_hold = getattr(strategy, "max_hold_bars", None)  # same knob the backtest engine enforces
             if trade.state == "open" and wants_exit:
                 cid = self._submit_exit(trade, f"signal_exit:{signal.reason}")
                 action, reason = "exit", f"signal_exit:{signal.reason}"
+            elif (trade.state == "open" and trade.pending_exit is None and max_hold is not None
+                  and trade.bars_held >= max_hold):
+                stop_reason = _time_stop_reason(max_hold, bar.timeframe.delta)
+                cid = self._submit_exit(trade, stop_reason)
+                action, reason = "exit", stop_reason
         elif signal.entry != 0:
+            cap = getattr(strategy, "max_entries_per_day", None)
             if trade is not None:
                 action, reason = "blocked", f"symbol_position_owned_by:{trade.strategy_id}"
+            elif cap is not None and self._entries_by_day.get(self._entry_day_key(sid, symbol, now), 0) >= cap:
+                action, reason = "blocked", "entry_cap_per_day"  # same key the backtest engine reports
             else:
                 action, reason, risk_info, cid, quality_info = self._try_entry(sid, version, strategy, bar, history,
                                                                               signal, features, regime)
@@ -463,6 +529,10 @@ class PaperTrader:
             self.counters["blocked"] += 1
         if action.startswith("enter") and cid:
             self.open_trades[symbol].decision_id = rec["decision_id"]
+
+    @staticmethod
+    def _entry_day_key(sid: str, symbol: str, now: datetime) -> str:
+        return f"{sid}|{symbol}|{now.astimezone(timezone.utc).date().isoformat()}"
 
     def _try_entry(self, sid, version, strategy, bar, history, signal, features, regime):
         now = self._clock()
@@ -530,6 +600,10 @@ class PaperTrader:
             decided_at=now.isoformat(), expected_entry_slippage=half_spread,
         )
         self.counters["entries"] += 1
+        day_key = self._entry_day_key(sid, symbol, now)
+        today = day_key.rsplit("|", 1)[1]
+        self._entries_by_day = {k: v for k, v in self._entries_by_day.items() if k.endswith(today)}  # drop older days
+        self._entries_by_day[day_key] = self._entries_by_day.get(day_key, 0) + 1
         self.notifier.notify(Severity.TRADE, f"entry {side} {symbol}",
                              f"{sid} qty={decision.quantity} stop={decision.stop_price} ({signal.reason})", at=now)
         return ("enter_long" if signal.entry > 0 else "enter_short"), signal.reason, risk_info, \

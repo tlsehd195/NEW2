@@ -45,7 +45,8 @@ LEARNING_TIMEFRAME = "15m"  # single timeframe (project decision 2026-10-02)
 WARMUP_MARGIN = 20  # extra bars so one missed stream bar does not drop a strategy back to warm-up
 
 
-def build_trader(paper_cfg: dict, *, notifier: Optional[Notifier] = None, root: Path = REPO) -> PaperTrader:
+def build_trader(paper_cfg: dict, *, notifier: Optional[Notifier] = None, root: Path = REPO,
+                 depth_snapshot=None) -> PaperTrader:
     filters, large, verified = load_markets()
     registry = StrategyRegistry.load()
     strategies = {}
@@ -74,7 +75,8 @@ def build_trader(paper_cfg: dict, *, notifier: Optional[Notifier] = None, root: 
     trader = PaperTrader(config=config, strategies=strategies, symbols=paper_cfg["symbols"],
                          risk=RiskEngine(load_risk(), filters), filters=filters,
                          margin_policy=mp, margin_tiers=mt,
-                         store=LayeredStore(root / paper_cfg["data_root"]), notifier=notifier)
+                         store=LayeredStore(root / paper_cfg["data_root"]), notifier=notifier,
+                         depth_snapshot=depth_snapshot)
     if not mp_verified:
         trader.notifier.notify(Severity.WARNING, "margin tiers assumed",
                                "configs/margin_policy.json tiers are an unverified snapshot (strict on purpose)",

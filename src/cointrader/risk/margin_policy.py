@@ -12,9 +12,9 @@ Two checks that make paper/live match what the backtest already assumes
   before any live order; Binance's default is cross margin at a high
   leverage, which would silently differ from every backtest.
 
-Neither function changes an exchange setting or places an order. Not yet
-wired into the paper/live entry path: that waits on the owner's A/B
-choice in ADR-0037.
+Neither function changes an exchange setting or places an order. Wired
+into the paper entry path (`paper.engine.PaperTrader._try_entry`, ADR-0038,
+owner chose A in ADR-0037); not yet wired into any live path.
 """
 
 from __future__ import annotations
