@@ -109,6 +109,10 @@ def main(argv=None):
                    "liquidation uses assumed tiers (scaled by mmr_scale) and the bar high; tax is the unverified 2027 estimate"}))
     for row in rows:
         print(json.dumps(row))
+    print("FX", json.dumps(fx))
+    for r in rows:
+        print("ROW", r["leverage"], "filter" if r["funding_filter"] else "always", "usdt_apr", r["net_apr_pct"],
+              "krw_apr_with_fx", r.get("krw_apr_with_fx_pct"), "liq", r["liquidations"])
     return 0
 
 
