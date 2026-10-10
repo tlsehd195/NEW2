@@ -9,14 +9,15 @@ on:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        symbol: [BTCUSDT, ETHUSDT]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: python -m pip install -e ".[dev]"
-      - name: BTCUSDT
-        run: python3 scripts/diagnose_5m.py --symbol BTCUSDT --start 2023-04-20 --end 2024-03-25
-      - name: ETHUSDT
-        run: python3 scripts/diagnose_5m.py --symbol ETHUSDT --start 2023-04-20 --end 2024-03-25
+      - run: python3 scripts/diagnose_5m.py --symbol ${{ matrix.symbol }} --start 2023-04-20 --end 2024-03-25

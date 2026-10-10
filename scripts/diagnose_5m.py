@@ -89,7 +89,8 @@ def vote(candles, ok, horizons):
     n = len(candles)
     for name, extra in (("scaled", SCALED), ("bars_unchanged", {"timeframe": "5m"})):
       for h in horizons:
-        strat = DayTradeVote(horizon=h, max_hold_bars=3 * 48, **extra)
+        kw = {"fit_lookback": max(1000, 10 * h), **extra}
+        strat = DayTradeVote(horizon=h, max_hold_bars=3 * 48, **kw)
         first = strat.warmup + 2
         tr, tr1, tr2, ups, ps = [], [], [], [], []
         half = (first + n) // 2

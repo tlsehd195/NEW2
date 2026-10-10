@@ -1,10 +1,11 @@
-# NEW2 — 코인 15분봉 단타(데이트레이딩)
+# NEW2 — 코인 15분봉·5분봉 단타(데이트레이딩)
 
 암호화폐 트레이딩 연구·검증·매매 시스템입니다.
 [NEW-](https://github.com/tlsehd195/NEW-) 프로젝트에서 검증된 설계 원칙(과최적화 검정,
 잠긴 TEST 구간, 사람만 해제하는 킬 스위치, 사람 승인 없는 실거래 불가)을 이어받았고,
-**15분봉 하나만 쓰는 롱·숏 단타**를 목표로 합니다. 한 번 거래에 약 3% 이상을 노리고
-몇 시간 보유합니다(최대 12시간). 스캘핑, 일봉 스윙, 여러 시간단위를 섞는 방식, 5분봉은
+**15분봉 또는 5분봉 한 가지만 쓰는 롱·숏 단타**를 목표로 합니다(전략마다 시간단위 하나, 섞지 않음.
+5분봉은 2026-10-10 허용, [ADR-0066](docs/decisions/ADR-0066-5m-timeframe-unlocked.md)). 한 번 거래에 약 3% 이상을 노리고
+몇 시간 보유합니다(최대 12시간). 1분 스캘핑, 일봉 스윙, 여러 시간단위를 섞는 방식은
 쓰지 않습니다. 결정 배경: [ADR-0030](docs/decisions/ADR-0030-daytrade-multitimeframe-proposal.md),
 [ADR-0031](docs/decisions/ADR-0031-daytrade-kind-and-combined-cap.md),
 [ADR-0032](docs/decisions/ADR-0032-daytrade-15m-vote.md). 예전 스윙 후보·가설·잠금은 기록으로만
