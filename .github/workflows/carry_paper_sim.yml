@@ -14,19 +14,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {symbol: BTCUSDT, start: "2021-01-01", end: "2022-08-17", scale: "0.5"}
-          - {symbol: ETHUSDT, start: "2021-01-01", end: "2022-08-17", scale: "0.5"}
-          - {symbol: BTCUSDT, start: "2023-04-20", end: "2024-03-25", scale: "0.5"}
           - {symbol: BTCUSDT, start: "2021-01-01", end: "2022-08-17", scale: "1.0"}
           - {symbol: ETHUSDT, start: "2021-01-01", end: "2022-08-17", scale: "1.0"}
           - {symbol: BTCUSDT, start: "2023-04-20", end: "2024-03-25", scale: "1.0"}
-          - {symbol: BTCUSDT, start: "2021-01-01", end: "2022-08-17", scale: "2.0"}
-          - {symbol: ETHUSDT, start: "2021-01-01", end: "2022-08-17", scale: "2.0"}
-          - {symbol: BTCUSDT, start: "2023-04-20", end: "2024-03-25", scale: "2.0"}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
       - run: python -m pip install -e ".[dev]"
-      - run: python3 scripts/run_carry_paper_sim.py --symbol ${{ matrix.symbol }} --start ${{ matrix.start }} --end ${{ matrix.end }} --mmr-scale ${{ matrix.scale }}
+      - run: python3 scripts/run_carry_paper_sim.py --symbol ${{ matrix.symbol }} --start ${{ matrix.start }} --end ${{ matrix.end }} --mmr-scale ${{ matrix.scale }} --fx

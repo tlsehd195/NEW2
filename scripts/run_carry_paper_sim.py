@@ -22,6 +22,7 @@ from cointrader.carry.runner import CarryParams, CarryRunner  # noqa: E402
 from cointrader.data.binance_vision import (  # noqa: E402
     BinanceVisionFundingRateHistory, BinanceVisionFuturesCandles, BinanceVisionSpotCandles)
 from cointrader.data.models import Timeframe  # noqa: E402
+from cointrader.data.upbit_rest import UpbitRestCandles  # noqa: E402
 from cointrader.carry.krw import after_tax_view  # noqa: E402
 from cointrader.risk.leverage import MarginTier  # noqa: E402
 from cointrader.settings import load_krw_accounting, load_margin_policy  # noqa: E402
@@ -43,6 +44,20 @@ def overlaps_locked(symbol, start, end):
     return bad
 
 
+def fx_summary(start, end):
+    """KRW per USDT over the window from Upbit daily candles: start/end rate, change, worst dip and spike vs start.
+    Unavailable (with the reason) when the market has no data within 14 days of the start."""
+    c = [x for x in UpbitRestCandles().fetch("KRW-USDT", Timeframe.DAY_1, start, end)]
+    if not c:
+        return {"available": False, "reason": "no KRW-USDT candles"}
+    if (c[0].open_time - start).days > 14:
+        return {"available": False, "reason": f"KRW-USDT data starts {c[0].open_time.date()}"}
+    r0, r1 = c[0].open, c[-1].close
+    return {"available": True, "first_day": str(c[0].open_time.date()), "start_rate": r0, "end_rate": r1,
+            "change": r1 / r0 - 1, "worst_dip_pct": round(100 * (min(x.low for x in c) / r0 - 1), 2),
+            "worst_spike_pct": round(100 * (max(x.high for x in c) / r0 - 1), 2), "days": len(c)}
+
+
 def main(argv=None):
     p = argparse.ArgumentParser()
     p.add_argument("--symbol", required=True)
@@ -55,6 +70,7 @@ def main(argv=None):
     p.add_argument("--slippage", type=float, default=0.0)
     p.add_argument("--mmr-scale", type=float, default=1.0, help="stress: multiply the assumed maintenance rates/amounts")
     p.add_argument("--krw-per-usdt", type=float, default=1400.0, help="held fixed; FX moves are not modelled")
+    p.add_argument("--fx", action="store_true", help="add KRW/USDT change over the window (Upbit KRW-USDT daily candles)")
     p.add_argument("--krw-capitals", default="10000000,30000000,100000000")
     p.add_argument("--capital-cost-apr", type=float, default=0.04)
     a = p.parse_args(argv)
@@ -72,6 +88,7 @@ def main(argv=None):
     perp = BinanceVisionFuturesCandles().fetch(a.symbol, Timeframe.HOUR_1, start, end)
     spot = BinanceVisionSpotCandles().fetch(a.symbol, Timeframe.HOUR_1, start, end)
     costs = CarryCosts(a.spot_fee, a.perp_fee, a.slippage)
+    fx = fx_summary(start, end) if a.fx else None
     rows = []
     for filt in (False, True):
         for lev in (float(x) for x in a.leverages.split(",")):
@@ -81,9 +98,12 @@ def main(argv=None):
             row["krw_after_tax"] = [after_tax_view(net_apr_pct=row["net_apr_pct"], capital_krw=c,
                                                    krw_per_usdt=a.krw_per_usdt, tax=tax, exit_costs=exit_costs)
                                     for c in capitals]
+            if fx and fx.get("available"):
+                row["krw_apr_with_fx_pct"] = round(100 * ((1 + row["net_return_pct"] / 100) * (1 + fx["change"]) - 1)
+                                                   * 365 / row["days"], 2)
             rows.append(row)
     print(json.dumps({
-        "symbol": a.symbol, "costs": asdict(costs), "mmr_scale": a.mmr_scale, "krw_per_usdt_fixed": a.krw_per_usdt,
+        "symbol": a.symbol, "costs": asdict(costs), "mmr_scale": a.mmr_scale, "krw_per_usdt_fixed": a.krw_per_usdt, "fx": fx,
         "margin_tiers_verified": verified, "bars": {"spot": len(spot), "perp": len(perp)}, "funding_records": len(funding),
         "caveats": "hourly bars; funding uses the settlement's mark price; no FX moves, no borrow interest; capital cost is an assumption; "
                    "liquidation uses assumed tiers (scaled by mmr_scale) and the bar high; tax is the unverified 2027 estimate"}))
