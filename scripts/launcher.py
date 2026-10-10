@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
-"""Starts, stops and checks the whole paper-trading stack without any black console windows (ADR-0057).
+"""Starts the whole paper-trading stack in an own window, with no black console windows (ADR-0057, ADR-0058).
 
-    pythonw scripts/launcher.py start    # paper trader + data server + Next.js page, browser opens when ready
-    pythonw scripts/launcher.py stop     # asks the paper trader to save state and stop, then ends everything
+    pythonw scripts/launcher.py start    # paper trader + data server + Next.js page, then an app window; closing the
+                                         # window stops everything again (the trader saves its state first)
+    pythonw scripts/launcher.py stop     # developer tool: the same shutdown without the window
     python  scripts/launcher.py status   # which parts are running, and how fresh the paper trader's state is
 
-Everything runs in the background; each part writes its own log under var/logs/. Starting twice is safe: parts that
-already run are left alone (the paper trader also refuses a second copy by itself). Read-only dashboard + the
-paper trader only; nothing here places a real order or touches the live-trading safety files.
+`start` keeps running (hidden) for as long as the app window is open. Each part writes its own log under var/logs/.
+Starting twice is safe: a second start only opens another window of the running app. Anything left over from a
+crashed run is cleaned up on the next start. Read-only dashboard + the paper trader only; nothing here places a real
+order or touches the live-trading safety files.
 """
 
 from __future__ import annotations
@@ -76,17 +78,25 @@ def _app_browser() -> str | None:
     return shutil.which("msedge") or shutil.which("google-chrome") or shutil.which("chrome")
 
 
-def open_window() -> None:
-    """Own window without address bar or tabs (browser app mode); closing it leaves the trader running."""
+PROFILE = ROOT / "var" / "launcher" / "browser-profile"
+
+
+def open_window() -> "subprocess.Popen | None":
+    """Own window without address bar or tabs (browser app mode) in a profile of its own. That profile makes the
+    browser process live exactly as long as the window, so the caller can wait for it. None = default browser
+    fallback (no way to see when it is closed)."""
     exe = _app_browser()
     if exe:
         try:
-            subprocess.Popen([exe, f"--app={PAGE_URL}", "--window-size=1280,860"])
-            log(f"opened app window with {exe}")
-            return
+            proc = subprocess.Popen([exe, f"--app={PAGE_URL}", "--window-size=1280,860", f"--user-data-dir={PROFILE}",
+                                     "--no-first-run", "--no-default-browser-check", "--disable-background-mode",
+                                     "--disable-features=msStartupBoost"])
+            log(f"opened app window with {exe} pid={proc.pid}")
+            return proc
         except OSError as exc:
             log(f"app window failed ({exc}); using default browser")
     webbrowser.open(PAGE_URL)
+    return None
 
 
 def port_open(port: int) -> bool:
@@ -162,10 +172,14 @@ def kill_tree(pid: int) -> None:
 def start() -> int:
     cfg = load_paper()
     state_dir = ROOT / cfg["state_dir"]
-    if paper_running(state_dir) and port_open(DATA_PORT) and port_open(PAGE_PORT):
-        log("start: already running, only opening the browser")
+    me = single_instance.acquire(ROOT / "var" / "launcher" / "launcher.lock")  # held until this process ends
+    if me is None:
+        log("start: a launcher is already running, only opening another window")
         open_window()
         return 0
+    if paper_running(state_dir) or load_pids():
+        log("start: leftovers from an earlier run, cleaning up first")
+        stop()
 
     node = shutil.which("node")
     if not node:
@@ -196,10 +210,12 @@ def start() -> int:
         popup("NEW2", "처음 한 번은 화면 설치에 몇 분 걸려요. 이 창은 닫아도 돼요.\n끝나면 브라우저가 자동으로 열려요.", wait=False)
     if not (NEXT_DIR / "node_modules").exists() and run_hidden("pnpm-install", [pnpm, "install"], NEXT_DIR) != 0:
         popup("NEW2", f"패키지 설치에 실패했어요.\n자세한 내용: {LOGS / 'pnpm-install.log'}")
+        stop()
         return 1
     env = dict(os.environ, TRADER_API_URL=f"http://127.0.0.1:{DATA_PORT}")
     if not (NEXT_DIR / ".next").exists() and run_hidden("pnpm-build", [pnpm, "build"], NEXT_DIR, env) != 0:
         popup("NEW2", f"화면 빌드에 실패했어요.\n자세한 내용: {LOGS / 'pnpm-build.log'}")
+        stop()
         return 1
     if not port_open(PAGE_PORT):
         save_pids({"page": spawn("page", [pnpm, "start"], NEXT_DIR, env)})
@@ -209,9 +225,15 @@ def start() -> int:
         time.sleep(1)
     if not port_open(PAGE_PORT):
         popup("NEW2", f"화면이 켜지지 않았어요.\n자세한 내용: {LOGS / 'page.log'}")
+        stop()
         return 1
-    open_window()
-    return 0
+    window = open_window()
+    if window is None:
+        popup("NEW2", "Edge나 Chrome을 찾지 못해 기본 브라우저로 열었어요.\n이 방식은 창을 닫아도 모의투자가 계속 돌아요.\n다음에 켤 때 정리하고 새로 시작해요.")
+        return 0
+    window.wait()  # the app window is the program: closing it ends everything
+    log("window closed, stopping")
+    return stop()
 
 
 def stop() -> int:

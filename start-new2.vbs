@@ -1,4 +1,4 @@
-' Double-click to start everything with no black windows (ADR-0057). Needs Python and Node.js installed.
+' Double-click to start everything with no black windows; closing the app window stops everything (ADR-0057, ADR-0058). Needs Python and Node.js installed.
 Set sh = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
 sh.CurrentDirectory = fso.GetParentFolderName(WScript.ScriptFullName)

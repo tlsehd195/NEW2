@@ -25,3 +25,24 @@ def test_paper_running_follows_the_trader_lock(tmp_path):
     assert launcher.paper_running(tmp_path)
     held.close()
     assert not launcher.paper_running(tmp_path)
+
+
+def test_open_window_falls_back_to_default_browser_without_edge_or_chrome(monkeypatch):
+    opened = []
+    monkeypatch.setattr(launcher, "_app_browser", lambda: None)
+    monkeypatch.setattr(launcher.webbrowser, "open", lambda url: opened.append(url))
+    assert launcher.open_window() is None
+    assert opened == [launcher.PAGE_URL]
+
+
+def test_open_window_uses_an_own_profile_so_closing_the_window_ends_the_process(monkeypatch):
+    seen = []
+
+    class Fake:
+        pid = 1
+
+    monkeypatch.setattr(launcher, "_app_browser", lambda: "/bin/browser")
+    monkeypatch.setattr(launcher.subprocess, "Popen", lambda cmd, **kw: seen.append(cmd) or Fake())
+    assert launcher.open_window() is not None
+    assert f"--app={launcher.PAGE_URL}" in seen[0]
+    assert any(a.startswith("--user-data-dir=") for a in seen[0])
