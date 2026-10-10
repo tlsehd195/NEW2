@@ -105,7 +105,7 @@ def tstat(mean, sd, n_eff):
 def load_marks(path):
     """Top-of-book readings from extract_book_ticker_marks.py, keyed by the quarter-hour mark."""
     out = {}
-    for line in Path(path).read_text().splitlines():
+    for line in Path(path).read_text(encoding="utf-8").splitlines():
         r = json.loads(line)
         out[datetime.fromisoformat(r["t"])] = r
     return out

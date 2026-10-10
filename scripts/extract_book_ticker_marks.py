@@ -94,11 +94,11 @@ def main() -> int:
         d += timedelta(days=1)
     done = set()
     if a.out.exists():  # resume: skip days already written
-        for line in a.out.read_text().splitlines():
+        for line in a.out.read_text(encoding="utf-8").splitlines():
             done.add(line.split('"t": "')[1][:10])
     todo = [x for x in days if f"{x[1]:%Y-%m-%d}" not in done]
     missing = []
-    with ProcessPoolExecutor(a.workers) as ex, a.out.open("a") as fh:
+    with ProcessPoolExecutor(a.workers) as ex, a.out.open("a", encoding="utf-8") as fh:
         for day, rows in ex.map(process_day, todo):
             if rows is None:
                 missing.append(f"{day:%Y-%m-%d}")
