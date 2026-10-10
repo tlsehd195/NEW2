@@ -1161,5 +1161,482 @@
     "risk_profile": "default",
     "hypothesis_id": null,
     "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds ac_dir+vr_dir; picked from predictive numbers on the same window, so flagged; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir+vr_dir_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "tod_seasonal",
+        "ac_dir",
+        "vr_dir"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir+vr_dir+skew96+clv16_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "tod_seasonal",
+        "ac_dir",
+        "vr_dir",
+        "skew96",
+        "clv16"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xvwap_dist+skew96+clv16+tod_seasonal+volspike_signed+ac_dir+vr_dir_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "vwap_dist",
+        "skew96",
+        "clv16",
+        "tod_seasonal",
+        "volspike_signed",
+        "ac_dir",
+        "vr_dir"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xvwap_dist+skew96+clv16+tod_seasonal+volspike_signed+ac_dir+vr_dir+rv_ratio+vov+squeeze+nr_rank+volspike+ac1+vr+kurt96_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "vwap_dist",
+        "skew96",
+        "clv16",
+        "tod_seasonal",
+        "volspike_signed",
+        "ac_dir",
+        "vr_dir",
+        "rv_ratio",
+        "vov",
+        "squeeze",
+        "nr_rank",
+        "volspike",
+        "ac1",
+        "vr",
+        "kurt96"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xrv_ratio+vov+squeeze+nr_rank+volspike+ac1+vr+kurt96_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "rv_ratio",
+        "vov",
+        "squeeze",
+        "nr_rank",
+        "volspike",
+        "ac1",
+        "vr",
+        "kurt96"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir+vr_dir+skew96+clv16_dema_trend+rsi+bollinger_b_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "tod_seasonal",
+        "ac_dir",
+        "vr_dir",
+        "skew96",
+        "clv16"
+      ],
+      "drop_panel": [
+        "ema_trend",
+        "rsi",
+        "bollinger_b"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir+vr_dir+skew96+clv16+rv_ratio+squeeze_dema_trend+donchian_pos+roc+rsi+bollinger_b_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "tod_seasonal",
+        "ac_dir",
+        "vr_dir",
+        "skew96",
+        "clv16",
+        "rv_ratio",
+        "squeeze"
+      ],
+      "drop_panel": [
+        "ema_trend",
+        "donchian_pos",
+        "roc",
+        "rsi",
+        "bollinger_b"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_xtod_seasonal+ac_dir+vr_dir_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "tod_seasonal",
+        "ac_dir",
+        "vr_dir"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_xvwap_dist+skew96+clv16+tod_seasonal+volspike_signed+ac_dir+vr_dir_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "vwap_dist",
+        "skew96",
+        "clv16",
+        "tod_seasonal",
+        "volspike_signed",
+        "ac_dir",
+        "vr_dir"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_xvwap_dist+skew96+clv16+tod_seasonal+volspike_signed+ac_dir+vr_dir+rv_ratio+vov+squeeze+nr_rank+volspike+ac1+vr+kurt96_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "extra_panel": [
+        "vwap_dist",
+        "skew96",
+        "clv16",
+        "tod_seasonal",
+        "volspike_signed",
+        "ac_dir",
+        "vr_dir",
+        "rv_ratio",
+        "vov",
+        "squeeze",
+        "nr_rank",
+        "volspike",
+        "ac1",
+        "vr",
+        "kurt96"
+      ]
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Large candidate-panel combination of the 15m vote (ADR-0070, owner asked to try many); combination list fixed before screening; screening only, not pre-registered"
   }
 ]
