@@ -123,7 +123,8 @@ def _reconciliation(store: LayeredStore, now: datetime) -> Optional[dict]:
             "at": last.get("recorded_at")}
 
 
-def _position(state: dict, symbol: str, last_price: Optional[float], leverage: Optional[int] = None) -> Optional[dict]:
+def _position(state: dict, symbol: str, last_price: Optional[float], leverage: Optional[int] = None,
+              balance: Optional[float] = None) -> Optional[dict]:
     t = (state.get("open_trades") or {}).get(symbol)
     if not t:
         return None
@@ -135,7 +136,10 @@ def _position(state: dict, symbol: str, last_price: Optional[float], leverage: O
            # Notional = open quantity at the entry price. Margin is the isolated-margin estimate notional / exchange
            # leverage (configs/margin_policy.json); None when the leverage is not known.
            "notional": qty * entry if entry is not None else None, "leverage": leverage,
-           "margin": qty * entry / leverage if entry is not None and leverage else None}
+           "margin": qty * entry / leverage if entry is not None and leverage else None,
+           # Real leverage of this position (ADR-0059): notional / account balance. `leverage` above is only the exchange
+           # setting the isolated margin is computed from.
+           "effective_leverage": qty * entry / balance if entry is not None and balance and balance > 0 else None}
     if entry is not None and last_price is not None:
         pos["unrealized_pnl"] = t["direction"] * qty * (last_price - entry)
     return pos
@@ -264,7 +268,7 @@ def read_snapshot(state_dir: Path, data_root: Path, symbol: str, *, bars: int = 
            "equity_curve": _equity_curve(store, now), "daily": _daily(store, now), "kill_switch": _kill_switch(kill_switch_path),
            "reconciliation": _reconciliation(store, now)}
     if state:
-        out["position"] = _position(state, symbol, last_price, leverage)
+        out["position"] = _position(state, symbol, last_price, leverage, state["broker"]["balance"])
         out["account"] = {"balance": state["broker"]["balance"], "saved_at": state["saved_at"],
                           "open_positions": len(state.get("open_trades") or {}),
                           **_krw_account(state_dir, state["broker"]["balance"])}

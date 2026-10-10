@@ -52,6 +52,7 @@ export function PositionCard({ snapshot }: { snapshot: Snapshot }) {
             </Row>
             <Row label="수량">{num(pos.quantity, 4)}</Row>
             <Row label="포지션 금액(명목)">{pos.notional != null ? `${num(pos.notional)} USDT` : "-"}</Row>
+            <Row label="실제 레버리지">{pos.effective_leverage != null ? `${pos.effective_leverage.toFixed(2)}배` : "-"}</Row>
             <Row label={pos.leverage ? `사용 증거금 (${pos.leverage}배 추정)` : "사용 증거금"}>
               {pos.margin != null ? `${num(pos.margin)} USDT` : "-"}
             </Row>

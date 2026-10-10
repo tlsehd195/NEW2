@@ -37,3 +37,10 @@ def test_symbol_config_mismatch():
     assert margin_settings_mismatches(ok, ["BTCUSDT"], p) == []
     bad = [{"symbol": "BTCUSDT", "marginType": "CROSSED", "leverage": 20}]
     assert len(margin_settings_mismatches(bad, ["BTCUSDT", "ETHUSDT"], p)) == 3
+
+
+def test_repo_exchange_leverage_covers_risk_max_leverage():
+    """ADR-0059: isolated margin is funded by notional / exchange_leverage, so the exchange setting must be at least the
+    largest position leverage the RiskEngine can produce."""
+    from cointrader.settings import load_margin_policy, load_risk
+    assert load_margin_policy()[0].exchange_leverage >= load_risk().max_leverage

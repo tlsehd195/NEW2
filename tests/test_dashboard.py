@@ -48,6 +48,7 @@ def test_snapshot_collects_chart_position_and_history(tmp_path):
     assert pos["direction"] == "long" and pos["entry_price"] == 100.5 and pos["stop_price"] == 95.0
     assert abs(pos["unrealized_pnl"] - 2.0 * (110.0 - 100.5)) < 1e-9
     assert pos["notional"] == 201.0 and pos["leverage"] == 3 and abs(pos["margin"] - 67.0) < 1e-9
+    assert abs(pos["effective_leverage"] - 201.0 / 9990.0) < 1e-9  # notional / balance, not the exchange setting
     assert snap["account"]["balance"] == 9990.0 and snap["account"]["balance_krw"] is None
     (state_dir / "krw_live.json").write_text(json.dumps({"rate_krw_per_usdt": 1400.0, "value_krw": 14000000.0, "as_of": NOW.isoformat()}), encoding="utf-8")
     acc = read_snapshot(state_dir, tmp_path / "data", "ETHUSDT", now=NOW)["account"]
