@@ -594,7 +594,7 @@ class PaperTrader:
             seq=self.trade_seq, strategy_id=sid, strategy_version=version, timeframe=bar.timeframe.value,
             symbol=symbol, direction=signal.entry, entry_cid=intent.client_order_id, decision_id="",
             risk_decision_id=decision.decision_id, signal_reason=signal.reason, regime=signal.regime,
-            features=features, stop_distance=signal.stop_distance, tp_distance=signal.take_profit_distance,
+            features=features, stop_distance=decision.stop_distance, tp_distance=signal.take_profit_distance,
             trail_distance=signal.trailing_distance, trail_activation=signal.trailing_activation,
             equity_at_entry=account.equity,
             decided_at=now.isoformat(), expected_entry_slippage=half_spread,

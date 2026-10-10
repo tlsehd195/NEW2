@@ -133,3 +133,22 @@ def test_volatility_kill_scales_with_bar_length_but_never_loosens_below_1h():
         req(atr=15_000.0, stop_distance=30_000.0, atr_bar=timedelta(days=1)), acct()).reasons)
     assert any(r.startswith("volatility_kill") for r in engine().evaluate_entry(
         req(**vol, atr_bar=timedelta(minutes=1)), acct()).reasons)
+
+
+def test_stop_distance_is_clamped_to_one_to_two_percent_of_price():
+    e = engine(risk_per_trade=0.01, stop_min_fraction=0.01, stop_max_fraction=0.02)
+    tight = e.evaluate_entry(req(stop_distance=100.0), acct())  # 0.2% -> 1%
+    wide = e.evaluate_entry(req(stop_distance=2_000.0), acct())  # 4% -> 2%
+    inside = e.evaluate_entry(req(stop_distance=750.0), acct())  # 1.5% unchanged
+    assert (tight.stop_distance, wide.stop_distance, inside.stop_distance) == (500.0, 1_000.0, 750.0)
+    assert tight.stop_price == 49_500.0 and wide.stop_price == 49_000.0
+    assert tight.risk_amount == pytest.approx(100.0, rel=1e-3)  # still 1% of equity
+    assert tight.leverage == pytest.approx(1.0, rel=1e-2) and wide.leverage == pytest.approx(0.5, rel=1e-2)
+
+
+def test_stop_clamp_config_validation():
+    with pytest.raises(ValueError):
+        RiskConfig(stop_min_fraction=0.01)
+    with pytest.raises(ValueError):
+        RiskConfig(stop_min_fraction=0.03, stop_max_fraction=0.02)
+    assert RiskConfig(stop_min_fraction=0.01, stop_max_fraction=0.02).version() != RiskConfig().version()

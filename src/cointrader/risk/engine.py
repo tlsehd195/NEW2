@@ -14,7 +14,7 @@ silently skipped, and any unknown input refuses -- fail-closed):
 5. max daily loss (UTC day) and max total drawdown from peak,
 6. volatility kill (ATR as a fraction of price above the limit),
 7. spread protection (missing spread refuses when `require_spread`),
-8. sizing: risk-per-trade / stop distance, capped by per-symbol max
+8. sizing: risk-per-trade / stop distance (clamped to [stop_min, stop_max] x price), capped by per-symbol max
    notional and max leverage, rounded DOWN to the exchange step, refused
    below min quantity / min notional.
 
@@ -43,7 +43,7 @@ from cointrader.risk.protections import (
     evaluate_protections,
 )
 
-RISK_ENGINE_VERSION = "1.0.0"
+RISK_ENGINE_VERSION = "1.1.0"
 
 
 @dataclass(frozen=True)
@@ -80,6 +80,9 @@ class SymbolFilters:
 class RiskConfig:
     risk_per_trade: float = 0.005  # fraction of equity lost if the stop is hit
     max_leverage: float = 2.0
+    # ADR-0060: the stop distance is clamped to [min, max] x entry price before sizing; None = no clamp.
+    stop_min_fraction: Optional[float] = None
+    stop_max_fraction: Optional[float] = None
     max_position_notional: Optional[float] = None  # absolute cap in quote currency; None = only leverage cap
     max_daily_loss: float = 0.03  # fraction of the UTC day's starting equity
     max_drawdown: float = 0.15  # fraction below the equity peak; entries stop (human review)
@@ -95,9 +98,19 @@ class RiskConfig:
             raise ValueError("risk_per_trade must be in (0, 0.1)")
         if not 0 < self.max_leverage <= 20:
             raise ValueError("max_leverage must be in (0, 20]")
+        lo, hi = self.stop_min_fraction, self.stop_max_fraction
+        if (lo is None) != (hi is None):
+            raise ValueError("stop_min_fraction and stop_max_fraction must be set together")
+        if lo is not None and not 0 < lo <= hi < 1:
+            raise ValueError("stop fractions must satisfy 0 < min <= max < 1")
         for name in ("max_daily_loss", "max_drawdown", "max_atr_fraction", "max_spread_fraction"):
             if not 0 < getattr(self, name) < 1:
                 raise ValueError(f"{name} must be in (0, 1)")
+
+    def clamp_stop_distance(self, stop: float, price: float) -> float:
+        if self.stop_min_fraction is None or self.stop_max_fraction is None:
+            return stop
+        return min(max(stop, self.stop_min_fraction * price), self.stop_max_fraction * price)
 
     def version(self) -> str:
         blob = json.dumps({k: str(v) for k, v in self.__dict__.items()}, sort_keys=True).encode()
@@ -152,6 +165,7 @@ class RiskDecision:
     leverage: float = 0.0
     risk_amount: float = 0.0
     stop_price: Optional[float] = None
+    stop_distance: float = 0.0  # effective (clamped) distance; callers must use this for the real stop
     decision_id: str = ""
     config_version: str = ""
     evaluated_at: Optional[datetime] = None
@@ -242,6 +256,9 @@ class RiskEngine:
             return RiskDecision(False, tuple(reasons), decision_id=decision_id, config_version=self.config_version,
                                 evaluated_at=req.now, inputs=inputs)
 
+        raw_stop = stop
+        stop = cfg.clamp_stop_distance(stop, price)
+        inputs["stop_distance_raw"], inputs["stop_distance_used"] = raw_stop, stop
         risk_amount = equity * cfg.risk_per_trade
         quantity = risk_amount / stop
         cap = equity * cfg.max_leverage - account.open_position_notional
@@ -263,7 +280,7 @@ class RiskEngine:
                                 config_version=self.config_version, evaluated_at=req.now, inputs=inputs)
         stop_price = filters.round_price(price - stop if req.direction > 0 else price + stop, up=req.direction < 0)
         inputs["capped_by_limits"] = capped
-        return RiskDecision(True, (), quantity, notional, notional / equity, quantity * stop, stop_price, decision_id,
+        return RiskDecision(True, (), quantity, notional, notional / equity, quantity * stop, stop_price, stop, decision_id,
                             self.config_version, req.now, inputs)
 
 
