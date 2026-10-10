@@ -376,18 +376,31 @@ export default function App() {
       </Card>
     ),
   };
+  // Main page: the dock fills the whole window; only the small page tabs float over it.
+  if (page === 1) {
+    const tab = (n: 1 | 2 | 3, label: string) => (
+      <button key={n} className={`rounded px-3 py-1.5 text-sm ${page === n ? "bg-white text-black" : "text-white/70 hover:text-white"}`} onClick={() => setPage(n)}>{label}</button>
+    );
+    return (
+      <div className="fixed inset-0 z-40 overflow-auto bg-black">
+        <div role="tablist" aria-label="페이지" className="absolute left-3 top-3 z-50 flex gap-1 rounded-lg bg-black/40 p-1 backdrop-blur">
+          {tab(1, "1 메인")}{tab(2, "2 캘린더")}{tab(3, "3 대시보드")}
+        </div>
+        <HeroDock />
+      </div>
+    );
+  }
   return (
     <main>
       <h1>모의투자 대시보드<span className="badge">읽기 전용 · 실제 돈 아님</span></h1>
       <div className="mono">{asOf}</div>
       <div className="tabs" role="tablist" aria-label="페이지">
-        <button className={page === 1 ? "on" : ""} onClick={() => setPage(1)}>1 메인</button>
+        <button className="" onClick={() => setPage(1)}>1 메인</button>
         <button className={page === 2 ? "on" : ""} onClick={() => setPage(2)}>2 캘린더</button>
         <button className={page === 3 ? "on" : ""} onClick={() => setPage(3)}>3 대시보드</button>
         <button className="gear" style={{ marginLeft: "auto" }} onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
       </div>
       <div className="err">{err}</div>
-      {page === 1 && <HeroDock />}
       {page === 2 && <CalendarPage d={d} />}
       {page === 3 && <>
       <div className="tabs">

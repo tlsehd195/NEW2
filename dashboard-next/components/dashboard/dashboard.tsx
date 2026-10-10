@@ -41,6 +41,32 @@ export function Dashboard() {
   const { data, error, isValidating } = useSnapshot(symbol, BARS, refreshSec)
   const snapshot = data?.snapshot
 
+  const tabs = (
+  <div role="tablist" aria-label="페이지" className={cn("flex gap-1", page === 1 && "absolute left-3 top-3 z-50 rounded-lg bg-black/40 p-1 text-white backdrop-blur")}>
+    {([1, 2, 3] as const).map((n) => (
+      <button
+        key={n}
+        role="tab"
+        aria-selected={page === n}
+        onClick={() => setPage(n)}
+        className={cn("rounded px-3 py-1.5 text-sm", page === n ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
+      >
+        {n === 1 ? "1 메인" : n === 2 ? "2 캘린더" : "3 대시보드"}
+      </button>
+    ))}
+  </div>
+  )
+
+  // Main page: the dock fills the whole window; only the small page tabs float over it.
+  if (page === 1) {
+    return (
+      <div className="fixed inset-0 z-40 overflow-auto bg-black">
+        {tabs}
+        <HeroDock />
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-dvh">
       <DashboardHeader
@@ -62,22 +88,9 @@ export function Dashboard() {
             데이터를 불러오지 못했어요. 잠시 후 다시 시도해요.
           </div>
         )}
-        <div role="tablist" aria-label="페이지" className="flex gap-1">
-          {([1, 2, 3] as const).map((n) => (
-            <button
-              key={n}
-              role="tab"
-              aria-selected={page === n}
-              onClick={() => setPage(n)}
-              className={cn("rounded px-3 py-1.5 text-sm", page === n ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
-            >
-              {n === 1 ? "1 메인" : n === 2 ? "2 캘린더" : "3 대시보드"}
-            </button>
-          ))}
-        </div>
-        {page === 1 && <HeroDock />}
-        {page !== 1 && !snapshot && <LoadingSkeleton />}
-        {page !== 1 && snapshot && (
+        {tabs}
+        {!snapshot && <LoadingSkeleton />}
+        {snapshot && (
           <>
             {page === 2 && <CalendarPage snapshot={snapshot} />}
             {page === 3 && <StatStrip snapshot={snapshot} />}
