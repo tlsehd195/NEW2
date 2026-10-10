@@ -18,6 +18,7 @@ before any new entry. Stop with Ctrl-C / SIGTERM (state is saved).
 from __future__ import annotations
 
 import argparse
+import _thread
 import signal
 import sys
 import time
@@ -30,7 +31,7 @@ sys.path.insert(0, str(REPO / "src"))
 from cointrader.data.binance_futures import BinanceFuturesCandles  # noqa: E402
 from cointrader.data.feed import FeedUnavailable  # noqa: E402
 from cointrader.data.realtime import MultiMessageSource, WebSocketMessageSource  # noqa: E402
-from cointrader.paper import single_instance  # noqa: E402
+from cointrader.paper import single_instance, stop_file  # noqa: E402
 from cointrader.paper.runner import (  # noqa: E402
     ReplayFileSource,
     bootstrap,
@@ -141,6 +142,9 @@ def main() -> int:
             print("The paper trader is already running for this state directory. Not starting a second one.",
                   file=sys.stderr, flush=True)
             return 3
+        stop_path = REPO / cfg["state_dir"] / "STOP"  # the windowless launcher asks for a clean stop this way (ADR-0057)
+        stop_file.clear(stop_path)
+        stop_file.watch(stop_path, _thread.interrupt_main)
     history = None if args.replay else BinanceFuturesCandles()
     depth_snapshot = None
     if not args.replay:  # public REST only (no credentials): the order book the simulated fills walk through
