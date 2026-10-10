@@ -1,0 +1,19 @@
+name: Phase A signal candidates diagnosis (ADR-0076; unlocked ranges only)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      - name: BTCUSDT
+        run: python3 scripts/diagnose_signal_candidates.py --symbol BTCUSDT --start 2023-04-20 --end 2024-03-25
+      - name: ETHUSDT
+        run: python3 scripts/diagnose_signal_candidates.py --symbol ETHUSDT --start 2024-12-14 --end 2026-09-01
