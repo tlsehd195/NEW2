@@ -98,6 +98,11 @@ export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
               }}
               className="rounded border border-border bg-background px-2 py-1 font-mono text-xs text-foreground"
             />
+            {picked && (
+              <button type="button" className="rounded border border-border px-2 py-1" onClick={() => setPicked(null)} aria-label="검색 해제">
+                ✕ 해제
+              </button>
+            )}
           </label>
         </div>
         {picked && (
@@ -125,6 +130,7 @@ export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
             return (
               <div
                 key={i}
+                title={c === picked ? "검색한 날" : c === today ? "오늘" : undefined}
                 className={cn(
                   "min-h-16 rounded border p-1.5 text-xs md:min-h-24",
                   c ? "border-border" : "border-transparent",
@@ -145,7 +151,15 @@ export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
             )
           })}
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
+        <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-3 rounded-sm ring-1 ring-foreground" aria-hidden /> 오늘
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="size-3 rounded-sm ring-2 ring-primary" aria-hidden /> 검색한 날 (날짜 검색에서 고른 날)
+          </span>
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
           하루는 한국시간 기준이에요. 퍼센트는 그날 첫 진입 때 계좌 잔고 대비 손익(수수료·슬리피지·펀딩 반영 후)이에요.
         </p>
       </section>
