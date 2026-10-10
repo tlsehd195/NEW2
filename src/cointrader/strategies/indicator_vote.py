@@ -22,6 +22,7 @@ from typing import Optional, Sequence
 
 from cointrader.data.models import Candle
 from cointrader.features import indicators as ind
+from cointrader.features.candidate_indicators import ALL_FEATURES, CandleSeries
 from cointrader.features.regime import RegimeConfig, classify_regime
 from cointrader.features.indicator_votes import DEFAULT_PANEL, MIN_BARS, PlattCalibrator, Verdict, combine_votes, raw_scores
 from cointrader.features.side_indicators import (
@@ -59,11 +60,20 @@ class IndicatorVote:
     max_hold_bars: Optional[int] = None  # engine closes a position held this many bars (None = no time stop)
     max_entries_per_day: Optional[int] = None  # engine cap per UTC day (None = none)
     quality_window_bars: Optional[int] = None  # engine data-quality look-back (None = warm-up bars)
+    # Panel variants for screening (ADR-0070): candidate votes added to / default votes dropped from the panel.
+    extra_panel: tuple = ()
+    drop_panel: tuple = ()
     # Injected after construction; never part of id/equality/repr.
     side: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
     _cache: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "extra_panel", tuple(self.extra_panel))
+        object.__setattr__(self, "drop_panel", tuple(self.drop_panel))
+        if set(self.extra_panel) - set(ALL_FEATURES) or set(self.drop_panel) - set(DEFAULT_PANEL):
+            raise ValueError("extra_panel must name candidate features, drop_panel default indicators")
+        if len(self.drop_panel) >= len(DEFAULT_PANEL):
+            raise ValueError("drop_panel cannot remove every default indicator")
         if not 0.5 < self.exit_confidence < self.enter_confidence < 1.0:
             raise ValueError("need 0.5 < exit_confidence < enter_confidence < 1")
         if self.horizon < 1 or self.fit_lookback < 10 * self.horizon:
@@ -87,7 +97,8 @@ class IndicatorVote:
         trail = f"_t{self.trail_atr:g}" if self.trail_atr is not None else ""
         if self.trail_activate_atr is not None:
             trail += f"a{self.trail_activate_atr:g}"
-        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{trail}_v{self.version}"
+        panel = ("_x" + "+".join(self.extra_panel) if self.extra_panel else "") + ("_d" + "+".join(self.drop_panel) if self.drop_panel else "")
+        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{trail}{panel}_v{self.version}"
 
     @property
     def warmup(self) -> int:
@@ -103,10 +114,11 @@ class IndicatorVote:
         extra = {"score_scale": self.score_scale, "vol_short": self.vol_short, "vol_long": self.vol_long,
                  "bars_per_day": self.bars_per_day, "max_hold_bars": self.max_hold_bars,
                  "max_entries_per_day": self.max_entries_per_day, "quality_window_bars": self.quality_window_bars,
-                 "trail_atr": self.trail_atr, "trail_activate_atr": self.trail_activate_atr}
+                 "trail_atr": self.trail_atr, "trail_activate_atr": self.trail_activate_atr,
+                 "extra_panel": list(self.extra_panel), "drop_panel": list(self.drop_panel)}
         defaults = {"score_scale": 1.0, "vol_short": 10, "vol_long": 60, "bars_per_day": 1, "max_hold_bars": None,
                     "max_entries_per_day": None, "quality_window_bars": None, "trail_atr": None,
-                    "trail_activate_atr": None}
+                    "trail_activate_atr": None, "extra_panel": [], "drop_panel": []}
         params.update({k: v for k, v in extra.items() if v != defaults[k]})
         return params
 
@@ -143,8 +155,24 @@ class IndicatorVote:
             self._cache["scores"] = {}
         scores = self._cache["scores"]
         if t not in scores:
-            scores[t] = self._scores_at(history[: t + 1])
+            sc = self._scores_at(history[: t + 1])
+            if sc is not None and (self.extra_panel or self.drop_panel):
+                sc = self._panel_variant(sc, underlying, t)
+            scores[t] = sc
         return scores[t]
+
+    def _panel_variant(self, sc: dict, underlying: Sequence[Candle], t: int) -> Optional[dict]:
+        sc = {k: v for k, v in sc.items() if k not in self.drop_panel}
+        if self.extra_panel:
+            series = self._cache.get("series")
+            if series is None:
+                series = self._cache["series"] = CandleSeries()
+            series.extend(underlying, upto=t + 1)  # only bars <= t are read
+            extra = series.vote_scores(t, self.extra_panel)
+            if extra is None:
+                return None  # fail-closed: a candidate vote is missing at this bar
+            sc.update(extra)
+        return sc
 
     def verdict(self, history: Sequence[Candle]) -> Optional[Verdict]:
         """Per-indicator and combined P(long) for the last bar, or None

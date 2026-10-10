@@ -283,7 +283,8 @@ def main():
         return combine(sys.argv[2:])
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--symbol", required=True)
-    ap.add_argument("--other", required=True, help="the other market, for the cross-asset lead-lag feature")
+    ap.add_argument("--other", help="the other market, for the cross-asset lead-lag feature (needs its own lock-free window)")
+    ap.add_argument("--only", nargs="+", help="measure only these candidates (default: all that can be computed)")
     ap.add_argument("--start", required=True)
     ap.add_argument("--end", required=True)
     ap.add_argument("--out", type=Path)
@@ -297,21 +298,23 @@ def main():
     s, e = (datetime.fromisoformat(x).replace(tzinfo=timezone.utc) for x in (a.start, a.end))
     tf = Timeframe.MINUTE_15
     warm = s - (MIN_INDEX + 60) * tf.delta
-    for sym in (a.symbol, a.other):
+    for sym in (a.symbol, a.other) if a.other else (a.symbol,):
         held = reserved_for(load_reserved(), sym)
         if held is not None and e > held.start:
             raise SystemExit(f"end {e} reaches the reserved TEST of {sym} ({held.start})")
         assert_not_locked(load_locked_windows(REPO / "configs" / "locked_windows.json"), sym, warm, e)
     candles, notes = load_candles(a.symbol, tf, warm, e)
-    other, onotes = load_candles(a.other, tf, warm, e)
+    other, onotes = load_candles(a.other, tf, warm, e) if a.other else (None, [])
     oi, oinotes = load_open_interest(a.symbol, warm, e)
     first = next(i for i, c in enumerate(candles) if c.open_time >= s)
     rows = build_rows(candles, other, oi, first)
     names = list(ALL_FEATURES) + [n for n in EXTRA_DIR + EXTRA_NON if any(n in r["f"] for r in rows)]
+    if a.only:
+        names = [n for n in names if n in a.only]
     nondir = set(NONDIRECTIONAL) | set(EXTRA_NON)
     rows = add_z(rows, names)[240:]  # the first 240 grid points only seed the z-score
     out = {"label": "MEASUREMENT ONLY (no strategy run, no TEST read, no registration)", "symbol": a.symbol,
-           "other": a.other, "start": a.start, "end": a.end, "bars": len(candles), "grid_rows": len(rows),
+           "other": a.other, "only": a.only, "start": a.start, "end": a.end, "bars": len(candles), "grid_rows": len(rows),
            "notes": (notes + onotes + oinotes)[:12], "overlap": overlap(rows, names)}
     out["horizons"] = {str(h): measure(rows, h, names, nondir) for h in HORIZONS}
     pv = []
