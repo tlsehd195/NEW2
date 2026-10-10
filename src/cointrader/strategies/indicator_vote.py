@@ -22,7 +22,7 @@ from typing import Optional, Sequence
 
 from cointrader.data.models import Candle
 from cointrader.features import indicators as ind
-from cointrader.features.candidate_indicators import ALL_FEATURES, CandleSeries
+from cointrader.features.candidate_indicators import ALL_FEATURES, MIN_INDEX, CandleSeries
 from cointrader.features.regime import RegimeConfig, classify_regime
 from cointrader.features.indicator_votes import DEFAULT_PANEL, MIN_BARS, PlattCalibrator, Verdict, combine_votes, raw_scores
 from cointrader.features.side_indicators import (
@@ -102,7 +102,8 @@ class IndicatorVote:
 
     @property
     def warmup(self) -> int:
-        return MIN_BARS + self.fit_lookback + self.horizon + 1
+        # Candidate features need MIN_INDEX bars of their own; the calibration pairs then start MIN_INDEX bars later.
+        return MIN_BARS + self.fit_lookback + self.horizon + 1 + (MIN_INDEX if self.extra_panel else 0)
 
     @property
     def parameters(self) -> dict:

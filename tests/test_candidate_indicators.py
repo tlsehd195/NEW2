@@ -71,12 +71,12 @@ def test_panel_variant_ids_and_signal():
     v = DayTradeVote(extra_panel=["vwap_dist"], drop_panel=["rsi"])
     assert v.strategy_id == "daytrade_indicator_vote_h16_c0.6_xvwap_dist_drsi_v1"
     assert v.parameters["extra_panel"] == ["vwap_dist"]
-    c = make(base.warmup + 5, seed=7)
+    c = make(v.warmup + 5, seed=7)
     verdict = v.verdict(c)
     assert verdict is not None and "vwap_dist" in verdict.per_indicator and "rsi" not in verdict.per_indicator
     assert len(verdict.per_indicator) == 6
     # no look-ahead: the same prefix gives the same verdict even when later bars exist
-    longer = make(base.warmup + 40, seed=7)
+    longer = make(v.warmup + 40, seed=7)
     assert v.verdict(longer[: len(c)]).p_long == verdict.p_long
 
 
@@ -87,3 +87,11 @@ def test_panel_variant_rejects_bad_names():
         DayTradeVote(extra_panel=["nope"])
     with pytest.raises(ValueError):
         DayTradeVote(drop_panel=["nope"])
+
+
+def test_variants_pass_the_screening_integrity_checks():
+    from cointrader.strategies.daytrade import DayTradeVote
+    from cointrader.validation.integrity import check_signal_strategy
+    v = DayTradeVote(extra_panel=("tod_seasonal", "ac_dir", "skew96", "rv_ratio"), drop_panel=("donchian_pos", "roc", "rsi", "bollinger_b"))
+    rep = check_signal_strategy(make(v.warmup + 150, seed=11), v, samples=6)
+    assert rep.passed, rep.findings

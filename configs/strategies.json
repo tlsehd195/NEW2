@@ -929,7 +929,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -955,7 +955,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds tod_seasonal; picked by low overlap with the six, returns not read; screening only, not pre-registered"
+    "notes": "Panel variant of the 15m vote (ADR-0070): adds tod_seasonal; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xac_dir_v1",
@@ -969,7 +969,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -995,7 +995,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds ac_dir; picked by low overlap with the six, returns not read; screening only, not pre-registered"
+    "notes": "Panel variant of the 15m vote (ADR-0070): adds ac_dir; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir_v1",
@@ -1009,7 +1009,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -1036,7 +1036,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds tod_seasonal+ac_dir; picked by low overlap with the six, returns not read; screening only, not pre-registered"
+    "notes": "Panel variant of the 15m vote (ADR-0070): adds tod_seasonal+ac_dir; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xac_dir_dbollinger_b_v1",
@@ -1050,7 +1050,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -1079,7 +1079,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds ac_dir and drops bollinger_b; picked by low overlap with the six, returns not read; screening only, not pre-registered"
+    "notes": "Panel variant of the 15m vote (ADR-0070): adds ac_dir, drops bollinger_b; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h48_c0.6_xac_dir_v1",
@@ -1093,7 +1093,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1189,
+    "warmup": 1670,
     "parameters": {
       "horizon": 48,
       "fit_lookback": 1000,
@@ -1119,7 +1119,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds ac_dir; picked from predictive numbers on the same window, so flagged; screening only, not pre-registered"
+    "notes": "Panel variant of the 15m vote (ADR-0070): adds ac_dir; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h48_c0.6_xac_dir+vr_dir_v1",
@@ -1133,7 +1133,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1189,
+    "warmup": 1670,
     "parameters": {
       "horizon": 48,
       "fit_lookback": 1000,
@@ -1160,7 +1160,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Candidate panel variant of the 15m vote (ADR-0070): adds ac_dir+vr_dir; picked from predictive numbers on the same window, so flagged; screening only, not pre-registered"
+    "notes": "Panel variant of the 15m vote (ADR-0070): adds ac_dir+vr_dir; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir_ddonchian_pos+roc+rsi+bollinger_b_v1",
@@ -1174,7 +1174,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -1207,7 +1207,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P1 (ADR-0070): ema_trend+obv_slope+tod_seasonal+ac_dir; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P1 (ADR-0070): ema_trend+obv_slope+tod_seasonal+ac_dir, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h48_c0.6_xtod_seasonal+ac_dir_ddonchian_pos+roc+rsi+bollinger_b_v1",
@@ -1221,7 +1221,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1189,
+    "warmup": 1670,
     "parameters": {
       "horizon": 48,
       "fit_lookback": 1000,
@@ -1254,7 +1254,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P1 (ADR-0070): ema_trend+obv_slope+tod_seasonal+ac_dir; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P1 (ADR-0070): ema_trend+obv_slope+tod_seasonal+ac_dir, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir+skew96+rv_ratio_ddonchian_pos+roc+rsi+bollinger_b+obv_slope_v1",
@@ -1268,7 +1268,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -1304,7 +1304,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P5 (ADR-0070): ema_trend+tod_seasonal+ac_dir+skew96+rv_ratio; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P5 (ADR-0070): ema_trend+tod_seasonal+ac_dir+skew96+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h48_c0.6_xtod_seasonal+ac_dir+skew96+rv_ratio_ddonchian_pos+roc+rsi+bollinger_b+obv_slope_v1",
@@ -1318,7 +1318,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1189,
+    "warmup": 1670,
     "parameters": {
       "horizon": 48,
       "fit_lookback": 1000,
@@ -1354,7 +1354,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P5 (ADR-0070): ema_trend+tod_seasonal+ac_dir+skew96+rv_ratio; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P5 (ADR-0070): ema_trend+tod_seasonal+ac_dir+skew96+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+vr_dir+rv_ratio_ddonchian_pos+roc+rsi+bollinger_b_v1",
@@ -1368,7 +1368,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -1402,7 +1402,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P6 (ADR-0070): ema_trend+obv_slope+tod_seasonal+vr_dir+rv_ratio; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P6 (ADR-0070): ema_trend+obv_slope+tod_seasonal+vr_dir+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h48_c0.6_xtod_seasonal+vr_dir+rv_ratio_ddonchian_pos+roc+rsi+bollinger_b_v1",
@@ -1416,7 +1416,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1189,
+    "warmup": 1670,
     "parameters": {
       "horizon": 48,
       "fit_lookback": 1000,
@@ -1450,7 +1450,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P6 (ADR-0070): ema_trend+obv_slope+tod_seasonal+vr_dir+rv_ratio; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P6 (ADR-0070): ema_trend+obv_slope+tod_seasonal+vr_dir+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal+ac_dir+rv_ratio_dema_trend+donchian_pos+roc+rsi_v1",
@@ -1464,7 +1464,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1157,
+    "warmup": 1638,
     "parameters": {
       "horizon": 16,
       "fit_lookback": 1000,
@@ -1498,7 +1498,7 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P7 (ADR-0070): bollinger_b+obv_slope+tod_seasonal+ac_dir+rv_ratio; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P7 (ADR-0070): bollinger_b+obv_slope+tod_seasonal+ac_dir+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   },
   {
     "strategy_id": "daytrade_indicator_vote_h48_c0.6_xtod_seasonal+ac_dir+rv_ratio_dema_trend+donchian_pos+roc+rsi_v1",
@@ -1512,7 +1512,7 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1189,
+    "warmup": 1670,
     "parameters": {
       "horizon": 48,
       "fit_lookback": 1000,
@@ -1546,6 +1546,6 @@
     },
     "risk_profile": "default",
     "hypothesis_id": null,
-    "notes": "Role-distinct panel P7 (ADR-0070): bollinger_b+obv_slope+tod_seasonal+ac_dir+rv_ratio; max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+    "notes": "Role-distinct panel P7 (ADR-0070): bollinger_b+obv_slope+tod_seasonal+ac_dir+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
   }
 ]
