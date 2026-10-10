@@ -13,7 +13,7 @@ export default function HeroDock() {
     : ({} as React.CSSProperties);
 
   return (
-    <div className="min-h-[70dvh] w-full relative bg-black overflow-hidden rounded-lg" style={accentStyle}>
+    <div className="min-h-screen w-full relative bg-black" style={accentStyle}>
       {/* X Organizations Black Background with Top Glow */}
       <div
         className="absolute inset-0 z-0"
@@ -24,7 +24,7 @@ export default function HeroDock() {
       />
 
       {/* Main Section */}
-      <section className="relative isolate min-h-[70dvh] w-full overflow-hidden text-white px-4 sm:px-8">
+      <section className="relative isolate min-h-screen w-full overflow-hidden text-white px-4 sm:px-8">
         {/* Vignette edges */}
         <div className="pointer-events-none absolute inset-0 -z-10">
           <div className="absolute inset-0 [mask-image:radial-gradient(90%_70%_at_50%_45%,black,transparent_85%)] sm:[mask-image:radial-gradient(80%_60%_at_50%_40%,black,transparent_80%)]" />
@@ -37,7 +37,7 @@ export default function HeroDock() {
 
         <div
           className="mx-auto flex h-full max-w-5xl flex-col items-center justify-start gap-4 text-center sm:gap-8"
-          style={{ marginTop: "10%" }}
+          style={{ marginTop: "20%" }}
         >
           <h1 className="text-balance font-semibold tracking-tight text-white/90 [font-size:clamp(20px,4.5vw,38px)]">
             The Dali Agents console
