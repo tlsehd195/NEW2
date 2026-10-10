@@ -1,0 +1,34 @@
+name: Indicator candidates diagnosis (ADR-0070; reads TRAIN+VALIDATION only)
+
+on:
+  push:
+    branches: [claude/project-thread-hcnkt7]
+    paths: [".github/workflows/indicator_candidates.yml", "scripts/diagnose_indicator_candidates.py", "src/cointrader/features/candidate_indicators.py"]
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      # BTC: the lock-free span before the reserved TEST. ETH: ETHUSDT 2023-04-06..2024-12-01 is locked (TEST-15/TEST-13),
+      # so ETH uses 2024-12-10..2025-12-01 (the span ADR-0046 used). BTC and ETH share no lock-free span after 2022-08,
+      # so the cross-asset lead-lag is measured on 2022-01-10..2022-08-10 (both lock-free) and only that feature.
+      - name: BTCUSDT
+        run: python3 scripts/diagnose_indicator_candidates.py --symbol BTCUSDT --start 2023-04-20 --end 2024-03-25 --out reports/btc.json > /dev/null
+      - name: ETHUSDT
+        run: python3 scripts/diagnose_indicator_candidates.py --symbol ETHUSDT --start 2024-12-10 --end 2025-12-01 --out reports/eth.json > /dev/null
+      - name: Lead-lag BTC (other ETH), 2022
+        run: python3 scripts/diagnose_indicator_candidates.py --symbol BTCUSDT --other ETHUSDT --only lead_lag --start 2022-01-10 --end 2022-08-10 --out reports/ll_btc.json > /dev/null
+      - name: Lead-lag ETH (other BTC), 2022
+        run: python3 scripts/diagnose_indicator_candidates.py --symbol ETHUSDT --other BTCUSDT --only lead_lag --start 2022-01-10 --end 2022-08-10 --out reports/ll_eth.json > /dev/null
+      - name: Print reports
+        run: |
+          for f in btc eth ll_btc ll_eth; do echo "=== $f ==="; cat reports/$f.json; done
+      - name: Pooled multiple-testing family
+        run: python3 scripts/diagnose_indicator_candidates.py --combine reports/btc.json reports/eth.json reports/ll_btc.json reports/ll_eth.json
