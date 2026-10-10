@@ -1,6 +1,6 @@
 {
   "_comment": "RiskEngine limits shared by backtest, paper and live (ADR-0015). Fractions of equity unless noted. Changing any value changes RiskConfig.version(), which every risk decision records. cooldown_minutes 0 = off (ADR-0054).",
-  "risk_per_trade": 0.01,
+  "risk_per_trade": 0.02,
   "max_leverage": 20.0,
   "stop_min_fraction": 0.01,
   "stop_max_fraction": 0.02,
