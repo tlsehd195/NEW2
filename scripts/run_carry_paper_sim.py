@@ -22,7 +22,9 @@ from cointrader.carry.runner import CarryParams, CarryRunner  # noqa: E402
 from cointrader.data.binance_vision import (  # noqa: E402
     BinanceVisionFundingRateHistory, BinanceVisionFuturesCandles, BinanceVisionSpotCandles)
 from cointrader.data.models import Timeframe  # noqa: E402
-from cointrader.settings import load_margin_policy  # noqa: E402
+from cointrader.carry.krw import after_tax_view  # noqa: E402
+from cointrader.risk.leverage import MarginTier  # noqa: E402
+from cointrader.settings import load_krw_accounting, load_margin_policy  # noqa: E402
 
 
 def utc(day):
@@ -51,6 +53,9 @@ def main(argv=None):
     p.add_argument("--spot-fee", type=float, default=0.001)
     p.add_argument("--perp-fee", type=float, default=0.0005)
     p.add_argument("--slippage", type=float, default=0.0)
+    p.add_argument("--mmr-scale", type=float, default=1.0, help="stress: multiply the assumed maintenance rates/amounts")
+    p.add_argument("--krw-per-usdt", type=float, default=1400.0, help="held fixed; FX moves are not modelled")
+    p.add_argument("--krw-capitals", default="10000000,30000000,100000000")
     p.add_argument("--capital-cost-apr", type=float, default=0.04)
     a = p.parse_args(argv)
     start, end = utc(a.start), utc(a.end)
@@ -59,6 +64,10 @@ def main(argv=None):
         print(json.dumps({"refused": "window overlaps locked/reserved", "windows": bad}))
         return 2
     _, tiers, verified = load_margin_policy()
+    tax, exit_costs, _ = load_krw_accounting()
+    tiers = {k: [MarginTier(t.notional_floor, t.notional_cap, t.maintenance_margin_rate * a.mmr_scale,
+                            t.maintenance_amount * a.mmr_scale) for t in v] for k, v in tiers.items()}
+    capitals = [float(x) for x in a.krw_capitals.split(",")]
     funding = BinanceVisionFundingRateHistory().fetch(a.symbol, start, end)
     perp = BinanceVisionFuturesCandles().fetch(a.symbol, Timeframe.HOUR_1, start, end)
     spot = BinanceVisionSpotCandles().fetch(a.symbol, Timeframe.HOUR_1, start, end)
@@ -68,13 +77,18 @@ def main(argv=None):
         for lev in (float(x) for x in a.leverages.split(",")):
             params = CarryParams(leverage=lev, funding_filter=filt, capital_cost_apr=a.capital_cost_apr)
             runner = CarryRunner(PaperCarryExecutor(a.capital, costs), params, tiers[a.symbol])
-            rows.append(runner.run(spot, perp, funding))
+            row = runner.run(spot, perp, funding)
+            row["krw_after_tax"] = [after_tax_view(net_apr_pct=row["net_apr_pct"], capital_krw=c,
+                                                   krw_per_usdt=a.krw_per_usdt, tax=tax, exit_costs=exit_costs)
+                                    for c in capitals]
+            rows.append(row)
     print(json.dumps({
-        "symbol": a.symbol, "costs": asdict(costs),
+        "symbol": a.symbol, "costs": asdict(costs), "mmr_scale": a.mmr_scale, "krw_per_usdt_fixed": a.krw_per_usdt,
         "margin_tiers_verified": verified, "bars": {"spot": len(spot), "perp": len(perp)}, "funding_records": len(funding),
-        "caveats": "hourly bars; funding uses the settlement's mark price; no tax, no KRW conversion, no borrow interest; "
-                   "capital cost is an assumption; liquidation uses assumed tiers and the bar high",
-        "runs": rows}, indent=1))
+        "caveats": "hourly bars; funding uses the settlement's mark price; no FX moves, no borrow interest; capital cost is an assumption; "
+                   "liquidation uses assumed tiers (scaled by mmr_scale) and the bar high; tax is the unverified 2027 estimate"}))
+    for row in rows:
+        print(json.dumps(row))
     return 0
 
 
