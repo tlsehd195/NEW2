@@ -29,7 +29,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 
 from cointrader.data.models import Timeframe  # noqa: E402
-from cointrader.research.market_data import load_candles, load_futures_terms  # noqa: E402
+from cointrader.research.market_data import load_candles, load_funding, load_futures_terms, load_open_interest  # noqa: E402
 from cointrader.risk.engine import RiskEngine  # noqa: E402
 from cointrader.settings import load_markets, load_risk  # noqa: E402
 from cointrader.strategies.registry import StrategyRegistry  # noqa: E402
@@ -77,6 +77,16 @@ def main() -> int:
     warmup_start = start - (max(c.warmup for c in candidates) + 1) * tf.delta
     candles, notes = load_candles(args.symbol, tf, warmup_start, split.validation_end)  # TEST bars never loaded
     futures, fnotes = load_futures_terms(args.symbol, start, split.validation_end)
+    if any(getattr(c, "use_side_data", False) for c in candidates):
+        # Same as the final exam: funding (+ open interest) over the loaded span, filtered as-of at every bar.
+        from cointrader.data.binance_funding import FundingRateRecord  # noqa: E402
+        funding_map, n1 = load_funding(args.symbol, candles[0].open_time, split.validation_end)
+        oi_points, n2 = load_open_interest(args.symbol, candles[0].open_time, split.validation_end)
+        records = [FundingRateRecord(args.symbol, t, r, float("nan"), "binance_vision_archive")
+                   for t, r in funding_map.items()]
+        candidates = [c.attach_side_data(funding=records, open_interest=oi_points)
+                      if getattr(c, "use_side_data", False) else c for c in candidates]
+        fnotes = fnotes + n1 + n2 + [f"side data: {len(records)} funding records, {len(oi_points)} open-interest days"]
     filters, _, _ = load_markets()
     ledger = ScreeningLedger(args.screening)
     prior = PreregistrationLog(args.log).total_registered_candidates() + ledger.total_candidates()

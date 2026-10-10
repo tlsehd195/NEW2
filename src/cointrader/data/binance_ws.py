@@ -180,6 +180,7 @@ def parse_kline(d: dict, received_at: datetime) -> Optional[Candle]:
     return Candle(
         market=k["s"], timeframe=timeframe, open_time=_ms(k["t"]), open=_f(k["o"]), high=_f(k["h"]),
         low=_f(k["l"]), close=_f(k["c"]), volume=_f(k["v"]), source=SOURCE, received_at=received_at,
+        taker_buy_volume=_f(k["V"]) if "V" in k else None,
     )
 
 

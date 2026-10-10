@@ -792,5 +792,129 @@
     "risk_profile": "default",
     "hypothesis_id": null,
     "notes": "Same as daytrade_indicator_vote_h48_c0.6_v1 plus trailing stop that starts only after +1.5 ATR and then follows 1.5 ATR behind (break-even start), longs and shorts (ADR-0053); screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_flow_vote_w16_z1_v1",
+    "name": "FlowVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 993,
+    "parameters": {
+      "flow_window": 16,
+      "z_window": 480,
+      "z_in": 1.0,
+      "fit_lookback": 480,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "vpin_gate": false,
+      "funding_gate": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Taker buy/sell imbalance over 16 bars, z>=1 long / z<=-1 short, exit at z=0; screening only, not pre-registered (ADR-0064)"
+  },
+  {
+    "strategy_id": "daytrade_flow_vote_vpin_fund_w16_z1_v1",
+    "name": "FlowVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 993,
+    "parameters": {
+      "flow_window": 16,
+      "z_window": 480,
+      "z_in": 1.0,
+      "fit_lookback": 480,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "vpin_gate": true,
+      "funding_gate": true,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "vpin_window": 48,
+      "vpin_block_pct": 0.9
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Taker buy/sell imbalance over 16 bars, z>=1 long / z<=-1 short, exit at z=0 + VPIN-proxy and funding-crowding entry filters; screening only, not pre-registered (ADR-0064)"
+  },
+  {
+    "strategy_id": "daytrade_flow_vote_w48_z1_v1",
+    "name": "FlowVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1057,
+    "parameters": {
+      "flow_window": 48,
+      "z_window": 480,
+      "z_in": 1.0,
+      "fit_lookback": 480,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "vpin_gate": false,
+      "funding_gate": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Taker buy/sell imbalance over 48 bars, z>=1 long / z<=-1 short, exit at z=0; screening only, not pre-registered (ADR-0064)"
+  },
+  {
+    "strategy_id": "daytrade_flow_vote_vpin_fund_w48_z1_v1",
+    "name": "FlowVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1057,
+    "parameters": {
+      "flow_window": 48,
+      "z_window": 480,
+      "z_in": 1.0,
+      "fit_lookback": 480,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "vpin_gate": true,
+      "funding_gate": true,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "vpin_window": 48,
+      "vpin_block_pct": 0.9
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "Taker buy/sell imbalance over 48 bars, z>=1 long / z<=-1 short, exit at z=0 + VPIN-proxy and funding-crowding entry filters; screening only, not pre-registered (ADR-0064)"
   }
 ]
