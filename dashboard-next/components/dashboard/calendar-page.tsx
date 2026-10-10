@@ -130,12 +130,12 @@ export function CalendarPage({ snapshot }: { snapshot: Snapshot }) {
             return (
               <div
                 key={i}
-                title={c === picked ? "검색한 날" : c === today ? "오늘" : undefined}
+                title={c && c === picked ? "검색한 날" : c && c === today ? "오늘" : undefined}
                 className={cn(
                   "min-h-16 rounded border p-1.5 text-xs md:min-h-24",
                   c ? "border-border" : "border-transparent",
-                  c === today && "ring-1 ring-foreground",
-                  c === picked && "ring-2 ring-primary",
+                  c && c === today && "ring-1 ring-foreground",
+                  c && c === picked && "ring-2 ring-primary",
                 )}
                 style={x ? { background: x.pnl >= 0 ? `rgba(46,189,133,${a})` : `rgba(240,84,94,${a})` } : undefined}
               >
