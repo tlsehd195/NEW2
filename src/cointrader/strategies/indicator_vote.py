@@ -97,8 +97,12 @@ class IndicatorVote:
         trail = f"_t{self.trail_atr:g}" if self.trail_atr is not None else ""
         if self.trail_activate_atr is not None:
             trail += f"a{self.trail_activate_atr:g}"
+        # Hold-time and stop-width variants (ADR-0071) appear in the id only when they differ from the default.
+        stop = f"_s{self.stop_atr:g}" if self.stop_atr != 2.5 else ""
+        hold_default = type(self).__dataclass_fields__["max_hold_bars"].default
+        hold = f"_m{self.max_hold_bars}" if self.max_hold_bars != hold_default else ""
         panel = ("_x" + "+".join(self.extra_panel) if self.extra_panel else "") + ("_d" + "+".join(self.drop_panel) if self.drop_panel else "")
-        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{trail}{panel}_v{self.version}"
+        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{stop}{hold}{trail}{panel}_v{self.version}"
 
     @property
     def warmup(self) -> int:

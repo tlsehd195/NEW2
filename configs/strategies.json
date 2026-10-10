@@ -918,6 +918,228 @@
     "notes": "Taker buy/sell imbalance over 48 bars, z>=1 long / z<=-1 short, exit at z=0 + VPIN-proxy and funding-crowding entry filters; screening only, not pre-registered (ADR-0064)"
   },
   {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_m24_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 24,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0071 15m parameter search (screening only)"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_m96_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 96,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0071 15m parameter search (screening only)"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.55_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.55,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0071 15m parameter search (screening only)"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.65_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.65,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0071 15m parameter search (screening only)"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_s1.5_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 1.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0071 15m parameter search (screening only)"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h16_c0.6_s3.5_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1157,
+    "parameters": {
+      "horizon": 16,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 3.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0071 15m parameter search (screening only)"
+  },
+  {
     "strategy_id": "daytrade_indicator_vote_h16_c0.6_xtod_seasonal_v1",
     "name": "DayTradeVote",
     "family": "daytrade",
