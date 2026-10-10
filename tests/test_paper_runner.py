@@ -99,7 +99,7 @@ def test_repo_configs_default_to_paper_and_load_strictly(tmp_path):
     assert verified is False  # placeholders until refreshed from exchangeInfo
     assert set(cfg["symbols"]) <= set(filters)
     risk = load_risk()
-    assert risk.max_leverage <= 20 and risk.risk_per_trade <= 0.01  # ADR-0059: owner chose B (1%) and cap 20x
+    assert risk.max_leverage <= 20 and risk.risk_per_trade <= 0.02  # ADR-0061: owner chose 2% (ADR-0059 cap 20x)
     with pytest.raises(ValueError):
         risk_from_dict({"risk_per_trade": 0.01})
     bad = tmp_path / "paper.json"
