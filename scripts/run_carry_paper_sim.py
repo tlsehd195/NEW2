@@ -49,7 +49,10 @@ def fx_summary(start, end):
     Unavailable (with the reason) when the market has no data within 14 days of the start."""
     c = [x for x in UpbitRestCandles().fetch("KRW-USDT", Timeframe.DAY_1, start, end)]
     if not c:
-        return {"available": False, "reason": "no KRW-USDT candles"}
+        from datetime import timedelta
+        allc = UpbitRestCandles().fetch("KRW-USDT", Timeframe.DAY_1, utc("2019-01-01"), datetime.now(timezone.utc) - timedelta(days=1))
+        return {"available": False, "reason": "no KRW-USDT candles in window",
+                "first_candle_ever": str(allc[0].open_time.date()) if allc else None, "candles_ever": len(allc)}
     if (c[0].open_time - start).days > 14:
         return {"available": False, "reason": f"KRW-USDT data starts {c[0].open_time.date()}"}
     r0, r1 = c[0].open, c[-1].close
@@ -102,6 +105,7 @@ def main(argv=None):
                 row["krw_apr_with_fx_pct"] = round(100 * ((1 + row["net_return_pct"] / 100) * (1 + fx["change"]) - 1)
                                                    * 365 / row["days"], 2)
             rows.append(row)
+    print("FX", json.dumps(fx))
     print(json.dumps({
         "symbol": a.symbol, "costs": asdict(costs), "mmr_scale": a.mmr_scale, "krw_per_usdt_fixed": a.krw_per_usdt, "fx": fx,
         "margin_tiers_verified": verified, "bars": {"spot": len(spot), "perp": len(perp)}, "funding_records": len(funding),
@@ -109,7 +113,6 @@ def main(argv=None):
                    "liquidation uses assumed tiers (scaled by mmr_scale) and the bar high; tax is the unverified 2027 estimate"}))
     for row in rows:
         print(json.dumps(row))
-    print("FX", json.dumps(fx))
     for r in rows:
         print("ROW", r["leverage"], "filter" if r["funding_filter"] else "always", "usdt_apr", r["net_apr_pct"],
               "krw_apr_with_fx", r.get("krw_apr_with_fx_pct"), "liq", r["liquidations"])
