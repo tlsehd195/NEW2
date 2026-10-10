@@ -9,6 +9,7 @@ import { YAxis } from "@/components/charts/y-axis";
 import { BandFill, FillLegend, FillMarks, Guides, PriceLevels, SeriesPath, type Level } from "./overlays";
 import { bollingerSeries, donchianSeries, emaSeries, obvSeries, rocSeries, rsiSeries } from "./indicators";
 import { PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
+import { equityPoints, type EquityUnit } from "./equity";
 import { CalendarPage } from "./Calendar";
 import { SettingsPanel } from "./SettingsPanel";
 import { clampInt, useSettings, type PanelId, type Settings } from "./settings";
@@ -224,10 +225,8 @@ export default function App() {
   const rows = useMemo(() => allRows.slice(from, to), [allRows, from, to]);
   const p = d?.position, a = d?.account, L = d?.latest ?? {};
   const tradeCols = s.tradeColumns;
-  const equityRows = useMemo(
-    () => (d?.equity_curve ?? []).map((p) => ({ date: new Date(p.time), pnl: p.pnl })) as unknown as Row[],
-    [d?.equity_curve],
-  );
+  const [eqUnit, setEqUnit] = useState<EquityUnit>("hour");
+  const equityRows = useMemo(() => equityPoints(d, eqUnit) as unknown as Row[], [d, eqUnit]);
   const panels: Record<PanelId, ReactNode> = {
     chart: (
       <>
@@ -291,7 +290,12 @@ export default function App() {
       </Card>
     ),
     equity: (
-      <Card title="자산곡선 (누적 손익, 최근 30일·모든 종목)">
+      <Card title={eqUnit === "hour" ? "자산곡선 (누적 손익, 시간별 · 최근 30일)" : "자산곡선 (누적 손익, 날짜별 · 전체 기록)"}>
+        <div className="sidepick" role="group" aria-label="자산곡선 단위">
+          {(["hour", "day"] as const).map((u) => (
+            <button key={u} className={eqUnit === u ? "on" : ""} onClick={() => setEqUnit(u)}>{u === "hour" ? "시간" : "날"}</button>
+          ))}
+        </div>
         <IndicatorPanel rows={equityRows} field="pnl" name="누적 손익(USDT)" color="#3aa0c0" width={1.8}
           aspect={PANEL_ASPECT[s.chartHeight]} guides={[0]} show={(v) => (v >= 0 ? "+" : "") + fmt(v)} />
       </Card>

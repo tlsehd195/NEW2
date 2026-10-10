@@ -65,6 +65,7 @@ export function CalendarPage({ d }: { d: Snapshot | null }) {
             setPicked(e.target.value || null);
             if (e.target.value) setMonth(e.target.value.slice(0, 7));
           }} />
+          {picked && <button onClick={() => setPicked(null)} aria-label="검색 해제">✕ 해제</button>}
         </label>
       </div>
       {picked && (
@@ -81,7 +82,7 @@ export function CalendarPage({ d }: { d: Snapshot | null }) {
           const alpha = x ? 0.1 + 0.3 * Math.min(1, Math.abs(x.pnl) / maxAbs) : 0;
           const tint = x ? (x.pnl >= 0 ? `rgba(16,196,138,${alpha})` : `rgba(242,54,74,${alpha})`) : undefined;
           return (
-            <div key={i} className={`calcell${c === today ? " now" : ""}${c && c === picked ? " picked" : ""}${c ? "" : " empty"}`} style={{ background: tint }}>
+            <div key={i} title={c === picked ? "검색한 날" : c === today ? "오늘" : undefined} className={`calcell${c === today ? " now" : ""}${c && c === picked ? " picked" : ""}${c ? "" : " empty"}`} style={{ background: tint }}>
               {c && <div className="muted mono">{Number(c.slice(8))}</div>}
               {x && (
                 <>
@@ -94,7 +95,11 @@ export function CalendarPage({ d }: { d: Snapshot | null }) {
           );
         })}
       </div>
-      <div className="muted" style={{ marginTop: 10 }}>
+      <div className="muted callegend">
+        <span><i className="sw now" /> 오늘</span>
+        <span><i className="sw picked" /> 검색한 날 (날짜 검색에서 고른 날)</span>
+      </div>
+      <div className="muted" style={{ marginTop: 6 }}>
         하루는 한국시간 기준이에요. 퍼센트는 그날 첫 진입 때 계좌 잔고 대비 손익(수수료·슬리피지·펀딩 반영 후)이에요.
       </div>
     </div>
