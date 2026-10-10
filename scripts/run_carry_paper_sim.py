@@ -115,7 +115,7 @@ def main(argv=None):
         print(json.dumps(row))
     for r in rows:
         print("ROW", r["leverage"], "filter" if r["funding_filter"] else "always", "usdt_apr", r["net_apr_pct"],
-              "krw_apr_with_fx", r.get("krw_apr_with_fx_pct"), "liq", r["liquidations"])
+              "krw_apr_with_fx", r.get("krw_apr_with_fx_pct"), "liq", r["liquidations"], "fx", json.dumps(fx))
     return 0
 
 
