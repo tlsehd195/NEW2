@@ -72,6 +72,7 @@ from cointrader.live.config import HealthStatus
 from cointrader.risk.engine import AccountRiskState, EntryRequest, RiskEngine, utc_day_start
 from cointrader.risk.leverage import MarginTier, PositionSide, estimate_liquidation_price
 from cointrader.risk.protections import ClosedTrade, EquityPoint
+from cointrader.strategies.base import entry_confidence
 
 ENGINE_VERSION = "1.0.0"
 
@@ -577,6 +578,7 @@ def run_event_backtest(
             regime=sig.regime, atr=sig.features.get("atr") if sig.features.get("atr") else ind.atr(PrefixView(candles, i + 1), 14),
             spread_fraction=2 * costs.half_spread, feed_health=HealthStatus.HEALTHY, data_quality_reasons=dq,
             strategy_id=strategy.strategy_id, atr_bar=bar.timeframe.delta,
+            confidence=entry_confidence(sig),
         )
         account = AccountRiskState(m, peak, day_start_equity, tuple(closed_for_risk), tuple(points), 0.0)
         decision = risk.evaluate_entry(req, account)

@@ -92,12 +92,22 @@ class RiskConfig:
     stoploss_guard: Optional[StoplossGuard] = StoplossGuard(timedelta(hours=24), 3, timedelta(hours=6))
     drawdown_guard: Optional[MaxDrawdownGuard] = MaxDrawdownGuard(timedelta(days=2), 0.06, timedelta(hours=12))
     cooldown: Optional[CooldownPeriod] = CooldownPeriod(timedelta(minutes=30))
+    # ADR-0063: with risk_per_trade_max set, the risk per trade rises linearly from risk_per_trade (confidence <=
+    # risk_conf_low) to risk_per_trade_max (confidence >= risk_conf_high). No confidence on the request = risk_per_trade.
+    risk_per_trade_max: Optional[float] = None
+    risk_conf_low: float = 0.60
+    risk_conf_high: float = 0.75
 
     def __post_init__(self) -> None:
         if not 0 < self.risk_per_trade < 0.1:
             raise ValueError("risk_per_trade must be in (0, 0.1)")
         if not 0 < self.max_leverage <= 20:
             raise ValueError("max_leverage must be in (0, 20]")
+        if self.risk_per_trade_max is not None:
+            if not self.risk_per_trade <= self.risk_per_trade_max < 0.1:
+                raise ValueError("risk_per_trade_max must be in [risk_per_trade, 0.1)")
+            if not 0.5 < self.risk_conf_low < self.risk_conf_high <= 1.0:
+                raise ValueError("need 0.5 < risk_conf_low < risk_conf_high <= 1")
         lo, hi = self.stop_min_fraction, self.stop_max_fraction
         if (lo is None) != (hi is None):
             raise ValueError("stop_min_fraction and stop_max_fraction must be set together")
@@ -111,6 +121,12 @@ class RiskConfig:
         if self.stop_min_fraction is None or self.stop_max_fraction is None:
             return stop
         return min(max(stop, self.stop_min_fraction * price), self.stop_max_fraction * price)
+
+    def risk_fraction(self, confidence: Optional[float]) -> float:
+        if self.risk_per_trade_max is None or confidence is None or not math.isfinite(confidence):
+            return self.risk_per_trade
+        t = min(1.0, max(0.0, (confidence - self.risk_conf_low) / (self.risk_conf_high - self.risk_conf_low)))
+        return self.risk_per_trade + t * (self.risk_per_trade_max - self.risk_per_trade)
 
     def version(self) -> str:
         blob = json.dumps({k: str(v) for k, v in self.__dict__.items()}, sort_keys=True).encode()
@@ -154,6 +170,7 @@ class EntryRequest:
     kill_switch_engaged: bool = False
     strategy_id: str = ""
     atr_bar: Optional[timedelta] = None  # bar length `atr` was measured on; None = 1h
+    confidence: Optional[float] = None  # P of the entry side (0.5..1); scales risk when risk_per_trade_max is set
 
 
 @dataclass(frozen=True)
@@ -259,7 +276,9 @@ class RiskEngine:
         raw_stop = stop
         stop = cfg.clamp_stop_distance(stop, price)
         inputs["stop_distance_raw"], inputs["stop_distance_used"] = raw_stop, stop
-        risk_amount = equity * cfg.risk_per_trade
+        risk_fraction = cfg.risk_fraction(req.confidence)
+        inputs["confidence"], inputs["risk_fraction"] = req.confidence, risk_fraction
+        risk_amount = equity * risk_fraction
         quantity = risk_amount / stop
         cap = equity * cfg.max_leverage - account.open_position_notional
         if cfg.max_position_notional is not None:

@@ -97,3 +97,11 @@ class SignalStrategy(Protocol):
     def parameters(self) -> dict: ...
 
     def signal(self, history: Sequence[Candle], context: Optional[MarketContext] = None) -> Signal: ...
+
+
+def entry_confidence(signal: Signal) -> Optional[float]:
+    """P of the entry side (0.5..1) from the signal's `p_long` feature; None when the strategy gives none."""
+    p = signal.features.get("p_long") if signal.features else None
+    if not isinstance(p, (int, float)) or not math.isfinite(p):
+        return None
+    return p if signal.entry > 0 else 1.0 - p
