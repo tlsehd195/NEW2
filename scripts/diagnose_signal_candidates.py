@@ -102,7 +102,16 @@ def tstat(mean, sd, n_eff):
     return None if n_eff < 2 or not sd else mean / (sd / math.sqrt(n_eff))
 
 
-def build_rows(candles, snaps, tag):
+def load_marks(path):
+    """Top-of-book readings from extract_book_ticker_marks.py, keyed by the quarter-hour mark."""
+    out = {}
+    for line in Path(path).read_text().splitlines():
+        r = json.loads(line)
+        out[datetime.fromisoformat(r["t"])] = r
+    return out
+
+
+def build_rows(candles, snaps, tag, marks=None):
     """One row per decision bar i (decision at the OPEN of bar i, using only data before it)."""
     times = [s.at for s in snaps]
     step = Timeframe.MINUTE_15.delta
@@ -118,6 +127,8 @@ def build_rows(candles, snaps, tag):
                "s1": quarter_hour_imbalance_score(win, c.open_time, pct=1),
                "s1_3": quarter_hour_imbalance_score(win, c.open_time, pct=3),
                "s2": intraday_tsm_score(candles[:i]) if i >= 1 else None,
+               "s1_top": marks[c.open_time]["mean"] if marks and c.open_time in marks else None,
+               "s1_top_last": marks[c.open_time]["last"] if marks and c.open_time in marks else None,
                "past": candles[i].open / candles[i - PAST_BARS].open - 1.0}
         rows.append(row)
     return rows
@@ -226,6 +237,7 @@ def main() -> int:
     ap.add_argument("--start", required=True)
     ap.add_argument("--end", required=True, help="exclusive")
     ap.add_argument("--cache", type=Path, default=Path("/tmp/depth_cache"))
+    ap.add_argument("--marks", type=Path, help="bookTicker marks JSONL (ADR-0078); adds s1_top scores")
     ap.add_argument("--out", type=Path)
     a = ap.parse_args()
     start, end = _utc(a.start), _utc(a.end)
@@ -241,7 +253,7 @@ def main() -> int:
     snaps = fetcher.fetch(a.symbol, warm, end)
     candles, notes = load_candles(a.symbol, Timeframe.MINUTE_15, warm, end)
     first = next(i for i, c in enumerate(candles) if c.open_time >= start)
-    rows = build_rows(candles, snaps, a.symbol)
+    rows = build_rows(candles, snaps, a.symbol, load_marks(a.marks) if a.marks else None)
     rows = [r for r in rows if r["i"] >= first]
     days = (end - start).days
     out = {"label": "PHASE A DIAGNOSTIC (exploratory read of up/down outcomes; not a validation result; "
@@ -249,8 +261,11 @@ def main() -> int:
            "symbol": a.symbol, "range": [start.isoformat(), end.isoformat()], "source": "binance_vision_archive",
            "candles": len(candles), "depth_snapshots": len(snaps), "depth_archive_gaps": len(fetcher.last_gaps),
            "candle_notes": notes[:10], "cost_bps_roundtrip": list(COST_BPS), "scores": {}}
-    for key in ("s1", "s1_3", "s2"):
+    keys = ("s1", "s1_3", "s2") + (("s1_top", "s1_top_last") if a.marks else ())
+    for key in keys:
         valid = [r for r in rows if r[key] is not None]
+        if not valid:
+            continue
         vals = sorted(r[key] for r in valid)
         sc = {"coverage": round(len(valid) / len(rows), 4) if rows else 0,
               "score_quantiles": {q: round(vals[int(q * (len(vals) - 1))], 4) for q in (0.05, 0.25, 0.5, 0.75, 0.95)} if vals else {}}
