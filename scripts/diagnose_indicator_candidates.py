@@ -283,10 +283,47 @@ def combine(paths):
                 "raw_vs_six": round(o["raw_feature_max_abs_corr_vs_six"], 2),
                 "magnitude_vs_six": round(o["raw_feature_max_abs_corr_of_magnitudes"], 2),
                 "eff_6plus1": o["six_plus_candidate"]["participation"], "eff_base6": ov["base_six"]["participation"]}
-    out = {"holm_survivors": survivors, "overlap": overlap_rows, "p_values_in_family": len(pv), "raw_below_0.05": sum(1 for _, p in pv if p < 0.05),
+    panels = {}
+    for path in paths:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+        for pn, v in ({} if d.get("only") else d.get("panels", {})).items():
+            if "max_pair_corr" in v:
+                panels.setdefault(pn, {})[d["symbol"]] = {"max": v["max_pair_corr"], "worst": v["worst_pair"], "mean": v["mean_pair_corr"], "eff": v["effective"]["participation"], "n": v["n"]}
+    out = {"panels": panels, "holm_survivors": survivors, "overlap": overlap_rows, "p_values_in_family": len(pv), "raw_below_0.05": sum(1 for _, p in pv if p < 0.05),
            "expected_by_chance": round(0.05 * len(pv), 1), "holm_rejections": holm, "bh_rejections": bh,
            "smallest_p": sorted(pv, key=lambda kv: kv[1])[:16]}
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
+
+
+# Role-distinct panels (owner, 2026-10-10: indicator roles must not overlap). One indicator per role; a panel passes
+# when the largest pairwise |corr| among its vote-form columns is <= PANEL_MAX_CORR on BOTH symbols.
+PANEL_MAX_CORR = 0.5
+PANELS = {
+    "P1_trend_flow_season_persist": ("ema_trend", "obv_slope", "tod_seasonal", "ac_dir"),
+    "P2_P1+shape": ("ema_trend", "obv_slope", "tod_seasonal", "ac_dir", "skew96"),
+    "P3_P2+volatility": ("ema_trend", "obv_slope", "tod_seasonal", "ac_dir", "skew96", "rv_ratio"),
+    "P4_P3+meanrev": ("ema_trend", "bollinger_b", "obv_slope", "tod_seasonal", "ac_dir", "skew96", "rv_ratio"),
+    "P5_noflow_shape": ("ema_trend", "tod_seasonal", "ac_dir", "skew96", "rv_ratio"),
+    "P6_vr_instead_of_ac": ("ema_trend", "obv_slope", "tod_seasonal", "vr_dir", "rv_ratio"),
+    "P7_meanrev_base": ("bollinger_b", "obv_slope", "tod_seasonal", "ac_dir", "rv_ratio"),
+    "P8_P4+squeeze": ("ema_trend", "bollinger_b", "obv_slope", "tod_seasonal", "ac_dir", "skew96", "rv_ratio", "squeeze"),
+    "P9_P4+oi": ("ema_trend", "bollinger_b", "obv_slope", "tod_seasonal", "ac_dir", "skew96", "rv_ratio", "oi_dir"),
+}
+
+
+def panel_check(rows):
+    out = {}
+    for pname, cols in PANELS.items():
+        rr = [r for r in rows if all(c in r["d"] or c in r["v"] for c in cols)]
+        if len(rr) < 200:
+            out[pname] = {"note": "columns unavailable"}
+            continue
+        data = {c: [(r["d"][c] if c in r["d"] else r["v"][c]) for r in rr] for c in cols}
+        pairs = sorted(((abs(corr(data[a], data[b]) or 0.0), a, b) for i, a in enumerate(cols) for b in cols[i + 1:]), reverse=True)
+        out[pname] = {"indicators": list(cols), "max_pair_corr": round(pairs[0][0], 2), "worst_pair": [pairs[0][1], pairs[0][2]],
+                      "mean_pair_corr": round(mean([p[0] for p in pairs]), 2),
+                      "effective": effective(correlation_matrix([data[c] for c in cols])), "n": len(cols)}
+    return out
 
 
 def main():
@@ -325,7 +362,7 @@ def main():
     nondir = set(NONDIRECTIONAL) | set(EXTRA_NON)
     rows = add_z(rows, names)[240:]  # the first 240 grid points only seed the z-score
     out = {"label": "MEASUREMENT ONLY (no strategy run, no TEST read, no registration)", "symbol": a.symbol,
-           "other": a.other, "only": a.only, "start": a.start, "end": a.end, "bars": len(candles), "grid_rows": len(rows),
+           "other": a.other, "only": a.only, "start": a.start, "end": a.end, "bars": len(candles), "grid_rows": len(rows), "panels": panel_check(rows),
            "notes": (notes + onotes + oinotes)[:12], "overlap": overlap(rows, names)}
     out["horizons"] = {str(h): measure(rows, h, names, nondir) for h in HORIZONS}
     pv = []
