@@ -272,7 +272,18 @@ def combine(paths):
                         "T4_top_minus_bottom_pct": None if "T4_momentum_edge_top_pct" not in r else
                         r["T4_momentum_edge_top_pct"] - r["T4_momentum_edge_bottom_pct"]}
     holm, bh = holm_bh(pv)
-    out = {"p_values_in_family": len(pv), "raw_below_0.05": sum(1 for _, p in pv if p < 0.05),
+    survivors = [k for i, (k, p) in enumerate(sorted(pv, key=lambda kv: kv[1])) if i < holm]
+    overlap_rows = {}
+    for path in paths:
+        d = json.loads(Path(path).read_text(encoding="utf-8"))
+        ov = d["overlap"]
+        for name, o in ov["candidates"].items():
+            overlap_rows.setdefault(name, {})[d["symbol"] + ("/2022" if d.get("only") else "")] = {
+                "vote_vs_six": round(o["max_abs_corr_vs_six"], 2), "like": o["most_similar"],
+                "raw_vs_six": round(o["raw_feature_max_abs_corr_vs_six"], 2),
+                "magnitude_vs_six": round(o["raw_feature_max_abs_corr_of_magnitudes"], 2),
+                "eff_6plus1": o["six_plus_candidate"]["participation"], "eff_base6": ov["base_six"]["participation"]}
+    out = {"holm_survivors": survivors, "overlap": overlap_rows, "p_values_in_family": len(pv), "raw_below_0.05": sum(1 for _, p in pv if p < 0.05),
            "expected_by_chance": round(0.05 * len(pv), 1), "holm_rejections": holm, "bh_rejections": bh,
            "smallest_p": sorted(pv, key=lambda kv: kv[1])[:12], "per_candidate": rows}
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
