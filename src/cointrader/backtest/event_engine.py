@@ -590,7 +590,7 @@ def run_event_backtest(
         entries_by_day[now.date()] += 1
         act = i + costs.latency_bars
         pending = _PendingEntry(sig.entry, decision.quantity, act, act + costs.limit_ttl_bars - 1, limit,
-                                sig.stop_distance, sig.take_profit_distance, sig.trailing_distance, sig.regime,
+                                decision.stop_distance, sig.take_profit_distance, sig.trailing_distance, sig.regime,
                                 sig.reason, dict(sig.features), decision.decision_id,
                                 trailing_activation=sig.trailing_activation)
 

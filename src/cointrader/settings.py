@@ -32,7 +32,7 @@ def load_markets(path: Path = CONFIGS / "markets.json") -> tuple[dict[str, Symbo
     return filters, large, bool(d["verified"])
 
 
-_RISK_KEYS = {"risk_per_trade", "max_leverage", "max_position_notional", "max_daily_loss", "max_drawdown",
+_RISK_KEYS = {"risk_per_trade", "max_leverage", "stop_min_fraction", "stop_max_fraction", "max_position_notional", "max_daily_loss", "max_drawdown",
               "max_atr_fraction", "max_spread_fraction", "require_spread", "stoploss_guard", "drawdown_guard",
               "cooldown_minutes"}
 
@@ -44,6 +44,7 @@ def risk_from_dict(d: dict) -> RiskConfig:
     sg, dg = d["stoploss_guard"], d["drawdown_guard"]
     return RiskConfig(
         risk_per_trade=d["risk_per_trade"], max_leverage=d["max_leverage"],
+        stop_min_fraction=d["stop_min_fraction"], stop_max_fraction=d["stop_max_fraction"],
         max_position_notional=d["max_position_notional"], max_daily_loss=d["max_daily_loss"],
         max_drawdown=d["max_drawdown"], max_atr_fraction=d["max_atr_fraction"],
         max_spread_fraction=d["max_spread_fraction"], require_spread=d["require_spread"],
