@@ -103,29 +103,25 @@ class FlowVote:
 
     # ------------------------------------------------------------ series (prefix-sum caches, no look-ahead)
     def _series(self, history: Sequence[Candle]) -> dict:
-        """Per-bar flow, imbalance and cumulative sums for bars 0..len-1; extended in place. Entry t uses bars <= t."""
+        """Per-bar flow and |imbalance| for bars 0..len-1, extended in place. Entry t uses bars <= t. Each window is
+        summed directly (no running totals), so the value never depends on where the history starts."""
         underlying = getattr(history, "_candles", history)
         c = self._cache
         if c.get("src") is not underlying:
             c.clear()
-            c.update(src=underlying, tb=[0.0], vol=[0.0], absimb=[0.0], flow=[], missing=[0])
-        n = len(history)
+            c.update(src=underlying, imb=[], flow=[])
+        n, w = len(history), self.flow_window
         while len(c["flow"]) < n:
             i = len(c["flow"])
             bar = underlying[i]
-            tb, v = bar.taker_buy_volume, bar.volume
-            ok = tb is not None and v > 0
-            c["missing"].append(c["missing"][-1] + (0 if ok else 1))
-            c["tb"].append(c["tb"][-1] + (tb if ok else 0.0))
-            c["vol"].append(c["vol"][-1] + (v if ok else 0.0))
-            c["absimb"].append(c["absimb"][-1] + (abs(2 * tb / v - 1) if ok else 0.0))
-            w = self.flow_window
-            lo = i + 1 - w
-            if lo < 0 or c["missing"][i + 1] - c["missing"][lo] > 0:
+            ok = bar.taker_buy_volume is not None and bar.volume > 0
+            c["imb"].append(abs(2 * bar.taker_buy_volume / bar.volume - 1) if ok else None)
+            win = underlying[i + 1 - w:i + 1] if i + 1 >= w else []
+            if len(win) < w or any(b.taker_buy_volume is None or b.volume <= 0 for b in win):
                 c["flow"].append(None)
             else:
-                vol = c["vol"][i + 1] - c["vol"][lo]
-                c["flow"].append((2 * (c["tb"][i + 1] - c["tb"][lo]) - vol) / vol if vol > 0 else None)
+                vol = math.fsum(b.volume for b in win)
+                c["flow"].append((2 * math.fsum(b.taker_buy_volume for b in win) - vol) / vol)
         return c
 
     def _z(self, c: dict, t: int) -> Optional[float]:
@@ -141,9 +137,10 @@ class FlowVote:
 
     def _vpin(self, c: dict, t: int) -> Optional[float]:
         lo = t + 1 - self.vpin_window
-        if lo < 0 or c["missing"][t + 1] - c["missing"][lo] > 0:
+        if lo < 0:
             return None
-        return (c["absimb"][t + 1] - c["absimb"][lo]) / self.vpin_window
+        win = c["imb"][lo:t + 1]
+        return None if any(x is None for x in win) else math.fsum(win) / self.vpin_window
 
     def _vpin_blocked(self, c: dict, t: int) -> Optional[bool]:
         """True when the VPIN proxy is in the top (1 - vpin_block_pct) of its trailing z_window values; None = unknown."""

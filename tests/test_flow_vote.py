@@ -83,3 +83,10 @@ def test_registry_builds_the_registered_candidates():
     assert len(ids) == 4
     for i in ids:
         assert reg.build(i, market="BTCUSDT", family="daytrade").strategy_id == i
+
+
+def test_integrity_checks_pass():
+    from cointrader.validation.integrity import check_signal_strategy
+    for s in (FlowVote(), FlowVote(flow_window=48, vpin_gate=True)):
+        rep = check_signal_strategy(bars(s.warmup + 400, buy_share=noisy), s)
+        assert rep.passed, rep.findings
