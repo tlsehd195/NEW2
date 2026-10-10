@@ -34,13 +34,35 @@ def _utc(text: str) -> datetime:
 
 
 def calibrate(candles: list, strat, first_index: int, *, stride=None) -> dict:
-    def p_long(view):
-        v = strat.verdict(view)
-        return None if v is None else v.p_long
+    """Combined P(long) plus each indicator's own calibrated P(long) against the same outcomes (ADR-0073).
+    Verdicts are computed once per decision bar and reused for every series."""
+    cache: dict = {}
 
-    f = collect_forecasts(candles, p_long, strat.horizon, first_index, stride=stride)
-    out = summarize(f, horizon=strat.horizon, stride=stride or strat.horizon, enter_confidence=strat.enter_confidence)
+    def verdict(view):
+        key = len(view)
+        if key not in cache:
+            cache[key] = strat.verdict(view)
+        return cache[key]
+
+    def series(pick):
+        def p_long(view):
+            v = verdict(view)
+            return None if v is None else pick(v)
+        return p_long
+
+    kw = dict(horizon=strat.horizon, stride=stride or strat.horizon, enter_confidence=strat.enter_confidence)
+    f = collect_forecasts(candles, series(lambda v: v.p_long), strat.horizon, first_index, stride=stride)
+    out = summarize(f, **kw)
     out["strategy_id"] = strat.strategy_id
+    names = sorted({k for v in cache.values() if v is not None for k in v.per_indicator})
+    per = {}
+    for name in names:
+        fi = collect_forecasts(candles, series(lambda v, n=name: v.per_indicator.get(n)), strat.horizon,
+                               first_index, stride=stride)
+        r = summarize(fi, **kw)
+        r.pop("reliability", None)
+        per[name] = r
+    out["per_indicator"] = per
     return out
 
 
