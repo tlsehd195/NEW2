@@ -61,7 +61,7 @@ from cointrader.live.kill_switch import KillSwitchLog, engage_kill_switch
 from cointrader.notifications.notifier import Notifier, Severity
 from cointrader.risk.engine import EntryRequest, RiskEngine, SymbolFilters, account_state_from_history
 from cointrader.risk.protections import ClosedTrade, EquityPoint
-from cointrader.strategies.base import MarketContext
+from cointrader.strategies.base import MarketContext, entry_confidence
 
 STATE_VERSION = 1
 
@@ -551,6 +551,7 @@ class PaperTrader:
             stop_distance=signal.stop_distance, regime=signal.regime, atr=features.get("atr_14"),
             spread_fraction=book.spread_fraction if book else None, feed_health=health,
             data_quality_reasons=tuple(gate.reasons), kill_switch_engaged=killed, strategy_id=sid,
+            confidence=entry_confidence(signal),
         )
         account = self._account_state(symbol)
         decision = self.risk.evaluate_entry(req, account)

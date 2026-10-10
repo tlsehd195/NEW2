@@ -152,3 +152,22 @@ def test_stop_clamp_config_validation():
     with pytest.raises(ValueError):
         RiskConfig(stop_min_fraction=0.03, stop_max_fraction=0.02)
     assert RiskConfig(stop_min_fraction=0.01, stop_max_fraction=0.02).version() != RiskConfig().version()
+
+
+def test_risk_scales_with_confidence():
+    e = engine(risk_per_trade=0.01, risk_per_trade_max=0.05, max_leverage=20.0)
+    q = lambda c: e.evaluate_entry(req(confidence=c), acct()).risk_amount  # noqa: E731  (equity 10_000)
+    assert q(None) == pytest.approx(100.0, rel=0.01)
+    assert q(0.55) == pytest.approx(100.0, rel=0.01)   # below risk_conf_low
+    assert q(0.675) == pytest.approx(300.0, rel=0.01)  # halfway
+    assert q(0.90) == pytest.approx(500.0, rel=0.01)   # above risk_conf_high
+    assert e.evaluate_entry(req(confidence=0.9), acct()).leverage == pytest.approx(5.0, rel=0.01)  # 1% stop: 5x
+
+
+def test_risk_scale_config_validation():
+    with pytest.raises(ValueError):
+        RiskConfig(risk_per_trade=0.02, risk_per_trade_max=0.01)
+    with pytest.raises(ValueError):
+        RiskConfig(risk_per_trade_max=0.1)
+    with pytest.raises(ValueError):
+        RiskConfig(risk_per_trade_max=0.05, risk_conf_low=0.7, risk_conf_high=0.6)

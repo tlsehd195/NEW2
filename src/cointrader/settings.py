@@ -34,7 +34,7 @@ def load_markets(path: Path = CONFIGS / "markets.json") -> tuple[dict[str, Symbo
 
 _RISK_KEYS = {"risk_per_trade", "max_leverage", "stop_min_fraction", "stop_max_fraction", "max_position_notional", "max_daily_loss", "max_drawdown",
               "max_atr_fraction", "max_spread_fraction", "require_spread", "stoploss_guard", "drawdown_guard",
-              "cooldown_minutes"}
+              "cooldown_minutes", "risk_per_trade_max", "risk_conf_low", "risk_conf_high"}
 
 
 def risk_from_dict(d: dict) -> RiskConfig:
@@ -53,6 +53,7 @@ def risk_from_dict(d: dict) -> RiskConfig:
         drawdown_guard=MaxDrawdownGuard(timedelta(hours=dg["lookback_hours"]), dg["max_drawdown"],
                                         timedelta(hours=dg["pause_hours"])) if dg else None,
         cooldown=CooldownPeriod(timedelta(minutes=d["cooldown_minutes"])) if d["cooldown_minutes"] else None,
+        risk_per_trade_max=d["risk_per_trade_max"], risk_conf_low=d["risk_conf_low"], risk_conf_high=d["risk_conf_high"],
     )
 
 
