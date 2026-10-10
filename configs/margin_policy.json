@@ -1,7 +1,7 @@
 {
-  "_comment": "ADR-0059: isolated margin, exchange leverage 20x (= risk.json max_leverage; the exchange setting must be >= any position leverage), liquidation must be >= 3 stop distances from entry. 'tiers' is an ASSUMED snapshot for paper (no API key to fetch Binance's real leverageBracket); maintenance rates are set deliberately higher than Binance's lowest tier so the liquidation check errs on the strict side. verified=false until compared with /fapi/v1/leverageBracket; live must use the real brackets, never this file.",
+  "_comment": "ADR-0059: isolated margin, exchange leverage 10x (= risk.json max_leverage; the exchange setting must be >= any position leverage), liquidation must be >= 3 stop distances from entry. 'tiers' is an ASSUMED snapshot for paper (no API key to fetch Binance's real leverageBracket); maintenance rates are set deliberately higher than Binance's lowest tier so the liquidation check errs on the strict side. verified=false until compared with /fapi/v1/leverageBracket; live must use the real brackets, never this file.",
   "margin_type": "ISOLATED",
-  "exchange_leverage": 20,
+  "exchange_leverage": 10,
   "min_liquidation_to_stop": 3.0,
   "verified": false,
   "tiers": {
