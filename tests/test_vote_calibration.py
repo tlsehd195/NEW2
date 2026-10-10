@@ -55,3 +55,12 @@ def test_script_calibrate_runs_end_to_end():
     strat = IndicatorVote()
     out = calib.calibrate(candles, strat, strat.warmup)
     assert out["strategy_id"] == strat.strategy_id and out["samples"] + sum(out["dropped"].values()) > 0
+
+
+def test_calibrate_reports_each_indicator_with_same_outcomes():
+    candles = make_candles(420, seed=5)
+    strat = IndicatorVote()
+    out = calib.calibrate(candles, strat, strat.warmup)
+    assert out["per_indicator"], "expected one entry per indicator"
+    for name, r in out["per_indicator"].items():
+        assert r["samples"] <= out["samples"] + 1 and "reliability" not in r, name
