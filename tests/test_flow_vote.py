@@ -35,7 +35,7 @@ def test_identity_and_gates_in_id():
     s = FlowVote()
     assert s.strategy_id == "daytrade_flow_vote_w16_z1_v1" and s.family == "daytrade" and s.timeframe == "15m"
     assert FlowVote(flow_window=48, vpin_gate=True, funding_gate=True).strategy_id == "daytrade_flow_vote_vpin_fund_w48_z1_v1"
-    assert s.warmup == 960 + 16 + 1000 + 16 + 1
+    assert s.warmup == 480 + 16 + 480 + 16 + 1
     assert s.parameters["z_in"] == 1.0 and "vpin_window" not in s.parameters
 
 

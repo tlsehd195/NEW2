@@ -44,9 +44,9 @@ CROWDED = 0.5  # |funding crowding score| at or above this blocks the crowded si
 @dataclass(frozen=True)
 class FlowVote:
     flow_window: int = 16  # bars of taker flow summed; also the calibration horizon (16 = 4 h, 48 = 12 h)
-    z_window: int = 960  # bars the flow is standardised against (10 days)
+    z_window: int = 480  # bars the flow is standardised against (5 days; keeps warm-up inside the unlocked data)
     z_in: float = 1.0
-    fit_lookback: int = 1000
+    fit_lookback: int = 480
     stop_atr: float = 2.5
     atr_period: int = 14
     allow_short: bool = True

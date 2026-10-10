@@ -805,12 +805,12 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1993,
+    "warmup": 993,
     "parameters": {
       "flow_window": 16,
-      "z_window": 960,
+      "z_window": 480,
       "z_in": 1.0,
-      "fit_lookback": 1000,
+      "fit_lookback": 480,
       "stop_atr": 2.5,
       "atr_period": 14,
       "allow_short": true,
@@ -835,12 +835,12 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 1993,
+    "warmup": 993,
     "parameters": {
       "flow_window": 16,
-      "z_window": 960,
+      "z_window": 480,
       "z_in": 1.0,
-      "fit_lookback": 1000,
+      "fit_lookback": 480,
       "stop_atr": 2.5,
       "atr_period": 14,
       "allow_short": true,
@@ -867,12 +867,12 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 2057,
+    "warmup": 1057,
     "parameters": {
       "flow_window": 48,
-      "z_window": 960,
+      "z_window": 480,
       "z_in": 1.0,
-      "fit_lookback": 1000,
+      "fit_lookback": 480,
       "stop_atr": 2.5,
       "atr_period": 14,
       "allow_short": true,
@@ -897,12 +897,12 @@
       "ETHUSDT"
     ],
     "version": "1",
-    "warmup": 2057,
+    "warmup": 1057,
     "parameters": {
       "flow_window": 48,
-      "z_window": 960,
+      "z_window": 480,
       "z_in": 1.0,
-      "fit_lookback": 1000,
+      "fit_lookback": 480,
       "stop_atr": 2.5,
       "atr_period": 14,
       "allow_short": true,
