@@ -65,6 +65,11 @@ FUNDING_COLUMNS = ("calc_time", "funding_interval_hours", "last_funding_rate")
 # published schema and have NOT been verified from this sandbox (the proxy
 # blocks data.binance.vision); `_parse_csv_rows` fails closed on a mismatch.
 METRICS_COLUMNS = ("create_time", "symbol", "sum_open_interest", "sum_open_interest_value")
+# Daily "bookDepth" files (~30 s snapshots): cumulative resting size within +-1..5 % of the mid price. Verified
+# from a real 2023-06-01 BTCUSDT file (ADR-0076): timestamp is "YYYY-MM-DD HH:MM:SS" UTC, negative percentage = bid
+# side, positive = ask side, `depth` is base-asset quantity, `notional` is quote value. Later files write the
+# percentage as "-5.00", so it is parsed through float.
+BOOK_DEPTH_COLUMNS = ("timestamp", "percentage", "depth", "notional")
 KLINE_COLUMNS = (
     "open_time", "open", "high", "low", "close", "volume", "close_time",
     "quote_volume", "count", "taker_buy_volume", "taker_buy_quote_volume", "ignore",
@@ -294,6 +299,53 @@ class BinanceVisionOpenInterestHistory:
             points.append(OpenInterestPoint(symbol, _metrics_time(last["create_time"]), float(last["sum_open_interest"])))
         self.last_gaps = tuple(gaps)
         return points
+
+
+@dataclass(frozen=True)
+class BookDepthSnapshot:
+    """Resting size within |percentage| % of the mid price at `at` (UTC). `depth[-1]` is the bid side within 1 %,
+    `depth[1]` the ask side within 1 %. Usable only from `at` onward."""
+
+    symbol: str
+    at: datetime
+    depth: dict
+    source: str = SOURCE
+
+
+def _depth_time(raw: str) -> datetime:
+    raw = raw.strip()
+    if raw.isdigit():
+        return _epoch_to_datetime(raw)
+    return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+
+
+class BinanceVisionBookDepth:
+    """Order-book depth snapshots from the daily `bookDepth` archive (research only). Missing days are
+    `ArchiveGap`s, never filled. The archive begins 2023-01 and can start mid-day."""
+
+    def __init__(self, *, transport: Transport = _urllib_transport) -> None:
+        self._transport = transport
+        self.last_gaps: tuple[ArchiveGap, ...] = ()
+
+    def fetch(self, symbol: str, start: datetime, end: datetime) -> list[BookDepthSnapshot]:
+        require_aware("start", start)
+        require_aware("end", end)
+        out: list[BookDepthSnapshot] = []
+        gaps: list[ArchiveGap] = []
+        for day in _days(start, end):
+            url = f"{BASE_URL}/daily/bookDepth/{symbol}/{symbol}-bookDepth-{day:%Y-%m-%d}.zip"
+            body = self._transport(url)
+            if body is None:
+                gaps.append(ArchiveGap(day, f"daily bookDepth archive missing: {url}"))
+                continue
+            by_time: dict[datetime, dict] = {}
+            for row in _parse_csv_rows(body, BOOK_DEPTH_COLUMNS):
+                at = _depth_time(row["timestamp"])
+                if start <= at < end:
+                    by_time.setdefault(at, {})[int(float(row["percentage"]))] = float(row["depth"])
+            out.extend(BookDepthSnapshot(symbol, at, d) for at, d in sorted(by_time.items()))
+        self.last_gaps = tuple(gaps)
+        return out
 
 
 class _KlineArchiveCandles:

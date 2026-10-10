@@ -5,7 +5,12 @@ TEST 구간을 락할 때마다 갱신한다** (ADR-0011). 오래된 정보로 �
 않도록, 갱신 날짜를 확인하고 의심스러우면 `configs/locked_windows.json`과
 `research/preregistration.jsonl`을 직접 확인한다.
 
-**마지막 갱신: 2026-10-10 (ETH 15분봉 보정 측정 결과, ADR-0075)**
+**마지막 갱신: 2026-10-10 (전략 리서치 Phase A 진단, ADR-0076)**
+
+## 2026-10-10: 전략 리서치 Phase A 진단: 15분 호가 불균형(S1)·당일 모멘텀(S2) 둘 다 비용 미달 (ADR-0076, 탐색적, 검증 결과 아님)
+
+`data.binance.vision`이 클라우드에서 열려 있어 `bookDepth`(±1%·±3% 깊이, 30초 간격)로 S1을 직접 쟀다. 호가 최우선 `bookTicker`는 2023-05~2024-03만 있고 하루 140MB(약 45GB)라 안 했다.
+BTC 2023-04-20~2024-03-25, ETH 2024-12-14~2026-09-01(둘 다 잠금 밖, 겹치지 않음). S1: 1·4시간 후 움직임 0~5bp로 비용 12~20bp의 1/3~1/10, 상관 0, 분기마다 부호 바뀜. S2: BTC 12시간 상위 20%에서 +35bp(순 +19bp, t 약 2)가 나왔으나 마지막 두 분기(급등)에 몰렸고 ETH에서는 0으로 재현 안 됨. 두 후보 모두 등록 예산을 쓸 근거 없음. 가설 등록·예산·결선·`DEFAULT_PANEL`·전략 변경 없음. 새 진단 함수 2개(`quarter_hour_imbalance_score`, `intraday_tsm_score`), `scripts/diagnose_signal_candidates.py`, 수동 워크플로 `signal_candidates_diag.yml` 추가. S3(레짐 전환)는 이번에 안 쟀다.
 
 ## 2026-10-10: ETH 15분봉 보정 측정도 정보 없음 (ADR-0075, 탐색적, 검증 결과 아님)
 

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Optional, Sequence
 
 from cointrader.data.models import Candle
@@ -148,6 +149,52 @@ def raw_scores(history: Sequence[Candle], panel: Optional[Sequence[str]] = None,
     if not all(math.isfinite(v) for v in out.values()):
         return None
     return out if panel is None else {k: out[k] for k in panel}
+
+
+# --- Diagnostic-only scores (ADR-0076). NOT in DEFAULT_PANEL and not used by any strategy. -------------------
+QUARTER_HOUR_WINDOW = timedelta(minutes=5)
+
+
+def quarter_hour_imbalance_score(snapshots: Sequence, bar_open: datetime, *, pct: int = 1,
+                                 window: timedelta = QUARTER_HOUR_WINDOW, min_snapshots: int = 3) -> Optional[float]:
+    """S1: mean (bid - ask) / (bid + ask) of resting size within `pct` % of mid, over snapshots in
+    [bar_open - window, bar_open). Causal (every snapshot predates the bar). Positive = more bid size = bullish.
+    None when too few snapshots or a side is empty (fail-closed). `snapshots` must be time-sorted."""
+    lo = bar_open - window
+    vals = []
+    for s in snapshots:
+        if s.at < lo:
+            continue
+        if s.at >= bar_open:
+            break
+        bid, ask = s.depth.get(-pct), s.depth.get(pct)
+        if bid is None or ask is None or bid + ask <= 0:
+            continue
+        vals.append((bid - ask) / (bid + ask))
+    return math.fsum(vals) / len(vals) if len(vals) >= min_snapshots else None
+
+
+def intraday_tsm_score(history: Sequence[Candle], *, min_bars: int = 8, scale: float = 0.02) -> Optional[float]:
+    """S2: squashed return from the UTC-day open to the last closed bar, in (-1, 1). None until `min_bars` bars of
+    the current UTC day are closed, or if the day has a candle hole (fail-closed)."""
+    if not history:
+        return None
+    last = history[-1]
+    day = last.open_time.replace(hour=0, minute=0, second=0, microsecond=0)
+    n = 0
+    for c in reversed(history):
+        if c.open_time < day:
+            break
+        n += 1
+    if n < min_bars:
+        return None
+    today = history[-n:]
+    step = today[1].open_time - today[0].open_time if n > 1 else None
+    if step is None or today[0].open_time != day or today[-1].open_time - today[0].open_time != step * (n - 1):
+        return None
+    if today[0].open <= 0:
+        return None
+    return _squash(last.close / today[0].open - 1.0, scale)
 
 
 def _sigmoid(z: float) -> float:
