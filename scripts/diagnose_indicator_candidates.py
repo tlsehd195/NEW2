@@ -285,7 +285,7 @@ def combine(paths):
                 "eff_6plus1": o["six_plus_candidate"]["participation"], "eff_base6": ov["base_six"]["participation"]}
     out = {"holm_survivors": survivors, "overlap": overlap_rows, "p_values_in_family": len(pv), "raw_below_0.05": sum(1 for _, p in pv if p < 0.05),
            "expected_by_chance": round(0.05 * len(pv), 1), "holm_rejections": holm, "bh_rejections": bh,
-           "smallest_p": sorted(pv, key=lambda kv: kv[1])[:12], "per_candidate": rows}
+           "smallest_p": sorted(pv, key=lambda kv: kv[1])[:16]}
     print(json.dumps(out, ensure_ascii=False, indent=2, default=str))
 
 
