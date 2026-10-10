@@ -1,7 +1,7 @@
 # CLAUDE.md
 
-코인 스윙(→ 추후 스켈핑) 트레이딩 연구·검증·매매 시스템. 설계 배경은
-`docs/decisions/ADR-0001-swing-first-bootstrap.md`.
+코인 단일 타임프레임(15분봉, 5분봉만 예외 허용) 당일 매매 연구·검증·페이퍼 시스템. 스켈핑·일봉 스윙·멀티 타임프레임 혼합은 제외.
+최신 결정과 상태는 `docs/PROJECT_STATUS.md`, 초기 설계 배경은 `docs/decisions/ADR-0001-swing-first-bootstrap.md`.
 
 ## 개발
 
