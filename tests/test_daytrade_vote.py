@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -140,3 +140,30 @@ def test_quality_window_bars_overrides_warmup_default():
     (b10, t10), (b50, t50) = blocked(10), blocked(50)
     assert 0 < b10 < b50  # the hole blocks entries only for as long as the configured window
     assert t10 > t50
+
+
+def _forced_regime(monkeypatch, name):
+    from cointrader.features.regime import Regime, RegimeReading
+    from cointrader.strategies import indicator_vote as mod
+    monkeypatch.setattr(mod, "classify_regime", lambda *_a, **_k: RegimeReading(Regime[name], "forced"))
+
+
+def test_regime_switch_follows_fades_or_stays_flat(monkeypatch):
+    from cointrader.features.indicator_votes import Verdict
+    h = bars(1300, drift=0.0005)
+    h = [replace(c, close=c.close * (1 + 0.002 * math.sin(i)), high=c.high * 1.01) for i, c in enumerate(h)]
+    monkeypatch.setattr(DayTradeVote, "verdict", lambda self, hist: Verdict(0.7, {"a": 0.7, "b": 0.7, "c": 0.7, "d": 0.7, "e": 0.7, "f": 0.7}, 6, 0))
+    assert DayTradeVote().signal(h).entry == 1  # the plain vote is long
+    s1 = DayTradeVote(regime_switch="s1")
+    assert s1.strategy_id == "daytrade_indicator_vote_h16_c0.6_rss1_v1" and s1.parameters["regime_switch"] == "s1"
+    _forced_regime(monkeypatch, "TREND_UP")
+    assert s1.signal(h).entry == 1  # trend: momentum, same as the plain vote
+    _forced_regime(monkeypatch, "RANGE")
+    assert s1.signal(h).entry == -1  # range: mirror image
+    _forced_regime(monkeypatch, "HIGH_VOLATILITY")
+    assert s1.signal(h).entry == 0
+    _forced_regime(monkeypatch, "LOW_VOLATILITY")
+    assert DayTradeVote(regime_switch="s2").signal(h).entry == 0  # s2 fades only RANGE
+    assert s1.signal(h).entry == -1
+    with pytest.raises(ValueError):
+        DayTradeVote(regime_switch="nope")
