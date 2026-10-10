@@ -10,7 +10,7 @@ import { PositionCard } from "./position-card"
 import { VotesCard } from "./votes-card"
 import { EquityCard } from "./equity-card"
 import { SafetyCard } from "./safety-card"
-import { ClockPage } from "./clock-page"
+import HeroDock from "@/components/ui/dock"
 import { CalendarPage } from "./calendar-page"
 import { cn } from "@/lib/utils"
 import { ActivityTabs } from "./activity-tabs"
@@ -22,7 +22,7 @@ export function Dashboard() {
   const { data: config } = useTraderConfig()
   const [selected, setSelected] = useState<string>()
   const [refreshSec, setRefreshSec] = useState(10)
-  const [page, setPage] = useState<1 | 2 | 3>(1) // 1 = clock (main page), 2 = daily calendar, 3 = the full dashboard
+  const [page, setPage] = useState<1 | 2 | 3>(1) // 1 = dock (main page), 2 = daily calendar, 3 = the full dashboard
   // Remember the symbol and refresh interval in this browser (unavailable storage just means no memory).
   useEffect(() => {
     try {
@@ -71,11 +71,11 @@ export function Dashboard() {
               onClick={() => setPage(n)}
               className={cn("rounded px-3 py-1.5 text-sm", page === n ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
             >
-              {n === 1 ? "1 시계" : n === 2 ? "2 캘린더" : "3 대시보드"}
+              {n === 1 ? "1 메인" : n === 2 ? "2 캘린더" : "3 대시보드"}
             </button>
           ))}
         </div>
-        {page === 1 && <ClockPage />}
+        {page === 1 && <HeroDock />}
         {page !== 1 && !snapshot && <LoadingSkeleton />}
         {page !== 1 && snapshot && (
           <>

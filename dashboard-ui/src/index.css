@@ -193,8 +193,3 @@ h1 { font-size: 2.125rem; line-height: 1.1; letter-spacing: -.03em; font-weight:
 .callegend .sw.picked { outline: 2px solid #e0a030; }
 .calfound { border: 1px solid var(--line); padding: 8px 12px; margin-bottom: 10px; }
 .calhead input[type=date] { background: var(--panel); color: var(--text); border: 1px solid var(--line); padding: 2px 6px; }
-
-/* the flip-disk clock always uses its dark look (components use dark: classes) */
-@custom-variant dark (&:is(.dark *));
-.clockpage { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; background: #050505; border: 1px solid var(--line); padding: 24px 12px; }
-.clocklabel { color: #E5FD52; opacity: 0.7; letter-spacing: 0.4em; font-size: 0.75rem; }
