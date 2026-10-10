@@ -68,6 +68,7 @@ export interface Position {
   unrealized_pnl: number | null
   notional?: number | null
   leverage?: number | null
+  effective_leverage?: number | null
   margin?: number | null
 }
 

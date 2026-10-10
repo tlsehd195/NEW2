@@ -20,7 +20,7 @@ export interface Snapshot {
   position: {
     direction: "long" | "short"; state: string; quantity: number; entry_price: number | null;
     stop_price: number | null; strategy: string; entry_time: string | null; unrealized_pnl: number | null;
-    notional?: number | null; leverage?: number | null; margin?: number | null;
+    notional?: number | null; leverage?: number | null; effective_leverage?: number | null; margin?: number | null;
   } | null;
   daily?: { date: string; pnl: number; trades: number; wins: number; return_pct: number | null }[];
   equity_curve?: { time: string; pnl: number }[];
