@@ -1769,5 +1769,81 @@
     "risk_profile": "default",
     "hypothesis_id": null,
     "notes": "Role-distinct panel P7 (ADR-0070): bollinger_b+obv_slope+tod_seasonal+ac_dir+rv_ratio, max pairwise |corr| <= 0.5 on BTC and ETH; screening only, not pre-registered"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_rss1_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "regime_switch": "s1"
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0079 regime-conditioned momentum/reversal switch (screening only)"
+  },
+  {
+    "strategy_id": "daytrade_indicator_vote_h48_c0.6_rss2_v1",
+    "name": "DayTradeVote",
+    "family": "daytrade",
+    "timeframes": [
+      "15m"
+    ],
+    "markets": [
+      "BTCUSDT",
+      "ETHUSDT"
+    ],
+    "version": "1",
+    "warmup": 1189,
+    "parameters": {
+      "horizon": 48,
+      "fit_lookback": 1000,
+      "enter_confidence": 0.6,
+      "exit_confidence": 0.52,
+      "min_agree": 0.6,
+      "stop_atr": 2.5,
+      "atr_period": 14,
+      "allow_short": true,
+      "use_side_data": false,
+      "vol_gate_hi": 2.0,
+      "vol_gate_lo": 0.5,
+      "score_scale": 0.1,
+      "vol_short": 96,
+      "vol_long": 960,
+      "bars_per_day": 96,
+      "max_hold_bars": 48,
+      "max_entries_per_day": 100,
+      "quality_window_bars": 192,
+      "regime_switch": "s2"
+    },
+    "risk_profile": "default",
+    "hypothesis_id": null,
+    "notes": "ADR-0079 regime-conditioned momentum/reversal switch (screening only)"
   }
 ]

@@ -32,6 +32,14 @@ from cointrader.strategies.base import MarketContext, Signal, flat
 
 SIDE_PANEL = ("funding_crowding", "oi_confirm")
 _REGIME = RegimeConfig()
+# Regime switch for screening (ADR-0079). "follow" = trade the vote as is (momentum), "fade" = trade its mirror
+# image (reversal), "flat" = no new entry. Fixed before any result; regimes come from `classify_regime` unchanged.
+REGIME_SWITCHES = {
+    "s1": {"TREND_UP": "follow", "TREND_DOWN": "follow", "RANGE": "fade", "LOW_VOLATILITY": "fade",
+           "HIGH_VOLATILITY": "flat", "UNDEFINED": "flat"},
+    "s2": {"TREND_UP": "follow", "TREND_DOWN": "follow", "RANGE": "fade", "LOW_VOLATILITY": "flat",
+           "HIGH_VOLATILITY": "flat", "UNDEFINED": "flat"},
+}
 
 
 @dataclass(frozen=True)
@@ -63,6 +71,8 @@ class IndicatorVote:
     # Panel variants for screening (ADR-0070): candidate votes added to / default votes dropped from the panel.
     extra_panel: tuple = ()
     drop_panel: tuple = ()
+    # Regime-conditioned momentum/reversal switch over the unchanged vote (ADR-0079); "" = off.
+    regime_switch: str = ""
     # Injected after construction; never part of id/equality/repr.
     side: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
     _cache: dict = field(default_factory=dict, compare=False, repr=False, hash=False)
@@ -72,6 +82,8 @@ class IndicatorVote:
         object.__setattr__(self, "drop_panel", tuple(self.drop_panel))
         if set(self.extra_panel) - set(ALL_FEATURES) or set(self.drop_panel) - set(DEFAULT_PANEL):
             raise ValueError("extra_panel must name candidate features, drop_panel default indicators")
+        if self.regime_switch and self.regime_switch not in REGIME_SWITCHES:
+            raise ValueError(f"regime_switch must be one of {sorted(REGIME_SWITCHES)} or empty")
         if len(self.drop_panel) >= len(DEFAULT_PANEL):
             raise ValueError("drop_panel cannot remove every default indicator")
         if not 0.5 < self.exit_confidence < self.enter_confidence < 1.0:
@@ -102,7 +114,8 @@ class IndicatorVote:
         hold_default = type(self).__dataclass_fields__["max_hold_bars"].default
         hold = f"_m{self.max_hold_bars}" if self.max_hold_bars != hold_default else ""
         panel = ("_x" + "+".join(self.extra_panel) if self.extra_panel else "") + ("_d" + "+".join(self.drop_panel) if self.drop_panel else "")
-        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{stop}{hold}{trail}{panel}_v{self.version}"
+        rs = f"_rs{self.regime_switch}" if self.regime_switch else ""
+        return f"{self.family}_indicator_vote{side}_h{self.horizon}_c{self.enter_confidence:g}{stop}{hold}{trail}{panel}{rs}_v{self.version}"
 
     @property
     def warmup(self) -> int:
@@ -120,10 +133,11 @@ class IndicatorVote:
                  "bars_per_day": self.bars_per_day, "max_hold_bars": self.max_hold_bars,
                  "max_entries_per_day": self.max_entries_per_day, "quality_window_bars": self.quality_window_bars,
                  "trail_atr": self.trail_atr, "trail_activate_atr": self.trail_activate_atr,
-                 "extra_panel": list(self.extra_panel), "drop_panel": list(self.drop_panel)}
+                 "extra_panel": list(self.extra_panel), "drop_panel": list(self.drop_panel),
+                 "regime_switch": self.regime_switch}
         defaults = {"score_scale": 1.0, "vol_short": 10, "vol_long": 60, "bars_per_day": 1, "max_hold_bars": None,
                     "max_entries_per_day": None, "quality_window_bars": None, "trail_atr": None,
-                    "trail_activate_atr": None, "extra_panel": [], "drop_panel": []}
+                    "trail_activate_atr": None, "extra_panel": [], "drop_panel": [], "regime_switch": ""}
         params.update({k: v for k, v in extra.items() if v != defaults[k]})
         return params
 
@@ -223,12 +237,21 @@ class IndicatorVote:
         activate = self.trail_activate_atr * atr if self.trail_activate_atr is not None else None
         common = dict(stop_distance=self.stop_atr * atr, trailing_distance=trail, trailing_activation=activate,
                       features=feats, exit_long=exit_long, exit_short=exit_short, regime=regime)
+        p_long, agree_long, agree_short = v.p_long, v.agree_long, v.agree_short
+        if self.regime_switch:
+            mode = REGIME_SWITCHES[self.regime_switch].get(regime, "flat")
+            if mode == "flat":  # no new entry; open positions leave through stop / time stop / exchange stop
+                return Signal(0, False, False, 0.0, "regime_switch_flat", regime=regime, features=feats)
+            if mode == "fade":  # trade the mirror image of the vote
+                p_long, agree_long, agree_short = 1.0 - p_long, agree_short, agree_long
+            exit_long, exit_short = p_long < self.exit_confidence, p_long > 1 - self.exit_confidence
+            common.update(exit_long=exit_long, exit_short=exit_short)
         strength = min(1.0, (v.confidence - 0.5) * 4)
         gated = not (self.vol_gate_lo <= ratio <= self.vol_gate_hi)
         if gated:
             return Signal(0, exit_long, exit_short, 0.0, "vol_gate_blocks_entry", regime=regime, features=feats)
-        if v.p_long >= self.enter_confidence and v.agree_long / total >= self.min_agree:
+        if p_long >= self.enter_confidence and agree_long / total >= self.min_agree:
             return Signal(1, strength=strength, reason="vote_long", **common)
-        if self.allow_short and v.p_long <= 1 - self.enter_confidence and v.agree_short / total >= self.min_agree:
+        if self.allow_short and p_long <= 1 - self.enter_confidence and agree_short / total >= self.min_agree:
             return Signal(-1, strength=strength, reason="vote_short", **common)
         return Signal(0, exit_long, exit_short, 0.0, "vote_no_entry", regime=regime, features=feats)
