@@ -61,6 +61,34 @@ def popup(title: str, message: str, *, wait: bool = True) -> None:
         pass
 
 
+def _app_browser() -> str | None:
+    """Edge first (ships with Windows), then Chrome; None means fall back to the default browser."""
+    candidates = []
+    for var in ("PROGRAMFILES(X86)", "PROGRAMFILES", "LOCALAPPDATA"):
+        base = os.environ.get(var)
+        if base:
+            candidates += [Path(base) / "Microsoft/Edge/Application/msedge.exe",
+                           Path(base) / "Google/Chrome/Application/chrome.exe"]
+    candidates.sort(key=lambda p: "msedge" not in p.name)  # stable: Edge before Chrome
+    for path in candidates:
+        if path.exists():
+            return str(path)
+    return shutil.which("msedge") or shutil.which("google-chrome") or shutil.which("chrome")
+
+
+def open_window() -> None:
+    """Own window without address bar or tabs (browser app mode); closing it leaves the trader running."""
+    exe = _app_browser()
+    if exe:
+        try:
+            subprocess.Popen([exe, f"--app={PAGE_URL}", "--window-size=1280,860"])
+            log(f"opened app window with {exe}")
+            return
+        except OSError as exc:
+            log(f"app window failed ({exc}); using default browser")
+    webbrowser.open(PAGE_URL)
+
+
 def port_open(port: int) -> bool:
     try:
         with socket.create_connection(("127.0.0.1", port), timeout=1):
@@ -136,7 +164,7 @@ def start() -> int:
     state_dir = ROOT / cfg["state_dir"]
     if paper_running(state_dir) and port_open(DATA_PORT) and port_open(PAGE_PORT):
         log("start: already running, only opening the browser")
-        webbrowser.open(PAGE_URL)
+        open_window()
         return 0
 
     node = shutil.which("node")
@@ -182,7 +210,7 @@ def start() -> int:
     if not port_open(PAGE_PORT):
         popup("NEW2", f"화면이 켜지지 않았어요.\n자세한 내용: {LOGS / 'page.log'}")
         return 1
-    webbrowser.open(PAGE_URL)
+    open_window()
     return 0
 
 
