@@ -11,6 +11,7 @@ import { bollingerSeries, donchianSeries, emaSeries, obvSeries, rocSeries, rsiSe
 import { PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
 import { equityPoints, type EquityUnit } from "./equity";
 import { CalendarPage } from "./Calendar";
+import { ClockPage } from "./ClockPage";
 import { SettingsPanel } from "./SettingsPanel";
 import { clampInt, useSettings, type PanelId, type Settings } from "./settings";
 import type { Snapshot } from "./types";
@@ -167,7 +168,7 @@ export default function App() {
   const [asOf, setAsOf] = useState("불러오는 중…");
   const [s, update, reset] = useSettings();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [page, setPage] = useState<1 | 2>(1); // 1 = daily calendar, 2 = the full dashboard
+  const [page, setPage] = useState<1 | 2 | 3>(1); // 1 = clock (main page), 2 = daily calendar, 3 = the full dashboard
   const [side, setSide] = useState<"all" | "long" | "short">("all");
   const home: View = { count: clampInt(s.startBars, 20, 1000), endTime: null };
   const [view, setView] = useState<View>(home);
@@ -380,13 +381,15 @@ export default function App() {
       <h1>모의투자 대시보드<span className="badge">읽기 전용 · 실제 돈 아님</span></h1>
       <div className="mono">{asOf}</div>
       <div className="tabs" role="tablist" aria-label="페이지">
-        <button className={page === 1 ? "on" : ""} onClick={() => setPage(1)}>1 캘린더</button>
-        <button className={page === 2 ? "on" : ""} onClick={() => setPage(2)}>2 대시보드</button>
+        <button className={page === 1 ? "on" : ""} onClick={() => setPage(1)}>1 시계</button>
+        <button className={page === 2 ? "on" : ""} onClick={() => setPage(2)}>2 캘린더</button>
+        <button className={page === 3 ? "on" : ""} onClick={() => setPage(3)}>3 대시보드</button>
         <button className="gear" style={{ marginLeft: "auto" }} onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
       </div>
       <div className="err">{err}</div>
-      {page === 1 && <CalendarPage d={d} />}
-      {page === 2 && <>
+      {page === 1 && <ClockPage />}
+      {page === 2 && <CalendarPage d={d} />}
+      {page === 3 && <>
       <div className="tabs">
         {symbols.map((sy) => (
           <button key={sy} className={sy === sym ? "on" : ""} onClick={() => { setSym(sy); location.hash = sy; setD(null); setView(home); }}>{sy}</button>
