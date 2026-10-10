@@ -43,10 +43,12 @@ def analyse(candles, w, zw, funding):
     flow = [None] * n
     for i in range(w - 1, n):
         v = cv[i + 1] - cv[i + 1 - w]
-        flow[i] = (2 * (pre[i + 1] - pre[i + 1 - w]) - v) / v
+        flow[i] = (2 * (pre[i + 1] - pre[i + 1 - w]) - v) / v if v > 0 and all(c.volume > 0 for c in candles[i + 1 - w:i + 1]) else None
     rows = []
     for t in range(zw + w, n - w, w):
         win = flow[t + 1 - zw:t + 1]
+        if any(f is None for f in win) or any(c.volume <= 0 for c in candles[t - 47:t + 1]):
+            continue  # a zero-volume bar (exchange maintenance) inside the window: skipped, like FlowVote's fail-closed
         m = math.fsum(win) / zw
         sd = math.sqrt(math.fsum((f - m) ** 2 for f in win) / (zw - 1))
         z = (flow[t] - m) / sd
