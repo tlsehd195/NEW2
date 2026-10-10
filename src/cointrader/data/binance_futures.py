@@ -74,6 +74,7 @@ def parse_klines(payload: list[list], symbol: str, timeframe: Timeframe, receive
             volume=float(row[5]),
             source=SOURCE,
             received_at=received_at,
+            taker_buy_volume=float(row[9]) if len(row) > 9 else None,
         ))
     candles.sort(key=lambda c: c.open_time)
     return candles

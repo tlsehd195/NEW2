@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Optional
 
 from cointrader.strategies.daytrade import DayTradeVote
+from cointrader.strategies.flow_vote import FlowVote
 from cointrader.strategies.indicator_vote import IndicatorVote
 from cointrader.strategies.scalp import MicrostructureMomentum, RangeBreakoutVolume, ShortTermMeanReversion, VwapReversion
 from cointrader.strategies.swing import (
@@ -45,6 +46,7 @@ FACTORIES = {
     "MicrostructureMomentum": MicrostructureMomentum,
     "IndicatorVote": IndicatorVote,
     "DayTradeVote": DayTradeVote,
+    "FlowVote": FlowVote,
 }
 
 FAMILIES = ("swing", "scalp", "daytrade")

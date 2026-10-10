@@ -13,6 +13,7 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import Optional
 
 from cointrader._time import require_aware
 
@@ -58,6 +59,8 @@ class Candle:
     volume: float
     source: str
     received_at: datetime
+    # Base-asset volume bought by aggressive (taker) orders in this bar; None when the source does not give it.
+    taker_buy_volume: Optional[float] = None
 
     def __post_init__(self) -> None:
         require_aware("Candle.open_time", self.open_time)
@@ -69,6 +72,8 @@ class Candle:
         for name in ("open", "high", "low", "close", "volume"):
             if not math.isfinite(getattr(self, name)):
                 raise ValueError(f"Candle.{name} must be finite")
+        if self.taker_buy_volume is not None and not 0.0 <= self.taker_buy_volume <= self.volume * (1 + 1e-9) + 1e-12:
+            raise ValueError("Candle.taker_buy_volume must be within [0, volume]")
 
     @property
     def close_time(self) -> datetime:

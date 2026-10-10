@@ -200,6 +200,7 @@ def _kline_row_to_candle(
         volume=float(row["volume"]),
         source=source,
         received_at=received_at,
+        taker_buy_volume=float(row["taker_buy_volume"]) if row.get("taker_buy_volume") not in (None, "") else None,
     )
 
 
