@@ -3,7 +3,14 @@
 15분봉 페이퍼 매매의 조회 전용 대시보드. 주문·설정 변경 기능은 없다. 파이썬 대시보드 서버(`scripts/run_dashboard.py`)의
 `/api/config`, `/api/snapshot`을 읽는다. `dashboard-ui/`(파이썬만으로 실행되는 판)와는 별개다.
 
-## Windows에서 더블클릭으로 켜기
+## Windows에서 창 없이 켜기 (권장)
+
+`start-new2.vbs`를 더블클릭하면 검은 창 없이 모두 뒤에서 켜지고 브라우저가 열린다(처음 한 번은 설치에 몇 분, 안내창이 뜬다).
+끄려면 `stop-new2.vbs`(모의투자가 상태를 저장하고 꺼진다). 돌고 있는지는 `status-new2.bat`이나 대시보드로 확인한다.
+기록은 `var/logs/`에 있다. 아래 `start-dashboard-next.bat`은 창에서 오류를 직접 보고 싶을 때 쓴다(창 3개:
+모의투자, 자료 서버, 화면 서버. 옛 화면은 <http://127.0.0.1:8765>에서 같이 볼 수 있다).
+
+## Windows에서 더블클릭으로 켜기 (창이 보이는 판)
 
 1. 파이썬(<https://www.python.org/downloads/>, 설치 때 "Add python.exe to PATH" 체크)과 Node.js LTS(<https://nodejs.org/>)를 설치한다(한 번만).
 2. 저장소 맨 위의 `start-dashboard-next.bat`을 더블클릭한다. 처음에는 패키지 설치와 빌드로 몇 분 걸린다.
