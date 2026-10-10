@@ -11,7 +11,7 @@ import { bollingerSeries, donchianSeries, emaSeries, obvSeries, rocSeries, rsiSe
 import { PLOT_LEFT, PLOT_RIGHT, usePanZoom, windowOf, type View } from "./panzoom";
 import { equityPoints, type EquityUnit } from "./equity";
 import { CalendarPage } from "./Calendar";
-import { DockPage } from "./DockPage";
+import HeroDock from "@/components/dock";
 import { SettingsPanel } from "./SettingsPanel";
 import { clampInt, useSettings, type PanelId, type Settings } from "./settings";
 import type { Snapshot } from "./types";
@@ -387,7 +387,7 @@ export default function App() {
         <button className="gear" style={{ marginLeft: "auto" }} onClick={() => setSettingsOpen(true)}>⚙ 설정</button>
       </div>
       <div className="err">{err}</div>
-      {page === 1 && <DockPage onCalendar={() => setPage(2)} onDashboard={() => setPage(3)} onSettings={() => setSettingsOpen(true)} />}
+      {page === 1 && <HeroDock />}
       {page === 2 && <CalendarPage d={d} />}
       {page === 3 && <>
       <div className="tabs">

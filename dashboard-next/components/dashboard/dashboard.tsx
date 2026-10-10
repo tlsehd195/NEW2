@@ -10,7 +10,7 @@ import { PositionCard } from "./position-card"
 import { VotesCard } from "./votes-card"
 import { EquityCard } from "./equity-card"
 import { SafetyCard } from "./safety-card"
-import { DockPage } from "./dock-page"
+import HeroDock from "@/components/ui/dock"
 import { CalendarPage } from "./calendar-page"
 import { cn } from "@/lib/utils"
 import { ActivityTabs } from "./activity-tabs"
@@ -75,7 +75,7 @@ export function Dashboard() {
             </button>
           ))}
         </div>
-        {page === 1 && <DockPage onGo={setPage} />}
+        {page === 1 && <HeroDock />}
         {page !== 1 && !snapshot && <LoadingSkeleton />}
         {page !== 1 && snapshot && (
           <>
