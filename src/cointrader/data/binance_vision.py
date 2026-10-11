@@ -65,6 +65,12 @@ FUNDING_COLUMNS = ("calc_time", "funding_interval_hours", "last_funding_rate")
 # published schema and have NOT been verified from this sandbox (the proxy
 # blocks data.binance.vision); `_parse_csv_rows` fails closed on a mismatch.
 METRICS_COLUMNS = ("create_time", "symbol", "sum_open_interest", "sum_open_interest_value")
+# Crowd-positioning ratios in the same daily metrics files (ADR-0080). Header names confirmed on a real 2024-01-15 BTCUSDT
+# file by the research report; whether older files (2021) carry them is checked by the fetcher, which reports a day with
+# a different header as a gap instead of guessing.
+POSITIONING_COLUMNS = (
+    "create_time", "symbol", "count_toptrader_long_short_ratio", "sum_toptrader_long_short_ratio", "count_long_short_ratio",
+)
 # Daily "bookDepth" files (~30 s snapshots): cumulative resting size within +-1..5 % of the mid price. Verified
 # from a real 2023-06-01 BTCUSDT file (ADR-0076): timestamp is "YYYY-MM-DD HH:MM:SS" UTC, negative percentage = bid
 # side, positive = ask side, `depth` is base-asset quantity, `notional` is quote value. Later files write the
@@ -299,6 +305,61 @@ class BinanceVisionOpenInterestHistory:
             points.append(OpenInterestPoint(symbol, _metrics_time(last["create_time"]), float(last["sum_open_interest"])))
         self.last_gaps = tuple(gaps)
         return points
+
+
+@dataclass(frozen=True)
+class PositioningPoint:
+    """One 5-minute crowd-positioning reading (long/short ratios, > 0). Usable only from `as_of` onward."""
+
+    symbol: str
+    as_of: datetime
+    top_count: float  # top traders, by number of accounts
+    top_sum: float  # top traders, by position size
+    all_count: float  # all accounts
+    source: str = SOURCE
+
+
+class BinanceVisionPositioning:
+    """5-minute long/short ratios from the daily `metrics` archive (research only). A missing day, a day whose header
+    lacks the ratio columns, and rows with an empty or non-positive ratio are counted, never filled."""
+
+    def __init__(self, *, transport: Transport = _urllib_transport) -> None:
+        self._transport = transport
+        self.last_gaps: tuple[ArchiveGap, ...] = ()
+        self.skipped_rows = 0
+
+    def fetch(self, symbol: str, start: datetime, end: datetime) -> list[PositioningPoint]:
+        require_aware("start", start)
+        require_aware("end", end)
+        out: list[PositioningPoint] = []
+        gaps: list[ArchiveGap] = []
+        self.skipped_rows = 0
+        for day in _days(start, end):
+            url = f"{BASE_URL}/daily/metrics/{symbol}/{symbol}-metrics-{day:%Y-%m-%d}.zip"
+            body = self._transport(url)
+            if body is None:
+                gaps.append(ArchiveGap(day, f"daily metrics archive missing: {url}"))
+                continue
+            try:
+                rows = _parse_csv_rows(body, POSITIONING_COLUMNS)
+            except ValueError as exc:
+                gaps.append(ArchiveGap(day, f"daily metrics archive schema: {exc}"))
+                continue
+            for row in rows:
+                at = _metrics_time(row["create_time"])
+                if not start <= at < end:
+                    continue
+                try:
+                    vals = [float(row[k]) for k in POSITIONING_COLUMNS[2:]]
+                except (TypeError, ValueError):
+                    self.skipped_rows += 1
+                    continue
+                if any(not math.isfinite(v) or v <= 0 for v in vals):
+                    self.skipped_rows += 1
+                    continue
+                out.append(PositioningPoint(symbol, at, *vals))
+        self.last_gaps = tuple(gaps)
+        return sorted(out, key=lambda p: p.as_of)
 
 
 @dataclass(frozen=True)

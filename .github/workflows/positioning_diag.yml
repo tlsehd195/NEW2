@@ -1,0 +1,31 @@
+name: Positioning ratios Phase A diagnosis (ADR-0080; unlocked ranges only)
+
+on:
+  push:
+    branches: [claude/project-thread-oofp3e]
+    paths: [".github/workflows/positioning_diag.yml", "scripts/diagnose_positioning.py", "src/cointrader/features/positioning.py"]
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -e ".[dev]"
+      # Scoring starts 11 days after --start (960-bar warm-up). The ranges are the lock-free spans before the reserved TEST windows.
+      - name: BTCUSDT era A
+        run: python3 scripts/diagnose_positioning.py --symbol BTCUSDT --start 2021-05-02 --end 2022-08-17 --out reports/pos_btc_a.json > /dev/null
+      - name: BTCUSDT era B
+        run: python3 scripts/diagnose_positioning.py --symbol BTCUSDT --start 2023-04-07 --end 2024-03-25 --out reports/pos_btc_b.json > /dev/null
+      - name: ETHUSDT
+        run: python3 scripts/diagnose_positioning.py --symbol ETHUSDT --start 2024-12-02 --end 2026-04-28 --out reports/pos_eth.json > /dev/null
+      - name: Combined table (Holm over all cells)
+        run: python3 scripts/diagnose_positioning.py --combine reports/pos_btc_a.json reports/pos_btc_b.json reports/pos_eth.json | tee reports/pos_combined.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: positioning-diag
+          path: reports/
